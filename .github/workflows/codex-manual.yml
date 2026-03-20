@@ -1,0 +1,172 @@
+name: codex-implement
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: "Identificador da tarefa no sistema orquestrador"
+        required: true
+        type: string
+      task_prompt:
+        description: "Instrução detalhada para o Codex"
+        required: true
+        type: string
+      base_ref:
+        description: "Branch base"
+        required: true
+        default: "main"
+        type: string
+      component:
+        description: "Escopo funcional afetado"
+        required: false
+        default: "general"
+        type: string
+      risk_level:
+        description: "Nível de risco"
+        required: true
+        default: "medium"
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+      effort:
+        description: "Nível de raciocínio do Codex"
+        required: true
+        default: "medium"
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+
+concurrency:
+  group: codex-${{ inputs.base_ref }}-${{ inputs.component }}
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    name: Implementar alteração com Codex
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    env:
+      TASK_ID: ${{ inputs.task_id }}
+      TASK_PROMPT: ${{ inputs.task_prompt }}
+      BASE_REF: ${{ inputs.base_ref }}
+      COMPONENT: ${{ inputs.component }}
+      RISK_LEVEL: ${{ inputs.risk_level }}
+
+    steps:
+      - name: Checkout da branch base
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.base_ref }}
+          fetch-depth: 0
+
+      - name: Gerar metadados
+        id: meta
+        shell: bash
+        run: |
+          ts="$(date -u +'%Y%m%d-%H%M%S')"
+          safe_component="$(echo "${COMPONENT}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' '-')"
+          branch_name="codex/${safe_component}/${TASK_ID}-${ts}"
+
+          {
+            echo "branch_name=${branch_name}"
+            echo "task_prompt<<EOF"
+            printf '%s\n' "${TASK_PROMPT}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Executar Codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          effort: ${{ inputs.effort }}
+          prompt: |
+            Você está trabalhando no repositório ${{ github.repository }}.
+
+            Contexto da execução:
+            - task_id: ${{ inputs.task_id }}
+            - base_ref: ${{ inputs.base_ref }}
+            - component: ${{ inputs.component }}
+            - risk_level: ${{ inputs.risk_level }}
+
+            Objetivo:
+            Implemente apenas o necessário para atender a solicitação abaixo.
+
+            Regras obrigatórias:
+            - siga o padrão de código já existente;
+            - leia e siga quaisquer instruções em arquivos AGENTS.md do repositório;
+            - prefira diffs mínimos;
+            - não altere dependências, CI/CD, infraestrutura ou segredos sem necessidade explícita;
+            - não altere contratos públicos sem necessidade explícita;
+            - adicione ou ajuste testes se a mudança impactar comportamento;
+            - atualize documentação apenas se necessário para a entrega.
+
+            Antes de finalizar:
+            1. execute validações locais relevantes que conseguir rodar;
+            2. deixe um resumo curto do que foi alterado;
+            3. informe quais testes/validações conseguiu executar.
+
+            Solicitação:
+            ${{ steps.meta.outputs.task_prompt }}
+
+      - name: Verificar se houve alterações
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Criar Pull Request
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          branch: ${{ steps.meta.outputs.branch_name }}
+          base: ${{ inputs.base_ref }}
+          commit-message: "feat(codex): task ${{ inputs.task_id }}"
+          title: "feat(codex): ${{ inputs.task_id }}"
+          body: |
+            ## Contexto
+            - Task ID: `${{ inputs.task_id }}`
+            - Base: `${{ inputs.base_ref }}`
+            - Component: `${{ inputs.component }}`
+            - Risk level: `${{ inputs.risk_level }}`
+            - Actor: `@${{ github.actor }}`
+
+            ## Solicitação enviada ao Codex
+            ```
+            ${{ inputs.task_prompt }}
+            ```
+
+            ## Execução
+            - Workflow: `${{ github.workflow }}`
+            - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            ## Checklist de revisão
+            - [ ] Escopo atendido
+            - [ ] Sem mudanças fora do necessário
+            - [ ] Testes/checks revisados
+            - [ ] Aprovado para merge
+          labels: |
+            ai
+            codex
+            implementation
+            risk:${{ inputs.risk_level }}
+          draft: true
+          delete-branch: true
+
+      - name: Falhar quando não houver alterações
+        if: steps.changes.outputs.has_changes != 'true'
+        run: |
+          echo "O Codex não gerou alterações no repositório."
+          exit 1
