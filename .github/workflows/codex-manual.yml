@@ -1,0 +1,104 @@
+name: Codex Manual Implementation
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: >-
+          Instrução para o Codex implementar no repositório.
+        required: true
+        type: string
+      base_ref:
+        description: Branch ou tag base para iniciar a implementação.
+        required: false
+        default: main
+        type: string
+      model:
+        description: Modelo opcional para a execução do Codex.
+        required: false
+        default: ''
+        type: string
+      effort:
+        description: Nível opcional de raciocínio (low, medium ou high).
+        required: false
+        default: medium
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+
+jobs:
+  codex-implementation:
+    name: Executar implementação com Codex
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout da base selecionada
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.base_ref }}
+          fetch-depth: 0
+
+      - name: Preparar metadados da execução
+        id: metadata
+        env:
+          TASK_INPUT: ${{ inputs.task }}
+          BASE_REF_INPUT: ${{ inputs.base_ref }}
+        run: |
+          timestamp="$(date -u +'%Y%m%d-%H%M%S')"
+          branch_name="codex/manual-${timestamp}"
+
+          {
+            echo "branch_name=${branch_name}"
+            echo "task<<EOF"
+            printf '%s\n' "$TASK_INPUT"
+            echo "EOF"
+            echo "base_ref=${BASE_REF_INPUT}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Criar branch de trabalho do Codex
+        run: |
+          git checkout -b "${{ steps.metadata.outputs.branch_name }}"
+
+      - name: Executar Codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          model: ${{ inputs.model }}
+          effort: ${{ inputs.effort }}
+          prompt: |
+            Você está trabalhando no repositório ${{ github.repository }}.
+            Crie a implementação solicitada pelo usuário, alterando apenas o necessário.
+            Ao terminar:
+            1. execute testes ou validações relevantes que conseguir rodar;
+            2. atualize arquivos/documentação somente se isso for necessário para a entrega;
+            3. finalize com um resumo curto do que foi feito e dos testes executados.
+
+            Solicitação:
+            ${{ steps.metadata.outputs.task }}
+
+      - name: Criar Pull Request com as alterações
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          commit-message: "feat: implementação manual via codex"
+          branch: ${{ steps.metadata.outputs.branch_name }}
+          base: ${{ steps.metadata.outputs.base_ref }}
+          title: "feat: implementação manual via Codex"
+          body: |
+            ## Resumo
+            - Execução manual do workflow `${{ github.workflow }}`.
+            - Solicitação enviada ao Codex:
+              ```
+              ${{ steps.metadata.outputs.task }}
+              ```
+
+            ## Observações
+            - Workflow disparado por: @${{ github.actor }}
+            - Ref base: `${{ steps.metadata.outputs.base_ref }}`
+            - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          draft: false
+          delete-branch: true
