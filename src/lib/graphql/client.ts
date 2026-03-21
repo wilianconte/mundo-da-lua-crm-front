@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { clearAuthSession, getValidToken } from "@/lib/auth/session";
 
 const GRAPHQL_ENDPOINT = "/api/graphql";
@@ -26,6 +27,11 @@ export class GraphQLRequestError extends Error {
     super(message);
     this.name = "GraphQLRequestError";
   }
+}
+
+function getOperationName(query: string): string | undefined {
+  const match = query.match(/\b(query|mutation)\s+([A-Za-z0-9_]+)/);
+  return match?.[2];
 }
 
 function isUnauthorizedError(error: GraphQLError): boolean {
@@ -80,10 +86,29 @@ export async function gqlRequest<TData, TVariables extends Record<string, unknow
     }
 
     const firstError = json.errors[0];
+    Sentry.captureException(new Error(firstError.message), {
+      tags: {
+        area: "graphql",
+        operation: getOperationName(query) ?? "unknown",
+        code: firstError.extensions?.code ?? "unknown"
+      },
+      extra: {
+        status: response.status
+      }
+    });
     throw new GraphQLRequestError(firstError.message, firstError.extensions?.code);
   }
 
   if (!response.ok || !json.data) {
+    Sentry.captureException(new Error("GraphQL response without data"), {
+      tags: {
+        area: "graphql",
+        operation: getOperationName(query) ?? "unknown"
+      },
+      extra: {
+        status: response.status
+      }
+    });
     throw new GraphQLRequestError("Nao foi possivel concluir a requisicao.");
   }
 

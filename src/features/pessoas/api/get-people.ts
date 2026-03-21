@@ -27,15 +27,9 @@ const GET_PEOPLE_QUERY = `
       nodes {
         id
         fullName
-        preferredName
         documentNumber
-        email
         primaryPhone
-        whatsAppNumber
         status
-        birthDate
-        gender
-        occupation
         createdAt
       }
     }
@@ -47,15 +41,9 @@ export type PersonStatus = "ACTIVE" | "INACTIVE" | "BLOCKED";
 export type PersonNode = {
   id: string;
   fullName: string;
-  preferredName?: string | null;
   documentNumber?: string | null;
-  email?: string | null;
   primaryPhone?: string | null;
-  whatsAppNumber?: string | null;
   status: PersonStatus;
-  birthDate?: string | null;
-  gender?: string | null;
-  occupation?: string | null;
   createdAt: string;
 };
 

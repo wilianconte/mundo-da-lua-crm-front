@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   getPeople,
@@ -21,7 +20,7 @@ type FieldType = "text" | "category";
 type TextOperator = "contains" | "equals" | "startsWith";
 type CategoryOperator = "equals" | "notEquals";
 type FilterOperator = TextOperator | CategoryOperator;
-type SortableColumn = "id" | "fullName" | "documentNumber" | "primaryPhone" | "status" | "createdAt";
+type SortableColumn = "fullName" | "documentNumber" | "primaryPhone" | "status" | "createdAt";
 type SortDirection = "asc" | "desc";
 
 type FilterField = {
@@ -37,7 +36,7 @@ type FilterChip = {
   value: string;
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 8;
 
 const filterFields: FilterField[] = [
   { key: "fullName", label: "Nome", type: "text" },
@@ -88,7 +87,6 @@ function toDateTime(value?: string | null) {
 }
 
 function mapSortColumn(column: SortableColumn) {
-  if (column === "id") return "id";
   if (column === "fullName") return "fullName";
   if (column === "documentNumber") return "documentNumber";
   if (column === "primaryPhone") return "primaryPhone";
@@ -320,15 +318,8 @@ export function PersonSearchView() {
         </p>
       </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Listagem de pessoas</CardTitle>
-          <CardDescription>
-            Digite @ para escolher um atributo de filtro ou use busca livre.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="space-y-3">
+      <section className="space-y-5">
+        <div className="space-y-3">
             {selectedField ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="attention">{selectedField.label}</Badge>
@@ -411,177 +402,168 @@ export function PersonSearchView() {
                 Finalize filtros com Enter/Tab para gerar chips.
               </p>
             </div>
-          </div>
+        </div>
 
-          {chips.length ? (
-            <div className="flex flex-wrap gap-2">
-              {chips.map((chip) => {
-                const operatorLabel =
-                  [...textOperators, ...categoryOperators].find(
-                    (operator) => operator.key === chip.operator
-                  )?.label ?? chip.operator;
+        {chips.length ? (
+          <div className="flex flex-wrap gap-2">
+            {chips.map((chip) => {
+              const operatorLabel =
+                [...textOperators, ...categoryOperators].find(
+                  (operator) => operator.key === chip.operator
+                )?.label ?? chip.operator;
 
-                return (
-                  <span
-                    className="inline-flex items-center gap-2 rounded-full bg-[var(--color-surface-muted)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]"
-                    key={chip.id}
+              return (
+                <span
+                  className="inline-flex items-center gap-2 rounded-full bg-[var(--color-surface-muted)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]"
+                  key={chip.id}
+                >
+                  {chip.field.label} {operatorLabel} {chip.value}
+                  <button
+                    aria-label={`Remover filtro ${chip.field.label}`}
+                    className="inline-flex size-4 items-center justify-center rounded-full text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-border)] hover:text-[var(--color-foreground)]"
+                    onClick={() => removeChip(chip.id)}
+                    type="button"
                   >
-                    {chip.field.label} {operatorLabel} {chip.value}
-                    <button
-                      aria-label={`Remover filtro ${chip.field.label}`}
-                      className="inline-flex size-4 items-center justify-center rounded-full text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-border)] hover:text-[var(--color-foreground)]"
-                      onClick={() => removeChip(chip.id)}
-                      type="button"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </span>
-                );
-              })}
-            </div>
-          ) : null}
+                    <X className="size-3" />
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        ) : null}
 
-          {errorMessage ? (
-            <p className="text-sm font-medium text-[var(--color-danger-strong)]">{errorMessage}</p>
-          ) : null}
+        {errorMessage ? (
+          <p className="text-sm font-medium text-[var(--color-danger-strong)]">{errorMessage}</p>
+        ) : null}
 
-          <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
-            <table className="w-full min-w-[880px] border-collapse text-sm">
-              <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">
-                    <button
-                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                      onClick={() => toggleSort("id")}
-                      type="button"
-                    >
-                      Codigo
-                      {renderSortIcon("id")}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-semibold">
-                    <button
-                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                      onClick={() => toggleSort("fullName")}
-                      type="button"
-                    >
-                      Nome
-                      {renderSortIcon("fullName")}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-semibold">
-                    <button
-                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                      onClick={() => toggleSort("documentNumber")}
-                      type="button"
-                    >
-                      Documento
-                      {renderSortIcon("documentNumber")}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-semibold">
-                    <button
-                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                      onClick={() => toggleSort("primaryPhone")}
-                      type="button"
-                    >
-                      Telefone
-                      {renderSortIcon("primaryPhone")}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-semibold">
-                    <button
-                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                      onClick={() => toggleSort("status")}
-                      type="button"
-                    >
-                      Status
-                      {renderSortIcon("status")}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-semibold">
-                    <button
-                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                      onClick={() => toggleSort("createdAt")}
-                      type="button"
-                    >
-                      Criado em
-                      {renderSortIcon("createdAt")}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 font-semibold">Acao</th>
+        <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
+          <table className="w-full min-w-[880px] border-collapse text-sm">
+            <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
+              <tr>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("fullName")}
+                    type="button"
+                  >
+                    Nome
+                    {renderSortIcon("fullName")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("documentNumber")}
+                    type="button"
+                  >
+                    Documento
+                    {renderSortIcon("documentNumber")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("primaryPhone")}
+                    type="button"
+                  >
+                    Telefone
+                    {renderSortIcon("primaryPhone")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("status")}
+                    type="button"
+                  >
+                    Status
+                    {renderSortIcon("status")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("createdAt")}
+                    type="button"
+                  >
+                    Criado em
+                    {renderSortIcon("createdAt")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">Acao</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr className="border-t border-[var(--color-border)]">
+                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={6}>
+                    Carregando pessoas...
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr className="border-t border-[var(--color-border)]">
-                    <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={7}>
-                      Carregando pessoas...
+              ) : rows.length ? (
+                rows.map((person) => (
+                  <tr
+                    className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
+                    key={person.id}
+                  >
+                    <td className="px-4 py-3">{person.fullName}</td>
+                    <td className="px-4 py-3">{person.documentNumber ?? "-"}</td>
+                    <td className="px-4 py-3">{person.primaryPhone ?? "-"}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={person.status === "ACTIVE" ? "success" : "attention"}>
+                        {toStatusLabel(person.status)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">{toDateTime(person.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      <Button size="sm" variant="outline">
+                        Abrir ficha
+                      </Button>
                     </td>
                   </tr>
-                ) : rows.length ? (
-                  rows.map((person) => (
-                    <tr className="border-t border-[var(--color-border)]" key={person.id}>
-                      <td className="px-4 py-3 font-medium">{person.id}</td>
-                      <td className="px-4 py-3">{person.fullName}</td>
-                      <td className="px-4 py-3">{person.documentNumber ?? "-"}</td>
-                      <td className="px-4 py-3">{person.primaryPhone ?? "-"}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={person.status === "ACTIVE" ? "success" : "attention"}>
-                          {toStatusLabel(person.status)}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">{toDateTime(person.createdAt)}</td>
-                      <td className="px-4 py-3">
-                        <Button size="sm" variant="outline">
-                          Abrir ficha
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr className="border-t border-[var(--color-border)]">
-                    <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={7}>
-                      Nenhuma pessoa encontrada com os filtros atuais.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                ))
+              ) : (
+                <tr className="border-t border-[var(--color-border)]">
+                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={6}>
+                    Nenhuma pessoa encontrada com os filtros atuais.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            {totalCount} pessoas encontradas com os filtros atuais.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              disabled={isLoading || !hasPreviousPage || !pageStartCursor}
+              onClick={() => {
+                setCursorMode("backward");
+                setRequestAfter(null);
+                setRequestBefore(pageStartCursor);
+              }}
+              size="sm"
+              variant="outline"
+            >
+              Anterior
+            </Button>
+            <Button
+              disabled={isLoading || !hasNextPage || !pageEndCursor}
+              onClick={() => {
+                setCursorMode("forward");
+                setRequestBefore(null);
+                setRequestAfter(pageEndCursor);
+              }}
+              size="sm"
+              variant="outline"
+            >
+              Proxima
+            </Button>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              {totalCount} pessoas encontradas com os filtros atuais.
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                disabled={isLoading || !hasPreviousPage || !pageStartCursor}
-                onClick={() => {
-                  setCursorMode("backward");
-                  setRequestAfter(null);
-                  setRequestBefore(pageStartCursor);
-                }}
-                size="sm"
-                variant="outline"
-              >
-                Anterior
-              </Button>
-              <Button
-                disabled={isLoading || !hasNextPage || !pageEndCursor}
-                onClick={() => {
-                  setCursorMode("forward");
-                  setRequestBefore(null);
-                  setRequestAfter(pageEndCursor);
-                }}
-                size="sm"
-                variant="outline"
-              >
-                Proxima
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }
