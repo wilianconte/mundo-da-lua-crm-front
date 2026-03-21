@@ -42,7 +42,7 @@ export const navigationItems: NavItem[] = [
     label: "Cadastros",
     icon: Building2,
     children: [
-      { label: "Pessoas", href: "/clientes/pesquisa", showPlus: true },
+      { label: "Pessoas", href: "/pessoas/pesquisa", showPlus: true },
       { label: "Empresas", href: "/components", showPlus: true },
       { label: "Responsaveis", href: "/components", showPlus: true },
       { label: "Alunos / Pacientes", href: "/clientes/cadastro", showPlus: true },
