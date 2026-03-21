@@ -17,9 +17,11 @@ import {
   X
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { MobileSidebarTrigger, SidebarNav } from "@/components/layout/sidebar-nav";
+import { clearAuthSession, getAuthUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
 
 type AdminShellProps = {
@@ -27,17 +29,36 @@ type AdminShellProps = {
 };
 
 export function AdminShell({ children }: AdminShellProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarHoverExpanded, setIsSidebarHoverExpanded] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isDarkModeEnabled, setIsDarkModeEnabled] = useState(false);
+  const [profileName, setProfileName] = useState("Operador");
+  const [profileEmail, setProfileEmail] = useState("operador@mundodalua.com");
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const isSidebarCompactForRender = isSidebarCollapsed && !isSidebarHoverExpanded;
+  const profileInitials = profileName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 
   useEffect(() => {
     const storedState = window.localStorage.getItem("mdl:sidebar-collapsed");
     setIsSidebarCollapsed(storedState === "true");
+  }, []);
+
+  useEffect(() => {
+    const user = getAuthUser();
+    if (!user) {
+      return;
+    }
+
+    setProfileName(user.name);
+    setProfileEmail(user.email);
   }, []);
 
   useEffect(() => {
@@ -125,23 +146,19 @@ export function AdminShell({ children }: AdminShellProps) {
                     onClick={() => setIsProfileMenuOpen((current) => !current)}
                     type="button"
                   >
-                    <span className="inline-flex size-7 items-center justify-center rounded-full bg-[linear-gradient(135deg,#3662f4,#1dbf73)] text-[0.65rem] font-bold text-white">
-                      CF
-                    </span>
+                    <span className="inline-flex size-7 items-center justify-center rounded-full bg-[linear-gradient(135deg,#3662f4,#1dbf73)] text-[0.65rem] font-bold text-white">{profileInitials || "MD"}</span>
                   </button>
 
                   {isProfileMenuOpen ? (
                     <div className="absolute right-0 top-[calc(100%+0.65rem)] z-50 w-[300px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl">
                       <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3">
-                        <span className="inline-flex size-12 items-center justify-center rounded-full border-2 border-[#14c66a] bg-[linear-gradient(135deg,#3662f4,#1dbf73)] text-sm font-bold text-white">
-                          CF
-                        </span>
+                        <span className="inline-flex size-12 items-center justify-center rounded-full border-2 border-[#14c66a] bg-[linear-gradient(135deg,#3662f4,#1dbf73)] text-sm font-bold text-white">{profileInitials || "MD"}</span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-base font-semibold text-[var(--color-foreground)]">
-                            Cody Fisher
+                            {profileName}
                           </p>
                           <p className="truncate text-sm text-[var(--color-muted-foreground)]">
-                            c.fisher@gmail.com
+                            {profileEmail}
                           </p>
                         </div>
                         <span className="rounded-md bg-[var(--color-primary-soft)] px-2 py-1 text-xs font-semibold text-[var(--color-primary)]">
@@ -191,6 +208,11 @@ export function AdminShell({ children }: AdminShellProps) {
 
                         <button
                           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] text-sm font-semibold text-[var(--color-foreground)]"
+                          onClick={() => {
+                            clearAuthSession();
+                            setIsProfileMenuOpen(false);
+                            router.replace("/login");
+                          }}
                           type="button"
                         >
                           <LogOut className="size-4" />

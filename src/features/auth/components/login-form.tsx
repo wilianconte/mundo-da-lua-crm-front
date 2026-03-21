@@ -4,8 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
+import { login } from "@/features/auth/api/login";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,15 +19,19 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { type LoginSchema, loginSchema } from "@/features/auth/schema/login-schema";
+import { type GraphQLRequestError } from "@/lib/graphql/client";
+import { isAuthenticated, saveAuthSession } from "@/lib/auth/session";
 
 type LoginFormProps = {
   embedded?: boolean;
 };
 
-const MOCK_LOGIN = {
-  email: "teste@mundodalua.com.br",
-  password: "123456"
+const DEFAULT_LOGIN = {
+  email: "admin@mundodalua.com",
+  password: "Admin@123"
 };
+
+const DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
 export function LoginForm({ embedded = false }: LoginFormProps) {
   const router = useRouter();
@@ -37,24 +43,50 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
   } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: MOCK_LOGIN.email,
-      password: MOCK_LOGIN.password
+      email: DEFAULT_LOGIN.email,
+      password: DEFAULT_LOGIN.password
     }
   });
 
-  async function onSubmit(values: LoginSchema) {
-    const hasValidCredentials =
-      values.email.trim().toLowerCase() === MOCK_LOGIN.email &&
-      values.password === MOCK_LOGIN.password;
-
-    if (!hasValidCredentials) {
-      setError("root", {
-        message: "Credenciais invalidas. Use o email e senha do ambiente de demonstracao."
-      });
-      return;
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.replace("/");
     }
+  }, [router]);
 
-    router.push("/");
+  async function onSubmit(values: LoginSchema) {
+    try {
+      const response = await login({
+        tenantId: DEFAULT_TENANT_ID,
+        email: values.email.trim().toLowerCase(),
+        password: values.password
+      });
+
+      saveAuthSession({
+        token: response.token,
+        expiresAt: response.expiresAt,
+        user: {
+          userId: response.userId,
+          name: response.name,
+          email: response.email
+        }
+      });
+
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      const code = (error as GraphQLRequestError).code;
+      const messageByCode: Record<string, string> = {
+        VALIDATION_ERROR: "Campos invalidos. Revise os dados e tente novamente.",
+        INVALID_CREDENTIALS: "Email ou senha incorretos.",
+        USER_INACTIVE: "Usuario desativado. Procure um administrador.",
+        AUTH_NOT_AUTHORIZED: "Nao foi possivel autenticar sua sessao."
+      };
+
+      setError("root", {
+        message: messageByCode[code ?? ""] ?? "Nao foi possivel entrar. Tente novamente."
+      });
+    }
   }
 
   const content = (
@@ -128,7 +160,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
           ) : null}
 
           <p className="text-xs text-[var(--color-muted-foreground)]">
-            Demo: {MOCK_LOGIN.email} | {MOCK_LOGIN.password}
+            Demo: {DEFAULT_LOGIN.email} | {DEFAULT_LOGIN.password}
           </p>
         </form>
       </CardContent>

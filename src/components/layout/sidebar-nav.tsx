@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import type { NavItem } from "@/config/navigation";
+import type { NavChildItem, NavItem } from "@/config/navigation";
 import { navigationItems } from "@/config/navigation";
 import { cn } from "@/lib/utils/cn";
 
@@ -14,6 +14,100 @@ type SidebarNavProps = {
   collapsed?: boolean;
   onNavigate?: () => void;
 };
+
+function getFirstHref(items?: NavChildItem[]): string | undefined {
+  if (!items?.length) {
+    return undefined;
+  }
+
+  for (const item of items) {
+    if (item.href) {
+      return item.href;
+    }
+
+    const nestedHref = getFirstHref(item.children);
+    if (nestedHref) {
+      return nestedHref;
+    }
+  }
+
+  return undefined;
+}
+
+function hasActivePath(items: NavChildItem[] | undefined, pathname: string): boolean {
+  if (!items?.length) {
+    return false;
+  }
+
+  return items.some((item) => item.href === pathname || hasActivePath(item.children, pathname));
+}
+
+function ChildNavItem({
+  item,
+  pathname,
+  onNavigate,
+  level
+}: {
+  item: NavChildItem;
+  pathname: string;
+  onNavigate?: () => void;
+  level: number;
+}) {
+  const hasChildren = Boolean(item.children?.length);
+  const isChildActive = item.href ? pathname === item.href : false;
+  const [expanded, setExpanded] = useState(hasActivePath(item.children, pathname));
+
+  if (hasChildren) {
+    const isGroupActive = hasActivePath(item.children, pathname);
+
+    return (
+      <div className="space-y-1">
+        <button
+          className={cn(
+            "flex w-full items-center justify-between rounded-[var(--radius-sm)] px-2 py-1.5 text-left font-medium transition hover:bg-[var(--color-surface-muted)]/75",
+            level > 1 ? "text-[0.94rem]" : "text-[0.98rem]",
+            isGroupActive ? "text-[var(--color-foreground)]" : "text-[var(--color-foreground)]"
+          )}
+          onClick={() => setExpanded((current) => !current)}
+          type="button"
+        >
+          <span>{item.label}</span>
+          {expanded ? (
+            <Minus className="size-3.5 text-[var(--color-muted-foreground)]" />
+          ) : (
+            <Plus className="size-3.5 text-[var(--color-muted-foreground)]" />
+          )}
+        </button>
+        {expanded ? (
+          <div className="ml-[0.8rem] space-y-1 border-l border-[var(--color-border)]/80 pl-4">
+            {item.children?.map((nestedChild) => (
+              <ChildNavItem
+                item={nestedChild}
+                key={`${item.label}-${nestedChild.label}`}
+                level={level + 1}
+                onNavigate={onNavigate}
+                pathname={pathname}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      className={cn(
+        "flex items-center justify-between rounded-[var(--radius-sm)] px-2 py-1.5 text-[0.98rem] font-medium transition hover:bg-[var(--color-surface-muted)]/75",
+        isChildActive ? "text-[var(--color-foreground)]" : "text-[var(--color-foreground)]"
+      )}
+      href={item.href ?? "#"}
+      onClick={onNavigate}
+    >
+      <span>{item.label}</span>
+    </Link>
+  );
+}
 
 function SidebarLink({
   collapsed = false,
@@ -26,14 +120,12 @@ function SidebarLink({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(
-    item.defaultExpanded || item.children?.some((child) => child.href === pathname) || false
-  );
+  const [expanded, setExpanded] = useState(item.defaultExpanded || hasActivePath(item.children, pathname) || false);
   const Icon = item.icon;
   const isActive = item.href ? pathname === item.href : expanded;
 
   if (collapsed) {
-    const href = item.href ?? item.children?.[0]?.href ?? "#";
+    const href = item.href ?? getFirstHref(item.children) ?? "#";
 
     return (
       <Link
@@ -76,25 +168,15 @@ function SidebarLink({
         </button>
         {expanded ? (
           <div className="ml-[0.95rem] space-y-1 border-l border-[var(--color-border)]/85 pl-5 pt-1">
-            {item.children.map((child) => {
-              const isChildActive = pathname === child.href;
-
-              return (
-                <Link
-                  className={cn(
-                    "flex items-center justify-between rounded-[var(--radius-sm)] px-2 py-1.5 text-[0.98rem] font-medium transition hover:bg-[var(--color-surface-muted)]/75",
-                    isChildActive
-                      ? "text-[var(--color-foreground)]"
-                      : "text-[var(--color-foreground)]"
-                  )}
-                  href={child.href}
-                  key={child.label}
-                  onClick={onNavigate}
-                >
-                  <span>{child.label}</span>
-                </Link>
-              );
-            })}
+            {item.children.map((child) => (
+              <ChildNavItem
+                item={child}
+                key={`${item.label}-${child.label}`}
+                level={1}
+                onNavigate={onNavigate}
+                pathname={pathname}
+              />
+            ))}
           </div>
         ) : null}
       </div>

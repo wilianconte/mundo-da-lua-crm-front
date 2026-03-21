@@ -1,24 +1,40 @@
 # AGENTS.md
 
 ## Objetivo
-Este repositório deve priorizar mudanças pequenas, seguras e fáceis de revisar.
+Este repositorio deve priorizar mudancas pequenas, seguras e faceis de revisar.
 
-## Regras de implementação
-- Siga o padrão existente do projeto.
-- Prefira diffs mínimos.
-- Não altere contratos públicos sem solicitação explícita.
-- Não altere dependências, pipelines, infraestrutura ou arquivos de segredo sem solicitação explícita.
-- Não renomeie arquivos ou mova pastas sem necessidade clara.
+## Regras de implementacao
+- Siga o padrao existente do projeto.
+- Prefira diffs minimos.
+- Nao altere contratos publicos sem solicitacao explicita.
+- Nao altere dependencias, pipelines, infraestrutura ou arquivos de segredo sem solicitacao explicita.
+- Nao renomeie arquivos ou mova pastas sem necessidade clara.
 
-## Testes e validações
-- Execute testes relevantes para a área alterada sempre que possível.
-- Se a mudança impactar comportamento, crie ou ajuste testes.
-- Se não for possível rodar testes, explique claramente na resposta final.
+## Skills (.codex)
+- E permitido usar skills locais contidas em `.codex/skills` para tarefas especializadas.
+- Quando houver um `SKILL.md`, siga as instrucoes desse arquivo para fluxo, comandos e artefatos.
+- Priorize reutilizar scripts, templates e referencias das skills antes de criar do zero.
+- Se uma skill entrar em conflito com regras de seguranca deste `AGENTS.md`, prevalecem as regras deste arquivo.
+- Para autenticacao GraphQL, use tambem a skill `.codex/skills/mundo-da-lua-auth-graphql/SKILL.md`.
 
-## Documentação
-- Atualize documentação apenas quando a mudança exigir.
+## Autenticacao GraphQL (padrao do projeto)
+- Endpoint oficial: `https://mundo-da-lua-crm-core.onrender.com/graphql/`.
+- Toda comunicacao com backend deve ser via GraphQL.
+- Requisicoes autenticadas devem enviar `Authorization: Bearer <token>`.
+- `tenantId` deve ser enviado apenas no login.
+- Persistir no front: `auth_token`, `auth_expires_at`, `auth_user`.
+- Se token expirar ou retornar `AUTH_NOT_AUTHORIZED`, limpar sessao local e redirecionar para `/login`.
+- Enquanto refresh token nao existir no backend, validar `expiresAt` localmente antes de requests autenticados.
+
+## Testes e validacoes
+- Execute testes relevantes para a area alterada sempre que possivel.
+- Se a mudanca impactar comportamento, crie ou ajuste testes.
+- Se nao for possivel rodar testes, explique claramente na resposta final.
+
+## Documentacao
+- Atualize documentacao apenas quando a mudanca exigir.
 
 ## Pull Request
 - Resuma o que mudou.
-- Liste riscos ou pendências.
-- Cite os testes/validações executados.
+- Liste riscos ou pendencias.
+- Cite os testes/validacoes executados.

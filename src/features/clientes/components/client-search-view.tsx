@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Search, X } from "lucide-react";
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,8 @@ type FieldType = "text" | "category";
 type TextOperator = "contains" | "equals" | "startsWith";
 type CategoryOperator = "equals" | "notEquals";
 type FilterOperator = TextOperator | CategoryOperator;
+type SortableColumn = "id" | "name" | "document" | "phone" | "city" | "status";
+type SortDirection = "asc" | "desc";
 
 type FilterField = {
   key: FilterFieldKey;
@@ -118,6 +120,8 @@ export function ClientSearchView() {
   const [selectedOperator, setSelectedOperator] = useState<FilterOperator>("contains");
   const [chips, setChips] = useState<FilterChip[]>([]);
   const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<SortableColumn>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -140,6 +144,33 @@ export function ClientSearchView() {
       return normalize(client.name).includes(query) || normalize(client.document).includes(query);
     });
   }, [chips, freeQuery]);
+
+  const sortedClients = useMemo(() => {
+    return [...filteredClients].sort((left, right) => {
+      const leftValue = normalize(String(left[sortBy]));
+      const rightValue = normalize(String(right[sortBy]));
+
+      if (leftValue === rightValue) return 0;
+
+      const comparison = leftValue > rightValue ? 1 : -1;
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [filteredClients, sortBy, sortDirection]);
+
+  function toggleSort(column: SortableColumn) {
+    if (sortBy !== column) {
+      setSortBy(column);
+      setSortDirection("asc");
+      return;
+    }
+
+    setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+  }
+
+  function renderSortIcon(column: SortableColumn) {
+    if (sortBy !== column) return null;
+    return sortDirection === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
+  }
 
   function openFieldDropdown() {
     setIsFieldDropdownOpen(true);
@@ -335,17 +366,71 @@ export function ClientSearchView() {
             <table className="w-full min-w-[760px] border-collapse text-sm">
               <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Codigo</th>
-                  <th className="px-4 py-3 font-semibold">Nome</th>
-                  <th className="px-4 py-3 font-semibold">Documento</th>
-                  <th className="px-4 py-3 font-semibold">Telefone</th>
-                  <th className="px-4 py-3 font-semibold">Cidade</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                      onClick={() => toggleSort("id")}
+                      type="button"
+                    >
+                      Codigo
+                      {renderSortIcon("id")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                      onClick={() => toggleSort("name")}
+                      type="button"
+                    >
+                      Nome
+                      {renderSortIcon("name")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                      onClick={() => toggleSort("document")}
+                      type="button"
+                    >
+                      Documento
+                      {renderSortIcon("document")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                      onClick={() => toggleSort("phone")}
+                      type="button"
+                    >
+                      Telefone
+                      {renderSortIcon("phone")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                      onClick={() => toggleSort("city")}
+                      type="button"
+                    >
+                      Cidade
+                      {renderSortIcon("city")}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 font-semibold">
+                    <button
+                      className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                      onClick={() => toggleSort("status")}
+                      type="button"
+                    >
+                      Status
+                      {renderSortIcon("status")}
+                    </button>
+                  </th>
                   <th className="px-4 py-3 font-semibold">Acao</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredClients.map((client) => (
+                {sortedClients.map((client) => (
                   <tr className="border-t border-[var(--color-border)]" key={client.id}>
                     <td className="px-4 py-3 font-medium">{client.id}</td>
                     <td className="px-4 py-3">{client.name}</td>
@@ -368,7 +453,7 @@ export function ClientSearchView() {
             </table>
           </div>
           <p className="text-sm text-[var(--color-muted-foreground)]">
-            {filteredClients.length} clientes encontrados com os filtros atuais.
+            {sortedClients.length} clientes encontrados com os filtros atuais.
           </p>
         </CardContent>
       </Card>
