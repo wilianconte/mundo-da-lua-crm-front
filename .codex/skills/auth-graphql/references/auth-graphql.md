@@ -58,7 +58,10 @@ Todo request (exceto login) deve incluir Bearer.
 Padrao recomendado:
 
 - usar `src/lib/graphql/client.ts`
+- preservar `app/api/graphql/route.ts` como proxy oficial para o endpoint externo
 - concentrar tratamento de erro e redirecionamento para login nesta camada
+- para login, usar `gqlRequest(..., { requiresAuth: false })`
+- para CRUDs autenticados, manter queries e mutations dentro da feature de dominio
 
 ## Sessao expirada
 
@@ -117,9 +120,10 @@ Acao esperada:
 ## Checklist rapido para PR
 
 - login funciona com mutation GraphQL
+- login usa `requiresAuth: false`
 - sessao persiste no storage com as chaves corretas
+- browser continua usando `/api/graphql` em vez de chamar o endpoint externo diretamente
 - bearer injetado em requests autenticados
 - expiracao local bloqueia uso de token vencido
 - logout limpa sessao e redireciona
 - erros de auth tratados com UX clara
-

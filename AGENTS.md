@@ -15,7 +15,9 @@ Este repositorio deve priorizar mudancas pequenas, seguras e faceis de revisar.
 - Quando houver um `SKILL.md`, siga as instrucoes desse arquivo para fluxo, comandos e artefatos.
 - Priorize reutilizar scripts, templates e referencias das skills antes de criar do zero.
 - Se uma skill entrar em conflito com regras de seguranca deste `AGENTS.md`, prevalecem as regras deste arquivo.
-- Para autenticacao GraphQL, use tambem a skill `.codex/skills/mundo-da-lua-auth-graphql/SKILL.md`.
+- Para arquitetura do front, use `.codex/skills/front-architecture/SKILL.md`.
+- Para autenticacao GraphQL, use tambem a skill `.codex/skills/auth-graphql/SKILL.md`.
+- Para CRUDs, use tambem a skill `.codex/skills/crud-front/SKILL.md`.
 
 ## Autenticacao GraphQL (padrao do projeto)
 - Endpoint oficial: `https://mundo-da-lua-crm-core.onrender.com/graphql/`.

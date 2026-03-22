@@ -11,7 +11,9 @@ Use this skill as the default implementation guide for front-end work in Mundo d
 
 1. Read `references/dev-admin.md` before making architectural or structural decisions.
 2. Treat the reference as the source of truth when local opinions conflict.
-3. Keep new work aligned with the official stack:
+3. Align authenticated flows with `../auth-graphql/references/auth-graphql.md`.
+4. Align CRUD screens and flows with `../crud-front/references/crud-front.md` when the task involves listing, create, edit, or delete.
+5. Keep new work aligned with the official stack:
    - `Next.js`
    - `App Router`
    - `TypeScript`
@@ -19,7 +21,7 @@ Use this skill as the default implementation guide for front-end work in Mundo d
    - `GraphQL` as the only data interface
    - `Server Components` by default
    - `React Hook Form` + `Zod` for forms
-4. Prefer existing design-system patterns over inventing new visual conventions.
+6. Prefer existing design-system patterns over inventing new visual conventions.
 
 ## Execution Rules
 
@@ -64,6 +66,7 @@ Read `references/dev-admin.md` for:
 - design system and UX rules
 - responsive behavior
 - GraphQL, auth, authorization, and multi-tenant rules
+- current GraphQL client and auth-session conventions used in this repository
 - Next.js implementation standards
 - code conventions
 - performance, accessibility, testing, and quality gates

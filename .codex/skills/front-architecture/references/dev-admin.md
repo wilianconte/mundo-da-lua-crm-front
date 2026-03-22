@@ -48,7 +48,7 @@ These decisions are mandatory until an explicit architecture review changes them
 | Data layer | `GraphQL` as the only interface |
 | Rendering model | `Server Components` by default |
 | Local interactivity | `Client Components` only when needed |
-| Remote state | GraphQL client cache/control layer |
+| Remote state | centralized GraphQL request layer |
 | Local UI state | local-first; `Zustand` only when truly needed |
 | Forms | `React Hook Form` + `Zod` |
 | Visual catalog | `Storybook` |
@@ -119,10 +119,10 @@ Follow these principles:
 
 | Area | Technology | Notes |
 |---|---|---|
-| GraphQL client | Apollo Client or urql | choose one and standardize |
+| GraphQL client | centralized `fetch` wrapper + Next proxy | current official implementation in this repository |
 | Forms | React Hook Form | default |
 | Validation | Zod | input contracts and parsing |
-| Codegen | GraphQL Code Generator | required for consistent typing |
+| Codegen | GraphQL Code Generator | recommended when schema introspection and CI workflow are formalized |
 
 ### Quality
 
@@ -134,12 +134,12 @@ Follow these principles:
 | E2E | Playwright |
 | Visual catalog | Storybook |
 
-Pending bootstrap decision:
+Current project decision:
 
-- choose exactly one official GraphQL client
-- use `Apollo Client` for broader ecosystem and mature normalization
-- use `urql` for lighter and simpler operations
-- do not introduce both until that decision is formalized
+- use `src/lib/graphql/client.ts` as the official GraphQL access layer
+- use `app/api/graphql/route.ts` as the browser-facing proxy to the backend endpoint
+- keep queries and mutations close to each feature
+- do not introduce Apollo Client, urql, or a second remote-state layer without explicit architecture review
 
 ## 5. Project Structure
 
@@ -354,6 +354,7 @@ Consume data only through GraphQL.
 
 Integration rules:
 
+- use `src/lib/graphql/client.ts` and `app/api/graphql/route.ts` as the official browser-to-backend path
 - generate types from the schema
 - reuse fragments by domain
 - keep queries and mutations near the features
@@ -363,7 +364,7 @@ State strategy:
 
 | State type | Strategy |
 |---|---|
-| Server state | official GraphQL client |
+| Server state | `gqlRequest` + feature-local query/mutation modules |
 | Local UI state | `useState`, `useReducer`, local context |
 | Lightweight global state | `Zustand`, only if truly shared |
 | Form state | React Hook Form |
@@ -387,9 +388,11 @@ Do not add subscriptions without clear benefit.
 
 Authentication:
 
-- use secure cookie-based sessions
-- do not expose sensitive tokens in `localStorage`
-- protect private routes with middleware and session validation
+- use the centralized session layer in `src/lib/auth/session.ts`
+- persist only `auth_token`, `auth_expires_at`, and `auth_user` while the backend does not offer refresh token or server-managed session
+- validate local expiration before authenticated requests and clear the session on `AUTH_NOT_AUTHORIZED`
+- protect private routes with middleware and session validation aligned with the current implementation
+- treat secure cookie-based sessions as a future architecture evolution, not as a parallel flow to introduce per feature
 
 Authorization:
 
@@ -592,7 +595,8 @@ Before finishing, confirm:
 
 - creating a parallel component library outside the design system
 - putting GraphQL logic inside `ui/` components
-- storing sensitive tokens in `localStorage`
+- bypassing the official GraphQL proxy or session layers
+- creating a parallel auth persistence model outside `src/lib/auth/session.ts`
 - duplicating server state across multiple local stores
 - shipping screens without loading, empty, and error states
 - breaking responsiveness in critical tables and forms
