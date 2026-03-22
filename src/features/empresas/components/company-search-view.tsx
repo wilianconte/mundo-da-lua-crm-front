@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Building2, Plus, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
@@ -114,23 +114,6 @@ function toStatusLabel(status: CompanyStatus) {
   if (status === "INACTIVE") return "Inativo";
   if (status === "BLOCKED") return "Bloqueado";
   return "Suspenso";
-}
-
-function toCompanyTypeLabel(companyType?: CompanyType | null) {
-  if (!companyType) return "-";
-
-  const labels: Record<CompanyType, string> = {
-    SUPPLIER: "Fornecedor",
-    PARTNER: "Parceiro",
-    SCHOOL: "Escola",
-    CORPORATE_CUSTOMER: "Cliente corporativo",
-    BILLING_ACCOUNT: "Conta faturamento",
-    SERVICE_PROVIDER: "Prestador",
-    SPONSOR: "Patrocinador",
-    OTHER: "Outro"
-  };
-
-  return labels[companyType];
 }
 
 function toDateTime(value?: string | null) {
@@ -305,34 +288,26 @@ export function CompanySearchView() {
     return sortDirection === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
   }
 
+  function openFieldDropdown() {
+    setIsFieldDropdownOpen(true);
+  }
+
   function selectField(field: FilterField) {
     setSelectedField(field);
     setSelectedOperator(field.type === "category" ? "equals" : "contains");
     setIsFieldDropdownOpen(false);
     setSearchInput("");
     setFreeQuery("");
-    window.setTimeout(() => inputRef.current?.focus(), 0);
-  }
-
-  function clearSelection() {
-    setSelectedField(null);
-    setSelectedOperator("contains");
-    setSearchInput("");
     inputRef.current?.focus();
   }
 
   function addChip() {
+    if (!selectedField) return;
     const value = searchInput.trim();
-    if (!value || !selectedField) {
-      if (value) {
-        setFreeQuery(value);
-        resetToFirstPage();
-      }
-      return;
-    }
+    if (!value) return;
 
     const chip: FilterChip = {
-      id: `${selectedField.key}-${selectedOperator}-${value}-${Date.now()}`,
+      id: `${selectedField.key}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       field: selectedField,
       operator: selectedOperator,
       value
@@ -340,37 +315,46 @@ export function CompanySearchView() {
 
     setChips((current) => [...current, chip]);
     setSearchInput("");
-    setSelectedField(null);
-    setSelectedOperator("contains");
-    resetToFirstPage();
-    window.setTimeout(() => inputRef.current?.focus(), 0);
-  }
-
-  function removeChip(chipId: string) {
-    setChips((current) => current.filter((chip) => chip.id !== chipId));
+    setIsFieldDropdownOpen(false);
     resetToFirstPage();
   }
 
-  function clearAllFilters() {
-    setChips([]);
-    setFreeQuery("");
-    setSearchInput("");
-    setSelectedField(null);
-    setSelectedOperator("contains");
-    resetToFirstPage();
-  }
+  function handleInputChange(value: string) {
+    setSearchInput(value);
 
-  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      addChip();
+    if (selectedField) return;
+
+    if (value.includes("@")) {
+      setIsFieldDropdownOpen(true);
+      setFreeQuery("");
       return;
     }
 
-    if (event.key === "Backspace" && !searchInput && selectedField) {
-      event.preventDefault();
-      clearSelection();
-    }
+    setIsFieldDropdownOpen(false);
+    setFreeQuery(value);
+    resetToFirstPage();
+  }
+
+  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (!selectedField) return;
+    if (event.key !== "Enter" && event.key !== "Tab") return;
+
+    event.preventDefault();
+    addChip();
+  }
+
+  function removeChip(id: string) {
+    setChips((current) => current.filter((chip) => chip.id !== id));
+    resetToFirstPage();
+  }
+
+  function openEditCompany(company: CompanyNode) {
+    const params = new URLSearchParams({
+      mode: "edit",
+      id: company.id
+    });
+
+    router.push(`/empresas/cadastro?${params.toString()}`);
   }
 
   return (
@@ -381,55 +365,27 @@ export function CompanySearchView() {
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de empresas</h2>
             <p className="text-sm text-[var(--color-muted-foreground)]">
-              Consulte empresas por nome, CNPJ, tipo, status e principais dados de contato.
+              Omnisearch com filtros tokenizados e busca livre global por razao social, nome fantasia e CNPJ.
             </p>
           </div>
-          <Button leadingIcon={<Plus className="size-4" />} onClick={() => router.push("/empresas/cadastro")}>
-            Adicionar empresa
+          <Button
+            className="min-w-40"
+            leadingIcon={<Plus className="size-4" />}
+            onClick={() => router.push("/empresas/cadastro")}
+          >
+            Adicionar
           </Button>
         </div>
       </section>
 
-      <section className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-soft)]">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-              <Input
-                className="pl-11"
-                onChange={(event) => setSearchInput(event.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder={selectedField ? `Digite um valor para ${selectedField.label.toLowerCase()}` : "Buscar por razao social, nome fantasia, CNPJ ou e-mail"}
-                ref={inputRef}
-                value={searchInput}
-              />
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative">
-                <Button onClick={() => setIsFieldDropdownOpen((current) => !current)} variant="outline">
-                  {selectedField ? selectedField.label : "Campo"}
-                </Button>
-                {isFieldDropdownOpen ? (
-                  <div className="absolute z-10 mt-2 w-56 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-soft)]">
-                    <div className="space-y-1">
-                      {filterFields.map((field) => (
-                        <button
-                          className="w-full rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm transition hover:bg-[var(--color-surface-muted)]"
-                          key={field.key}
-                          onClick={() => selectField(field)}
-                          type="button"
-                        >
-                          {field.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
+      <section className="space-y-5">
+        <div className="space-y-3">
+          {selectedField ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="attention">{selectedField.label}</Badge>
               <select
-                className="h-11 min-w-44 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm outline-none focus:border-[var(--color-primary)]"
+                aria-label="Operador logico"
+                className="h-9 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
                 onChange={(event) => setSelectedOperator(event.target.value as FilterOperator)}
                 value={selectedOperator}
               >
@@ -439,151 +395,230 @@ export function CompanySearchView() {
                   </option>
                 ))}
               </select>
-
-              <Button onClick={addChip} variant="secondary">
-                Aplicar
-              </Button>
+              <button
+                className="text-xs font-medium text-[var(--color-muted-foreground)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  setSelectedField(null);
+                  setSearchInput("");
+                  inputRef.current?.focus();
+                }}
+                type="button"
+              >
+                trocar atributo
+              </button>
             </div>
+          ) : null}
+
+          <div className="relative flex flex-wrap items-center gap-3">
+            <div className="relative min-w-72 flex-1">
+              <Input
+                onChange={(event) => handleInputChange(event.target.value)}
+                onKeyDown={handleInputKeyDown}
+                placeholder={
+                  selectedField
+                    ? `Digite um valor para ${selectedField.label}`
+                    : "Digite para busca livre ou use @ para filtrar"
+                }
+                ref={inputRef}
+                value={searchInput}
+              />
+              <button
+                aria-label="Adicionar filtro"
+                className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-foreground)]"
+                onClick={openFieldDropdown}
+                type="button"
+              >
+                <Plus className="size-4" />
+              </button>
+            </div>
+            <Button
+              leadingIcon={<Search className="size-4" />}
+              onClick={() => {
+                if (selectedField) addChip();
+              }}
+            >
+              Filtrar
+            </Button>
+
+            {isFieldDropdownOpen ? (
+              <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 w-52 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-soft)]">
+                {filterFields.map((field) => (
+                  <button
+                    className="flex w-full items-center justify-between rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm font-medium text-[var(--color-foreground)] transition hover:bg-[var(--color-surface-muted)]"
+                    key={field.key}
+                    onClick={() => selectField(field)}
+                    type="button"
+                  >
+                    <span>{field.label}</span>
+                    <span className="text-xs text-[var(--color-muted-foreground)]">@</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-xs text-[var(--color-muted-foreground)]">
+              Finalize filtros com Enter/Tab para gerar chips.
+            </p>
+          </div>
+        </div>
+
+        {chips.length ? (
           <div className="flex flex-wrap gap-2">
-            {freeQuery ? (
-              <Badge className="gap-2" variant="neutral">
-                Busca livre: {freeQuery}
-                <button aria-label="Remover busca livre" onClick={() => setFreeQuery("")} type="button">
-                  <X className="size-3.5" />
-                </button>
-              </Badge>
-            ) : null}
-            {chips.map((chip) => (
-              <Badge className="gap-2" key={chip.id} variant="neutral">
-                {chip.field.label} {chip.operator} {chip.value}
-                <button aria-label={`Remover filtro ${chip.field.label}`} onClick={() => removeChip(chip.id)} type="button">
-                  <X className="size-3.5" />
-                </button>
-              </Badge>
-            ))}
-            {selectedField ? (
-              <Badge className="gap-2" variant="attention">
-                Campo: {selectedField.label}
-                <button aria-label="Limpar campo selecionado" onClick={clearSelection} type="button">
-                  <X className="size-3.5" />
-                </button>
-              </Badge>
-            ) : null}
-            {(chips.length || freeQuery) ? (
-              <Button onClick={clearAllFilters} size="sm" variant="ghost">
-                Limpar filtros
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </section>
+            {chips.map((chip) => {
+              const operatorLabel =
+                [...textOperators, ...categoryOperators].find((operator) => operator.key === chip.operator)?.label ??
+                chip.operator;
 
-      <section className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-soft)]">
-        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
-          <div>
-            <h3 className="text-base font-semibold">Resultados</h3>
-            <p className="text-sm text-[var(--color-muted-foreground)]">{totalCount} empresa(s) encontrada(s).</p>
+              return (
+                <span
+                  className="inline-flex items-center gap-2 rounded-full bg-[var(--color-surface-muted)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]"
+                  key={chip.id}
+                >
+                  {chip.field.label} {operatorLabel} {chip.value}
+                  <button
+                    aria-label={`Remover filtro ${chip.field.label}`}
+                    className="inline-flex size-4 items-center justify-center rounded-full text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-border)] hover:text-[var(--color-foreground)]"
+                    onClick={() => removeChip(chip.id)}
+                    type="button"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              );
+            })}
           </div>
-        </div>
+        ) : null}
 
         {errorMessage ? (
-          <div className="px-5 py-8 text-sm font-medium text-[var(--color-danger-strong)]">{errorMessage}</div>
-        ) : isLoading ? (
-          <div className="px-5 py-8 text-sm text-[var(--color-muted-foreground)]">Carregando empresas...</div>
-        ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
-            <div className="rounded-full bg-[var(--color-surface-muted)] p-3 text-[var(--color-primary)]">
-              <Building2 className="size-6" />
-            </div>
-            <div className="space-y-1">
-              <p className="font-medium">Nenhuma empresa encontrada.</p>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                Ajuste os filtros ou cadastre uma nova empresa para iniciar a base.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
-              <thead className="bg-[var(--color-surface-muted)]/65">
-                <tr>
-                  {[
-                    { key: "legalName", label: "Razao social" },
-                    { key: "registrationNumber", label: "CNPJ" },
-                    { key: "primaryPhone", label: "Telefone" },
-                    { key: "status", label: "Status" },
-                    { key: "createdAt", label: "Criado em" }
-                  ].map((column) => (
-                    <th className="px-5 py-3 text-left font-semibold" key={column.key}>
-                      <button
-                        className="inline-flex items-center gap-1"
-                        onClick={() => toggleSort(column.key as SortableColumn)}
-                        type="button"
-                      >
-                        {column.label}
-                        {renderSortIcon(column.key as SortableColumn)}
-                      </button>
-                    </th>
-                  ))}
-                  <th className="px-5 py-3 text-right font-semibold">Acoes</th>
+          <p className="text-sm font-medium text-[var(--color-danger-strong)]">{errorMessage}</p>
+        ) : null}
+
+        <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
+          <table className="w-full min-w-[980px] border-collapse text-sm">
+            <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
+              <tr>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("legalName")}
+                    type="button"
+                  >
+                    Razao social
+                    {renderSortIcon("legalName")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">Nome fantasia</th>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("registrationNumber")}
+                    type="button"
+                  >
+                    CNPJ
+                    {renderSortIcon("registrationNumber")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("primaryPhone")}
+                    type="button"
+                  >
+                    Telefone
+                    {renderSortIcon("primaryPhone")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("status")}
+                    type="button"
+                  >
+                    Status
+                    {renderSortIcon("status")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
+                    onClick={() => toggleSort("createdAt")}
+                    type="button"
+                  >
+                    Criado em
+                    {renderSortIcon("createdAt")}
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">Acao</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr className="border-t border-[var(--color-border)]">
+                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={7}>
+                    Carregando empresas...
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border)]">
-                {rows.map((company) => (
-                  <tr className="hover:bg-[var(--color-surface-muted)]/35" key={company.id}>
-                    <td className="px-5 py-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">{company.legalName}</p>
-                        <p className="text-xs text-[var(--color-muted-foreground)]">
-                          {company.tradeName || toCompanyTypeLabel(company.companyType)}
-                        </p>
-                      </div>
+              ) : rows.length ? (
+                rows.map((company) => (
+                  <tr
+                    className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
+                    key={company.id}
+                  >
+                    <td className="px-4 py-3">{company.legalName}</td>
+                    <td className="px-4 py-3">{company.tradeName ?? "-"}</td>
+                    <td className="px-4 py-3">{company.registrationNumber ?? "-"}</td>
+                    <td className="px-4 py-3">{company.primaryPhone ?? "-"}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={company.status === "ACTIVE" ? "success" : "attention"}>
+                        {toStatusLabel(company.status)}
+                      </Badge>
                     </td>
-                    <td className="px-5 py-4">{company.registrationNumber || "-"}</td>
-                    <td className="px-5 py-4">{company.primaryPhone || "-"}</td>
-                    <td className="px-5 py-4">
-                      <Badge variant={company.status === "ACTIVE" ? "success" : "neutral"}>{toStatusLabel(company.status)}</Badge>
-                    </td>
-                    <td className="px-5 py-4">{toDateTime(company.createdAt)}</td>
-                    <td className="px-5 py-4 text-right">
-                      <Button
-                        onClick={() => router.push(`/empresas/cadastro?mode=edit&id=${company.id}`)}
-                        size="sm"
-                        variant="outline"
-                      >
+                    <td className="px-4 py-3">{toDateTime(company.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      <Button onClick={() => openEditCompany(company)} size="sm" variant="outline">
                         Editar
                       </Button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              ) : (
+                <tr className="border-t border-[var(--color-border)]">
+                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={7}>
+                    Nenhuma empresa encontrada com os filtros atuais.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] px-5 py-4">
-          <p className="text-sm text-[var(--color-muted-foreground)]">Paginacao por cursor.</p>
-          <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            {totalCount} empresas encontradas com os filtros atuais.
+          </p>
+          <div className="flex items-center gap-2">
             <Button
-              disabled={!hasPreviousPage || isLoading || !pageStartCursor}
+              disabled={isLoading || !hasPreviousPage || !pageStartCursor}
               onClick={() => {
                 setCursorMode("backward");
-                setRequestBefore(pageStartCursor);
                 setRequestAfter(null);
+                setRequestBefore(pageStartCursor);
               }}
+              size="sm"
               variant="outline"
             >
               Anterior
             </Button>
             <Button
-              disabled={!hasNextPage || isLoading || !pageEndCursor}
+              disabled={isLoading || !hasNextPage || !pageEndCursor}
               onClick={() => {
                 setCursorMode("forward");
-                setRequestAfter(pageEndCursor);
                 setRequestBefore(null);
+                setRequestAfter(pageEndCursor);
               }}
+              size="sm"
               variant="outline"
             >
               Proxima
