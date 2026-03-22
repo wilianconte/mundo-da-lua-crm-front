@@ -44,7 +44,7 @@ export const navigationItems: NavItem[] = [
     icon: Building2,
     children: [
       { label: "Pessoas", href: "/pessoas/pesquisa", showPlus: true },
-      { label: "Empresas", href: "/components", showPlus: true },
+      { label: "Empresas", href: "/empresas/pesquisa", showPlus: true },
       { label: "Responsaveis", href: "/components", showPlus: true },
       { label: "Alunos / Pacientes", href: "/clientes/cadastro", showPlus: true },
       { label: "Funcionarios", href: "/components", showPlus: true },

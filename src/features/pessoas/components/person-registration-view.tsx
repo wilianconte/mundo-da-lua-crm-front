@@ -140,6 +140,7 @@ export function PersonRegistrationView() {
 
   useEffect(() => {
     if (!isEditMode || !personId) return;
+    const currentPersonId = personId;
 
     let isMounted = true;
 
@@ -148,7 +149,7 @@ export function PersonRegistrationView() {
         setIsLoadingPerson(true);
         setFormError(null);
 
-        const person = await getPersonById(personId);
+        const person = await getPersonById(currentPersonId);
         if (!isMounted) return;
 
         if (!person) {
