@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Plus, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   getPeople,
   type GetPeopleVariables,
@@ -14,6 +13,8 @@ import {
   type PersonNode,
   type PersonStatus
 } from "@/features/pessoas/api/get-people";
+import { SearchResultsTable } from "@/features/shared/components/search-results-table";
+import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 import { GraphQLRequestError } from "@/lib/graphql/client";
 
 type FilterFieldKey = "fullName" | "documentNumber" | "email" | "primaryPhone" | "status" | "occupation";
@@ -57,6 +58,16 @@ const textOperators: Array<{ key: TextOperator; label: string }> = [
 const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
   { key: "equals", label: "e igual a" },
   { key: "notEquals", label: "e diferente de" }
+];
+
+const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
+  { label: "Nome", sortKey: "fullName" },
+  { label: "E-mail" },
+  { label: "Documento", sortKey: "documentNumber" },
+  { label: "Telefone", sortKey: "primaryPhone" },
+  { label: "Status", sortKey: "status" },
+  { label: "Criado em", sortKey: "createdAt" },
+  { label: "Acao" }
 ];
 
 function normalize(value: string) {
@@ -308,6 +319,12 @@ export function PersonSearchView() {
     resetToFirstPage();
   }
 
+  function getOperatorLabel(operator: FilterOperator) {
+    return (
+      [...textOperators, ...categoryOperators].find((item) => item.key === operator)?.label ?? operator
+    );
+  }
+
   function openEditPerson(person: PersonNode) {
     const params = new URLSearchParams({
       mode: "edit",
@@ -341,254 +358,81 @@ export function PersonSearchView() {
       </section>
 
       <section className="space-y-5">
-        <div className="space-y-3">
-            {selectedField ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="attention">{selectedField.label}</Badge>
-                <select
-                  aria-label="Operador logico"
-                  className="h-9 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                  onChange={(event) => setSelectedOperator(event.target.value as FilterOperator)}
-                  value={selectedOperator}
-                >
-                  {availableOperators.map((operator) => (
-                    <option key={operator.key} value={operator.key}>
-                      {operator.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="text-xs font-medium text-[var(--color-muted-foreground)] underline-offset-2 hover:underline"
-                  onClick={() => {
-                    setSelectedField(null);
-                    setSearchInput("");
-                    inputRef.current?.focus();
-                  }}
-                  type="button"
-                >
-                  trocar atributo
-                </button>
-              </div>
-            ) : null}
-
-            <div className="relative flex flex-wrap items-center gap-3">
-              <div className="relative min-w-72 flex-1">
-                <Input
-                  onChange={(event) => handleInputChange(event.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  placeholder={
-                    selectedField
-                      ? `Digite um valor para ${selectedField.label}`
-                      : "Digite para busca livre ou use @ para filtrar"
-                  }
-                  ref={inputRef}
-                  value={searchInput}
-                />
-                <button
-                  aria-label="Adicionar filtro"
-                  className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-foreground)]"
-                  onClick={openFieldDropdown}
-                  type="button"
-                >
-                  <Plus className="size-4" />
-                </button>
-              </div>
-              <Button
-                leadingIcon={<Search className="size-4" />}
-                onClick={() => {
-                  if (selectedField) addChip();
-                }}
-              >
-                Filtrar
-              </Button>
-
-              {isFieldDropdownOpen ? (
-                <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 w-52 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-soft)]">
-                  {filterFields.map((field) => (
-                    <button
-                      className="flex w-full items-center justify-between rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm font-medium text-[var(--color-foreground)] transition hover:bg-[var(--color-surface-muted)]"
-                      key={field.key}
-                      onClick={() => selectField(field)}
-                      type="button"
-                    >
-                      <span>{field.label}</span>
-                      <span className="text-xs text-[var(--color-muted-foreground)]">@</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-xs text-[var(--color-muted-foreground)]">
-                Finalize filtros com Enter/Tab para gerar chips.
-              </p>
-            </div>
-        </div>
-
-        {chips.length ? (
-          <div className="flex flex-wrap gap-2">
-            {chips.map((chip) => {
-              const operatorLabel =
-                [...textOperators, ...categoryOperators].find(
-                  (operator) => operator.key === chip.operator
-                )?.label ?? chip.operator;
-
-              return (
-                <span
-                  className="inline-flex items-center gap-2 rounded-full bg-[var(--color-surface-muted)] px-3 py-1 text-xs font-semibold text-[var(--color-foreground)]"
-                  key={chip.id}
-                >
-                  {chip.field.label} {operatorLabel} {chip.value}
-                  <button
-                    aria-label={`Remover filtro ${chip.field.label}`}
-                    className="inline-flex size-4 items-center justify-center rounded-full text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-border)] hover:text-[var(--color-foreground)]"
-                    onClick={() => removeChip(chip.id)}
-                    type="button"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        ) : null}
+        <TokenizedSearchFilters
+          availableOperators={availableOperators}
+          chips={chips}
+          filterFields={filterFields}
+          getOperatorLabel={getOperatorLabel}
+          inputRef={inputRef}
+          isFieldDropdownOpen={isFieldDropdownOpen}
+          onClearSelectedField={() => {
+            setSelectedField(null);
+            setSearchInput("");
+            inputRef.current?.focus();
+          }}
+          onFilterClick={() => {
+            if (selectedField) addChip();
+          }}
+          onInputChange={handleInputChange}
+          onInputKeyDown={handleInputKeyDown}
+          onOpenFieldDropdown={openFieldDropdown}
+          onOperatorChange={(operator) => setSelectedOperator(operator)}
+          onRemoveChip={removeChip}
+          onSelectField={selectField}
+          searchInput={searchInput}
+          selectedField={selectedField}
+          selectedOperator={selectedOperator}
+        />
 
         {errorMessage ? (
           <p className="text-sm font-medium text-[var(--color-danger-strong)]">{errorMessage}</p>
         ) : null}
 
-        <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
-          <table className="w-full min-w-[980px] border-collapse text-sm">
-            <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
-              <tr>
-                <th className="px-4 py-3 font-semibold">
-                  <button
-                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                    onClick={() => toggleSort("fullName")}
-                    type="button"
-                  >
-                    Nome
-                    {renderSortIcon("fullName")}
-                  </button>
-                </th>
-                <th className="px-4 py-3 font-semibold">
-                  E-mail
-                </th>
-                <th className="px-4 py-3 font-semibold">
-                  <button
-                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                    onClick={() => toggleSort("documentNumber")}
-                    type="button"
-                  >
-                    Documento
-                    {renderSortIcon("documentNumber")}
-                  </button>
-                </th>
-                <th className="px-4 py-3 font-semibold">
-                  <button
-                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                    onClick={() => toggleSort("primaryPhone")}
-                    type="button"
-                  >
-                    Telefone
-                    {renderSortIcon("primaryPhone")}
-                  </button>
-                </th>
-                <th className="px-4 py-3 font-semibold">
-                  <button
-                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                    onClick={() => toggleSort("status")}
-                    type="button"
-                  >
-                    Status
-                    {renderSortIcon("status")}
-                  </button>
-                </th>
-                <th className="px-4 py-3 font-semibold">
-                  <button
-                    className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
-                    onClick={() => toggleSort("createdAt")}
-                    type="button"
-                  >
-                    Criado em
-                    {renderSortIcon("createdAt")}
-                  </button>
-                </th>
-                <th className="px-4 py-3 font-semibold">Acao</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr className="border-t border-[var(--color-border)]">
-                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={7}>
-                    Carregando pessoas...
-                  </td>
-                </tr>
-              ) : rows.length ? (
-                rows.map((person) => (
-                  <tr
-                    className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
-                    key={person.id}
-                  >
-                    <td className="px-4 py-3">{person.fullName}</td>
-                    <td className="px-4 py-3">{person.email ?? "-"}</td>
-                    <td className="px-4 py-3">{person.documentNumber ?? "-"}</td>
-                    <td className="px-4 py-3">{person.primaryPhone ?? "-"}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={person.status === "ACTIVE" ? "success" : "attention"}>
-                        {toStatusLabel(person.status)}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">{toDateTime(person.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <Button onClick={() => openEditPerson(person)} size="sm" variant="outline">
-                        Editar
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr className="border-t border-[var(--color-border)]">
-                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={7}>
-                    Nenhuma pessoa encontrada com os filtros atuais.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            {totalCount} pessoas encontradas com os filtros atuais.
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              disabled={isLoading || !hasPreviousPage || !pageStartCursor}
-              onClick={() => {
-                setCursorMode("backward");
-                setRequestAfter(null);
-                setRequestBefore(pageStartCursor);
-              }}
-              size="sm"
-              variant="outline"
+        <SearchResultsTable
+          canGoNext={!isLoading && hasNextPage && Boolean(pageEndCursor)}
+          canGoPrevious={!isLoading && hasPreviousPage && Boolean(pageStartCursor)}
+          columns={tableColumns}
+          emptyText="Nenhuma pessoa encontrada com os filtros atuais."
+          isLoading={isLoading}
+          loadingText="Carregando pessoas..."
+          onNextPage={() => {
+            setCursorMode("forward");
+            setRequestBefore(null);
+            setRequestAfter(pageEndCursor);
+          }}
+          onPreviousPage={() => {
+            setCursorMode("backward");
+            setRequestAfter(null);
+            setRequestBefore(pageStartCursor);
+          }}
+          onToggleSort={toggleSort}
+          renderRow={(person) => (
+            <tr
+              className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
+              key={person.id}
             >
-              Anterior
-            </Button>
-            <Button
-              disabled={isLoading || !hasNextPage || !pageEndCursor}
-              onClick={() => {
-                setCursorMode("forward");
-                setRequestBefore(null);
-                setRequestAfter(pageEndCursor);
-              }}
-              size="sm"
-              variant="outline"
-            >
-              Proxima
-            </Button>
-          </div>
-        </div>
+              <td className="px-4 py-3">{person.fullName}</td>
+              <td className="px-4 py-3">{person.email ?? "-"}</td>
+              <td className="px-4 py-3">{person.documentNumber ?? "-"}</td>
+              <td className="px-4 py-3">{person.primaryPhone ?? "-"}</td>
+              <td className="px-4 py-3">
+                <Badge variant={person.status === "ACTIVE" ? "success" : "attention"}>
+                  {toStatusLabel(person.status)}
+                </Badge>
+              </td>
+              <td className="px-4 py-3">{toDateTime(person.createdAt)}</td>
+              <td className="px-4 py-3">
+                <Button onClick={() => openEditPerson(person)} size="sm" variant="outline">
+                  Editar
+                </Button>
+              </td>
+            </tr>
+          )}
+          renderSortIcon={renderSortIcon}
+          rows={rows}
+          sortBy={sortBy}
+          totalText={`${totalCount} pessoas encontradas com os filtros atuais.`}
+        />
       </section>
     </div>
   );
