@@ -46,7 +46,7 @@ export const navigationItems: NavItem[] = [
       { label: "Pessoas", href: "/pessoas/pesquisa", showPlus: true },
       { label: "Empresas", href: "/empresas/pesquisa", showPlus: true },
       { label: "Responsaveis", href: "/components", showPlus: true },
-      { label: "Alunos / Pacientes", href: "/clientes/cadastro", showPlus: true },
+      { label: "Alunos / Pacientes", href: "/alunos/pesquisa", showPlus: true },
       { label: "Funcionarios", href: "/components", showPlus: true },
       { label: "Fornecedores", href: "/components", showPlus: true }
     ]
