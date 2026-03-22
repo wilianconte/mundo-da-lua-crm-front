@@ -13,13 +13,13 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-[var(--color-brand-menu)] text-white hover:bg-[var(--color-brand-menu)]",
+    "bg-[var(--color-brand-menu)] text-white hover:bg-[var(--color-brand-menu-muted)] hover:text-white hover:shadow-[var(--shadow-soft)]",
   secondary:
-    "bg-[var(--color-secondary-soft)] text-[var(--color-secondary-strong)] hover:bg-[var(--color-secondary-muted)]",
+    "bg-[var(--color-secondary-soft)] text-[var(--color-secondary-strong)] hover:bg-[var(--color-secondary)] hover:text-white hover:shadow-[var(--shadow-soft)]",
   ghost:
     "bg-transparent text-[var(--color-foreground)] hover:bg-[var(--color-surface-muted)]",
   outline:
-    "border border-[var(--color-border-strong)] bg-transparent text-[var(--color-foreground)] hover:bg-[var(--color-surface-muted)]"
+    "border border-[var(--color-border-strong)] bg-transparent text-[var(--color-foreground)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-primary)] hover:shadow-[var(--shadow-soft)]"
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -40,7 +40,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-medium transition duration-200 ease-[var(--ease-standard)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-menu)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:pointer-events-none disabled:opacity-60",
+        "inline-flex items-center justify-center gap-2 font-medium transition duration-200 ease-[var(--ease-standard)] hover:-translate-y-px active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-menu)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:pointer-events-none disabled:opacity-60",
         variantClasses[variant],
         sizeClasses[size],
         className
