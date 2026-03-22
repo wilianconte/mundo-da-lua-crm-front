@@ -63,23 +63,24 @@ function ChildNavItem({
     return (
       <div className="space-y-1">
         <button
+          data-active={isGroupActive ? "true" : "false"}
           className={cn(
-            "flex w-full items-center justify-between rounded-[var(--radius-sm)] px-2 py-1.5 text-left font-medium transition hover:bg-[var(--color-surface-muted)]/75",
+            "submenu-item flex w-full items-center justify-between rounded-[var(--radius-sm)] px-2 py-1.5 text-left font-medium transition hover:bg-[var(--color-surface-muted)]",
             level > 1 ? "text-[0.94rem]" : "text-[0.98rem]",
-            isGroupActive ? "text-[var(--color-foreground)]" : "text-[var(--color-foreground)]"
+            isGroupActive ? "bg-[var(--color-surface-muted)]" : ""
           )}
           onClick={() => setExpanded((current) => !current)}
           type="button"
         >
           <span>{item.label}</span>
           {expanded ? (
-            <Minus className="size-3.5 text-[var(--color-muted-foreground)]" />
+            <Minus className="size-3.5 submenu-item-icon" />
           ) : (
-            <Plus className="size-3.5 text-[var(--color-muted-foreground)]" />
+            <Plus className="size-3.5 submenu-item-icon" />
           )}
         </button>
         {expanded ? (
-          <div className="ml-[0.8rem] space-y-1 border-l border-[var(--color-border)]/80 pl-4">
+          <div className="ml-[0.8rem] space-y-1 border-l border-[var(--color-border-strong)] pl-4">
             {item.children?.map((nestedChild) => (
               <ChildNavItem
                 item={nestedChild}
@@ -97,9 +98,10 @@ function ChildNavItem({
 
   return (
     <Link
+      data-active={isChildActive ? "true" : "false"}
       className={cn(
-        "flex items-center justify-between rounded-[var(--radius-sm)] px-2 py-1.5 text-[0.98rem] font-medium transition hover:bg-[var(--color-surface-muted)]/75",
-        isChildActive ? "text-[var(--color-foreground)]" : "text-[var(--color-foreground)]"
+        "submenu-item flex items-center justify-between rounded-[var(--radius-sm)] px-2 py-1.5 text-[0.98rem] font-medium transition hover:bg-[var(--color-surface-muted)]",
+        isChildActive ? "bg-[var(--color-primary-soft)]" : ""
       )}
       href={item.href ?? "#"}
       onClick={onNavigate}
@@ -130,15 +132,15 @@ function SidebarLink({
     return (
       <Link
         aria-label={item.label}
+        data-active={isActive ? "true" : "false"}
         className={cn(
-          "flex h-11 w-full items-center justify-center rounded-[var(--radius-md)] bg-transparent transition hover:bg-transparent",
-          isActive ? "text-[var(--color-primary)]" : "text-[var(--color-muted-foreground)]"
+          "menu-item flex h-11 w-full items-center justify-center rounded-[var(--radius-md)] bg-transparent transition hover:bg-transparent"
         )}
         href={href}
         onClick={onNavigate}
         title={item.label}
       >
-        <Icon className="size-5" />
+        <Icon className="size-5 menu-item-icon" />
       </Link>
     );
   }
@@ -147,23 +149,22 @@ function SidebarLink({
     return (
       <div className="space-y-1">
         <button
+          data-active={isActive ? "true" : "false"}
           className={cn(
-            "flex w-full items-center justify-between rounded-[var(--radius-md)] px-2 py-2 text-left text-base font-bold transition hover:bg-[var(--color-surface-muted)]/75",
-            isActive
-              ? "text-[var(--color-foreground)]"
-              : "text-[var(--color-foreground)]"
+            "menu-item flex w-full items-center justify-between rounded-[var(--radius-md)] px-2 py-2 text-left text-base font-bold transition hover:bg-[var(--color-surface-muted)]/75",
+            isActive ? "bg-[var(--color-surface-muted)]" : ""
           )}
           onClick={() => setExpanded((current) => !current)}
           type="button"
         >
           <span className="flex items-center gap-3">
-            <Icon className="size-[1.05rem] text-[var(--color-muted-foreground)]" />
+            <Icon className="size-[1.05rem] menu-item-icon" />
             <span className="text-base font-bold">{item.label}</span>
           </span>
           {expanded ? (
-            <Minus className="size-4 text-[var(--color-muted-foreground)]" />
+            <Minus className="size-4 menu-item-icon" />
           ) : (
-            <Plus className="size-4 text-[var(--color-muted-foreground)]" />
+            <Plus className="size-4 menu-item-icon" />
           )}
         </button>
         {expanded ? (
@@ -185,17 +186,16 @@ function SidebarLink({
 
   return (
     <Link
+      data-active={isActive ? "true" : "false"}
       className={cn(
-        "flex items-center justify-between rounded-[var(--radius-md)] px-2 py-2 text-base font-bold transition hover:bg-[var(--color-surface-muted)]/75",
-        isActive
-          ? "text-[var(--color-foreground)]"
-          : "text-[var(--color-foreground)]"
+        "menu-item flex items-center justify-between rounded-[var(--radius-md)] px-2 py-2 text-base font-bold transition hover:bg-[var(--color-surface-muted)]/75",
+        isActive ? "bg-[var(--color-surface-muted)]" : ""
       )}
       href={item.href ?? "#"}
       onClick={onNavigate}
     >
       <span className="flex items-center gap-3">
-        <Icon className="size-[1.05rem] text-[var(--color-muted-foreground)]" />
+        <Icon className="size-[1.05rem] menu-item-icon" />
         <span>{item.label}</span>
       </span>
       <span className="flex items-center gap-2">

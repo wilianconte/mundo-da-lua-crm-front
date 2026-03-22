@@ -8,6 +8,7 @@ import {
   CalendarDays,
   LayoutDashboard,
   MessageCircle,
+  Palette,
   Settings,
   Users
 } from "lucide-react";
@@ -181,5 +182,11 @@ export const navigationItems: NavItem[] = [
       { label: "Modelos de Contrato", href: "/components" },
       { label: "Parametros Gerais", href: "/components" }
     ]
+  },
+  {
+    section: "System Design",
+    label: "System Design",
+    icon: Palette,
+    children: [{ label: "Componentes", href: "/system-design/componentes" }]
   }
 ];

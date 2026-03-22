@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Plus, Search, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +104,7 @@ function mapTextOperator(operator: TextOperator): "contains" | "eq" | "startsWit
 type CursorMode = "forward" | "backward";
 
 export function PersonSearchView() {
+  const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [freeQuery, setFreeQuery] = useState("");
   const [selectedField, setSelectedField] = useState<FilterField | null>(null);
@@ -306,16 +308,39 @@ export function PersonSearchView() {
     resetToFirstPage();
   }
 
+  function openEditPerson(person: PersonNode) {
+    const params = new URLSearchParams({
+      mode: "edit",
+      id: person.id,
+      fullName: person.fullName ?? "",
+      documentNumber: person.documentNumber ?? "",
+      primaryPhone: person.primaryPhone ?? ""
+    });
+
+    router.push(`/pessoas/cadastro?${params.toString()}`);
+  }
+
   return (
     <div className="space-y-6">
       <section className="space-y-2">
         <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
           Pessoas
         </p>
-        <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de pessoas</h2>
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          Omnisearch com filtros tokenizados e busca livre global por nome, email e documento.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de pessoas</h2>
+            <p className="text-sm text-[var(--color-muted-foreground)]">
+              Omnisearch com filtros tokenizados e busca livre global por nome, email e documento.
+            </p>
+          </div>
+          <Button
+            className="min-w-40"
+            leadingIcon={<Plus className="size-4" />}
+            onClick={() => router.push("/pessoas/cadastro")}
+          >
+            Adicionar
+          </Button>
+        </div>
       </section>
 
       <section className="space-y-5">
@@ -516,8 +541,8 @@ export function PersonSearchView() {
                     </td>
                     <td className="px-4 py-3">{toDateTime(person.createdAt)}</td>
                     <td className="px-4 py-3">
-                      <Button size="sm" variant="outline">
-                        Abrir ficha
+                      <Button onClick={() => openEditPerson(person)} size="sm" variant="outline">
+                        Editar
                       </Button>
                     </td>
                   </tr>

@@ -11,9 +11,13 @@
   --color-foreground: #122033;
   --color-muted-foreground: #63748a;
 
-  --color-primary: #0f5eea;
-  --color-primary-strong: #0c4ec2;
-  --color-primary-soft: #dce8ff;
+  --color-brand-menu: #162746;
+  --color-brand-menu-strong: #101f3a;
+  --color-brand-menu-muted: #2a3c5e;
+
+  --color-primary: var(--color-brand-menu);
+  --color-primary-strong: var(--color-brand-menu-strong);
+  --color-primary-soft: #dde6f5;
 
   --color-secondary: #0f766e;
   --color-secondary-strong: #0a5c56;
@@ -67,4 +71,35 @@ input {
 
 ::selection {
   background: rgba(15, 94, 234, 0.18);
+}
+
+.sidebar-theme-dark {
+  --color-surface: var(--color-brand-menu);
+  --color-surface-muted: var(--color-brand-menu-muted);
+  --color-border: #2f4468;
+  --color-border-strong: #415c8a;
+  --color-foreground: #f8fbff;
+  --color-muted-foreground: #b8c7df;
+  --color-primary: #ffffff;
+  --color-primary-soft: rgba(255, 255, 255, 0.16);
+}
+
+.sidebar-theme-dark .menu-item,
+.sidebar-theme-dark .submenu-item {
+  color: #ffffff;
+}
+
+.sidebar-theme-dark .menu-item-icon,
+.sidebar-theme-dark .submenu-item-icon {
+  color: #c4d3eb;
+}
+
+.sidebar-theme-dark .menu-item[data-active="true"],
+.sidebar-theme-dark .submenu-item[data-active="true"] {
+  color: #ffffff;
+}
+
+.sidebar-theme-dark .menu-item[data-active="true"] .menu-item-icon,
+.sidebar-theme-dark .submenu-item[data-active="true"] .submenu-item-icon {
+  color: #ffffff;
 }
