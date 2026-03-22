@@ -103,3 +103,13 @@ input {
 .sidebar-theme-dark .submenu-item[data-active="true"] .submenu-item-icon {
   color: #ffffff;
 }
+
+.menu-scroll {
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.menu-scroll::-webkit-scrollbar {
+  display: none;
+}

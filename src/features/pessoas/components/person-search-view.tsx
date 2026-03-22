@@ -311,10 +311,7 @@ export function PersonSearchView() {
   function openEditPerson(person: PersonNode) {
     const params = new URLSearchParams({
       mode: "edit",
-      id: person.id,
-      fullName: person.fullName ?? "",
-      documentNumber: person.documentNumber ?? "",
-      primaryPhone: person.primaryPhone ?? ""
+      id: person.id
     });
 
     router.push(`/pessoas/cadastro?${params.toString()}`);
@@ -462,7 +459,7 @@ export function PersonSearchView() {
         ) : null}
 
         <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
-          <table className="w-full min-w-[880px] border-collapse text-sm">
+          <table className="w-full min-w-[980px] border-collapse text-sm">
             <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
               <tr>
                 <th className="px-4 py-3 font-semibold">
@@ -474,6 +471,9 @@ export function PersonSearchView() {
                     Nome
                     {renderSortIcon("fullName")}
                   </button>
+                </th>
+                <th className="px-4 py-3 font-semibold">
+                  E-mail
                 </th>
                 <th className="px-4 py-3 font-semibold">
                   <button
@@ -521,7 +521,7 @@ export function PersonSearchView() {
             <tbody>
               {isLoading ? (
                 <tr className="border-t border-[var(--color-border)]">
-                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={6}>
+                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={7}>
                     Carregando pessoas...
                   </td>
                 </tr>
@@ -532,6 +532,7 @@ export function PersonSearchView() {
                     key={person.id}
                   >
                     <td className="px-4 py-3">{person.fullName}</td>
+                    <td className="px-4 py-3">{person.email ?? "-"}</td>
                     <td className="px-4 py-3">{person.documentNumber ?? "-"}</td>
                     <td className="px-4 py-3">{person.primaryPhone ?? "-"}</td>
                     <td className="px-4 py-3">
@@ -549,7 +550,7 @@ export function PersonSearchView() {
                 ))
               ) : (
                 <tr className="border-t border-[var(--color-border)]">
-                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={6}>
+                  <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={7}>
                     Nenhuma pessoa encontrada com os filtros atuais.
                   </td>
                 </tr>

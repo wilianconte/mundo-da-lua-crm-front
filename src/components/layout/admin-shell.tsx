@@ -81,7 +81,7 @@ export function AdminShell({ children }: AdminShellProps) {
       <div className="flex h-full min-h-0">
         <aside
           className={cn(
-            "sidebar-theme-dark hidden h-full shrink-0 overflow-visible border-r border-[var(--color-border)] bg-[var(--color-surface)] py-6 transition-[width,padding] duration-200 ease-[var(--ease-standard)] lg:block",
+            "sidebar-theme-dark menu-scroll hidden h-full shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] py-6 transition-[width,padding] duration-200 ease-[var(--ease-standard)] lg:block",
             isSidebarCompactForRender ? "w-20 px-3" : "w-[290px] px-5"
           )}
           onMouseEnter={() => {
@@ -105,7 +105,7 @@ export function AdminShell({ children }: AdminShellProps) {
 
         <aside
           className={cn(
-            "sidebar-theme-dark fixed inset-y-0 left-0 z-50 w-[88%] max-w-[320px] border-r border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-6 shadow-2xl transition duration-200 ease-[var(--ease-standard)] lg:hidden",
+            "sidebar-theme-dark menu-scroll fixed inset-y-0 left-0 z-50 w-[88%] max-w-[320px] border-r border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-6 shadow-2xl transition duration-200 ease-[var(--ease-standard)] lg:hidden",
             isOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
