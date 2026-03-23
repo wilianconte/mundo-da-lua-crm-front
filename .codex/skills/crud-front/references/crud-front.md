@@ -57,6 +57,10 @@ Padrao observado em `pessoas`:
 - botao `Adicionar` apontando para `/cadastro`
 - botao `Editar` apontando para `/cadastro?mode=edit&id=<uuid>`
 
+Regra adicional:
+
+- toda listagem CRUD nova deve usar o modelo de `pessoas` como referencia obrigatoria para UX e estrutura (Omnisearch tokenizado + tabela + estados + navegacao)
+
 ## 4. Cadastro e alteracao
 
 O formulario de criacao e edicao deve ser unico sempre que o contrato permitir.

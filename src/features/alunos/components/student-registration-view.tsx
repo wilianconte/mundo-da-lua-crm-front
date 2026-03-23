@@ -232,8 +232,15 @@ export function StudentRegistrationView() {
       <section className="space-y-2">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Alunos</p>
-            <h2 className="text-2xl font-semibold tracking-tight">{isEditMode ? "Editar aluno" : "Novo aluno"}</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">
+              <span className="font-mono text-base font-medium uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                Alunos
+              </span>{" "}
+              <span aria-hidden="true" className="text-[var(--color-muted-foreground)]">
+                |
+              </span>{" "}
+              <span className="text-xl">{isEditMode ? "Editar aluno" : "Novo aluno"}</span>
+            </h2>
             <p className="text-sm text-[var(--color-muted-foreground)]">
               Fluxo de cadastro mock com selecao reutilizavel de pessoas, cursos e gerenciamento de responsaveis.
             </p>

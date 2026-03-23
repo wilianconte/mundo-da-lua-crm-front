@@ -20,6 +20,7 @@ Use esta skill sempre que uma feature envolver listagem, cadastro, alteracao ou 
 - Toda comunicacao com backend deve passar por GraphQL usando `src/lib/graphql/client.ts`.
 - CRUDs autenticados devem respeitar o proxy `app/api/graphql/route.ts` e o fluxo de sessao centralizado.
 - A referencia oficial atual para CRUD integrado e `pessoas`; nao usar `clientes` como baseline de producao enquanto ele permanecer demonstrativo.
+- Toda listagem nova deve seguir o modelo de `src/features/pessoas/components/person-search-view.tsx` (Omnisearch tokenizado, tabela, ordenacao e paginacao) como padrao visual e de comportamento.
 - Separar listagem e formulario em rotas distintas, preferindo `/pesquisa` e `/cadastro`.
 - Para edicao, usar o contrato atual com query string `mode=edit&id=<uuid>` ate que o projeto defina outra convencao.
 - Usar `React Hook Form` + `Zod` para formularios.
