@@ -17,8 +17,8 @@ import {
   X
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MobileSidebarTrigger, SidebarNav } from "@/components/layout/sidebar-nav";
 import { clearAuthSession, getAuthUser } from "@/lib/auth/session";
@@ -28,8 +28,15 @@ type AdminShellProps = {
   children: ReactNode;
 };
 
+type BreadcrumbItem = {
+  label: string;
+  href: string;
+  current: boolean;
+};
+
 export function AdminShell({ children }: AdminShellProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarHoverExpanded, setIsSidebarHoverExpanded] = useState(false);
@@ -45,6 +52,7 @@ export function AdminShell({ children }: AdminShellProps) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+  const breadcrumbs = useMemo(() => buildBreadcrumbs(pathname), [pathname]);
 
   useEffect(() => {
     const storedState = window.localStorage.getItem("mdl:sidebar-collapsed");
@@ -126,11 +134,12 @@ export function AdminShell({ children }: AdminShellProps) {
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <header className="sticky top-0 z-30 border-b border-[var(--color-border)]/70 bg-[var(--color-surface)]">
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 md:px-6">
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <MobileSidebarTrigger onClick={() => setIsOpen(true)} />
+                <HeaderBreadcrumb items={breadcrumbs} />
               </div>
 
-              <div className="flex flex-1 items-center justify-end gap-3">
+              <div className="flex items-center justify-end gap-3">
                 <button
                   aria-label="Notificacoes"
                   className="inline-flex size-9 items-center justify-center text-[var(--color-muted-foreground)] transition hover:text-[var(--color-foreground)]"
@@ -338,4 +347,80 @@ function ProfileMenuItem({
       {trailingContent ?? trailingIcon}
     </button>
   );
+}
+
+function HeaderBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
+  return (
+    <nav aria-label="Breadcrumb" className="min-w-0">
+      <ol className="flex min-w-0 items-center gap-1.5 overflow-hidden text-sm text-[var(--color-muted-foreground)]">
+        {items.map((item, index) => (
+          <li className="flex min-w-0 items-center gap-1.5" key={item.href}>
+            {index > 0 ? <ChevronRight className="size-3.5 shrink-0 opacity-60" /> : null}
+            {item.current ? (
+              <span className="truncate font-medium text-[var(--color-foreground)]">{item.label}</span>
+            ) : (
+              <Link
+                className="truncate transition hover:text-[var(--color-foreground)]"
+                href={item.href}
+              >
+                {item.label}
+              </Link>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+function buildBreadcrumbs(pathname: string): BreadcrumbItem[] {
+  const cleanPath = pathname.split("?")[0].split("#")[0];
+  const segments = cleanPath.split("/").filter(Boolean);
+
+  if (!segments.length) {
+    return [{ label: "Dashboard", href: "/", current: true }];
+  }
+
+  const items: BreadcrumbItem[] = [{ label: "Dashboard", href: "/", current: false }];
+  let hrefAccumulator = "";
+
+  segments.forEach((segment, index) => {
+    hrefAccumulator += `/${segment}`;
+    items.push({
+      label: toBreadcrumbLabel(segment),
+      href: hrefAccumulator,
+      current: index === segments.length - 1
+    });
+  });
+
+  return items;
+}
+
+function toBreadcrumbLabel(segment: string) {
+  const labels: Record<string, string> = {
+    dashboard: "Dashboard",
+    pessoas: "Pessoas",
+    empresas: "Empresas",
+    alunos: "Alunos",
+    cursos: "Cursos",
+    courses: "Cursos",
+    new: "Novo",
+    edit: "Editar",
+    pacientes: "Pacientes",
+    componentes: "Componentes",
+    "system-design": "System Design",
+    pesquisa: "Pesquisa",
+    cadastro: "Cadastro",
+    login: "Login"
+  };
+
+  const normalized = segment.toLowerCase();
+  if (labels[normalized]) {
+    return labels[normalized];
+  }
+
+  return normalized
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
