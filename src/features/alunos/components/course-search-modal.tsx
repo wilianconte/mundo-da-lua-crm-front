@@ -5,10 +5,10 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { searchPeople, type MockPerson } from "@/features/alunos/api/student-mock-service";
+import { searchCourses, type MockCourse } from "@/features/alunos/api/student-mock-service";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 
-type FilterFieldKey = "fullName" | "documentNumber" | "phone" | "email";
+type FilterFieldKey = "name" | "code" | "category";
 type TextOperator = "contains" | "equals" | "startsWith";
 
 type FilterField = {
@@ -25,10 +25,9 @@ type FilterChip = {
 };
 
 const filterFields: FilterField[] = [
-  { key: "fullName", label: "Nome", type: "text" },
-  { key: "documentNumber", label: "Documento", type: "text" },
-  { key: "phone", label: "Telefone", type: "text" },
-  { key: "email", label: "Email", type: "text" }
+  { key: "name", label: "Nome", type: "text" },
+  { key: "code", label: "Codigo", type: "text" },
+  { key: "category", label: "Categoria", type: "text" }
 ];
 
 const textOperators: Array<{ key: TextOperator; label: string }> = [
@@ -37,10 +36,10 @@ const textOperators: Array<{ key: TextOperator; label: string }> = [
   { key: "startsWith", label: "comeca com" }
 ];
 
-type PersonSearchModalProps = {
+type CourseSearchModalProps = {
   open: boolean;
   onClose: () => void;
-  onSelect: (person: MockPerson) => void;
+  onSelect: (course: MockCourse) => void;
   title?: string;
 };
 
@@ -58,12 +57,12 @@ function matchesTextOperator(value: string, query: string, operator: TextOperato
   return normalizedValue.includes(normalizedQuery);
 }
 
-export function PersonSearchModal({
+export function CourseSearchModal({
   open,
   onClose,
   onSelect,
-  title = "Pesquisar pessoa"
-}: PersonSearchModalProps) {
+  title = "Pesquisar curso"
+}: CourseSearchModalProps) {
   const [searchInput, setSearchInput] = useState("");
   const [freeQuery, setFreeQuery] = useState("");
   const [selectedField, setSelectedField] = useState<FilterField | null>(null);
@@ -71,10 +70,9 @@ export function PersonSearchModal({
   const [chips, setChips] = useState<FilterChip[]>([]);
   const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<MockPerson[]>([]);
+  const [results, setResults] = useState<MockCourse[]>([]);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-
   const availableOperators = useMemo(() => textOperators, []);
 
   useEffect(() => {
@@ -83,16 +81,16 @@ export function PersonSearchModal({
     let active = true;
     setIsLoading(true);
 
-    searchPeople({ query: freeQuery })
+    searchCourses({ query: freeQuery })
       .then((response) => {
         if (!active) return;
 
-        const filtered = response.filter((person) => {
+        const filtered = response.filter((course) => {
           return chips.every((chip) => {
             const value = chip.value.trim();
             if (!value) return true;
-            const personValue = String(person[chip.field.key] ?? "");
-            return matchesTextOperator(personValue, value, chip.operator);
+            const courseValue = String(course[chip.field.key] ?? "");
+            return matchesTextOperator(courseValue, value, chip.operator);
           });
         });
 
@@ -177,11 +175,11 @@ export function PersonSearchModal({
           <div>
             <h3 className="text-lg font-semibold text-[var(--color-foreground)]">{title}</h3>
             <p className="text-sm text-[var(--color-muted-foreground)]">
-              Omnisearch com filtros tokenizados e busca livre por nome, documento, telefone e email.
+              Omnisearch com filtros tokenizados e busca livre por nome, codigo e categoria.
             </p>
           </div>
           <button
-            aria-label="Fechar modal de pesquisa de pessoas"
+            aria-label="Fechar modal de pesquisa de cursos"
             className="inline-flex size-10 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-foreground)]"
             onClick={onClose}
             type="button"
@@ -221,7 +219,7 @@ export function PersonSearchModal({
             <table className="min-w-[760px] w-full border-collapse text-sm">
               <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
                 <tr>
-                  {["Nome", "Documento", "Telefone", "Email", "Acao"].map((label) => (
+                  {["Nome", "Codigo", "Categoria", "Acao"].map((label) => (
                     <th className="px-4 py-3 font-semibold" key={label}>
                       {label}
                     </th>
@@ -231,24 +229,23 @@ export function PersonSearchModal({
               <tbody>
                 {isLoading ? (
                   <tr className="border-t border-[var(--color-border)]">
-                    <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={5}>
+                    <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={4}>
                       <span className="inline-flex items-center gap-2">
                         <Loader2 className="size-4 animate-spin" />
-                        Carregando pessoas...
+                        Carregando cursos...
                       </span>
                     </td>
                   </tr>
                 ) : results.length ? (
-                  results.map((person) => (
-                    <tr className="border-t border-[var(--color-border)]" key={person.id}>
-                      <td className="px-4 py-3 font-medium text-[var(--color-foreground)]">{person.fullName}</td>
-                      <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{person.documentNumber}</td>
-                      <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{person.phone}</td>
-                      <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{person.email}</td>
+                  results.map((course) => (
+                    <tr className="border-t border-[var(--color-border)]" key={course.id}>
+                      <td className="px-4 py-3 font-medium text-[var(--color-foreground)]">{course.name}</td>
+                      <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{course.code}</td>
+                      <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{course.category}</td>
                       <td className="px-4 py-3">
                         <Button
                           onClick={() => {
-                            onSelect(person);
+                            onSelect(course);
                             onClose();
                           }}
                           size="sm"
@@ -261,15 +258,14 @@ export function PersonSearchModal({
                   ))
                 ) : (
                   <tr className="border-t border-[var(--color-border)]">
-                    <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={5}>
-                      Nenhuma pessoa encontrada com os filtros atuais.
+                    <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={4}>
+                      Nenhum curso encontrado com os filtros atuais.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
-
         </CardContent>
       </Card>
     </div>

@@ -5,30 +5,26 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { searchPeople, type MockPerson } from "@/features/alunos/api/student-mock-service";
+import { searchCourses, type MockCourse } from "@/features/alunos/api/student-mock-service";
 import { cn } from "@/lib/utils/cn";
 
-type PersonAutocompleteProps = {
-  label?: string;
-  value: MockPerson | null;
-  onSelect: (person: MockPerson) => void;
+type CourseAutocompleteProps = {
+  value: MockCourse | null;
+  onSelect: (course: MockCourse) => void;
   onOpenModal: () => void;
-  onCreateNew?: (query: string) => void;
   placeholder?: string;
-  excludedPersonIds?: string[];
+  excludedCourseIds?: string[];
 };
 
-export function PersonAutocomplete({
-  label,
+export function CourseAutocomplete({
   value,
   onSelect,
   onOpenModal,
-  onCreateNew,
-  placeholder = "Pesquisar por nome, documento ou telefone",
-  excludedPersonIds = []
-}: PersonAutocompleteProps) {
+  placeholder = "Pesquisar por nome, codigo ou categoria",
+  excludedCourseIds = []
+}: CourseAutocompleteProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<MockPerson[]>([]);
+  const [results, setResults] = useState<MockCourse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -45,7 +41,7 @@ export function PersonAutocomplete({
     return () => window.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const excludedPersonIdsKey = excludedPersonIds.join("|");
+  const excludedCourseIdsKey = excludedCourseIds.join("|");
 
   useEffect(() => {
     let active = true;
@@ -56,7 +52,7 @@ export function PersonAutocomplete({
       return;
     }
 
-    const selectedLabel = value?.fullName?.trim().toLowerCase();
+    const selectedLabel = value?.name?.trim().toLowerCase();
     if (selectedLabel && query.trim().toLowerCase() === selectedLabel) {
       setIsLoading(false);
       setIsOpen(false);
@@ -65,9 +61,9 @@ export function PersonAutocomplete({
 
     const loadingId = window.setTimeout(() => setIsLoading(true), 0);
     const timeoutId = window.setTimeout(() => {
-      searchPeople({ query }).then((response) => {
+      searchCourses({ query }).then((response) => {
         if (!active) return;
-        setResults(response.filter((person) => !excludedPersonIds.includes(person.id)));
+        setResults(response.filter((course) => !excludedCourseIds.includes(course.id)));
         setHighlightedIndex(0);
         setIsOpen(true);
         setIsLoading(false);
@@ -79,7 +75,7 @@ export function PersonAutocomplete({
       window.clearTimeout(loadingId);
       window.clearTimeout(timeoutId);
     };
-  }, [query, excludedPersonIdsKey, value?.fullName]);
+  }, [query, excludedCourseIdsKey, value?.name]);
 
   useEffect(() => {
     if (!value) {
@@ -87,20 +83,13 @@ export function PersonAutocomplete({
       return;
     }
 
-    setQuery(value.fullName);
+    setQuery(value.name);
   }, [value]);
 
-  function commitSelection(person: MockPerson) {
-    onSelect(person);
-    setQuery(person.fullName);
+  function commitSelection(course: MockCourse) {
+    onSelect(course);
+    setQuery(course.name);
     setIsOpen(false);
-  }
-
-  function handleCreateNew() {
-    const nextQuery = query.trim();
-    if (!nextQuery || !onCreateNew) return;
-    setIsOpen(false);
-    onCreateNew(nextQuery);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -123,8 +112,8 @@ export function PersonAutocomplete({
 
     if (event.key === "Enter") {
       event.preventDefault();
-      const person = results[highlightedIndex];
-      if (person) commitSelection(person);
+      const course = results[highlightedIndex];
+      if (course) commitSelection(course);
       return;
     }
 
@@ -159,30 +148,25 @@ export function PersonAutocomplete({
           {isOpen ? (
             <div className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-soft)]">
               {results.length ? (
-                results.map((person, index) => (
+                results.map((course, index) => (
                   <button
                     className={cn(
                       "flex w-full flex-col items-start gap-1 px-4 py-3 text-left transition hover:bg-[var(--color-surface-muted)]",
                       index === highlightedIndex && "bg-[var(--color-surface-muted)]"
                     )}
-                    key={person.id}
-                    onClick={() => commitSelection(person)}
+                    key={course.id}
+                    onClick={() => commitSelection(course)}
                     type="button"
                   >
-                    <span className="font-medium text-[var(--color-foreground)]">{person.fullName}</span>
+                    <span className="font-medium text-[var(--color-foreground)]">{course.name}</span>
                     <span className="text-xs text-[var(--color-muted-foreground)]">
-                      {person.documentNumber} - {person.phone} - {person.email}
+                      {course.code} - {course.category}
                     </span>
                   </button>
                 ))
               ) : (
-                <div className="space-y-3 px-4 py-4">
-                  <p className="text-sm text-[var(--color-muted-foreground)]">Nenhum resultado encontrado.</p>
-                  {onCreateNew && query.trim() ? (
-                    <Button onClick={handleCreateNew} size="sm" type="button" variant="outline">
-                      Cadastrar nova pessoa
-                    </Button>
-                  ) : null}
+                <div className="px-4 py-4 text-sm text-[var(--color-muted-foreground)]">
+                  Nenhum curso encontrado.
                 </div>
               )}
             </div>

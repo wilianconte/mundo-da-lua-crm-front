@@ -19,6 +19,13 @@ export type MockPerson = {
   email: string;
 };
 
+export type MockCourse = {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+};
+
 export type StudentGuardian = {
   id: string;
   person: MockPerson;
@@ -28,6 +35,14 @@ export type StudentGuardian = {
   receivesNotifications: boolean;
   canPickupChild: boolean;
   notes?: string;
+};
+
+export type StudentCourseEnrollment = {
+  id: string;
+  course: MockCourse;
+  registrationNumber: string;
+  startDate: string;
+  endDate?: string;
 };
 
 export type StudentRecord = {
@@ -40,6 +55,7 @@ export type StudentRecord = {
   startDate: string;
   notes?: string;
   guardians: StudentGuardian[];
+  courses: StudentCourseEnrollment[];
 };
 
 export type StudentListItem = {
@@ -72,6 +88,13 @@ export type PersonSearchFilters = {
   email?: string;
 };
 
+export type CourseSearchFilters = {
+  query?: string;
+  name?: string;
+  code?: string;
+  category?: string;
+};
+
 export type StudentFormPayload = {
   personId: string;
   registrationNumber: string;
@@ -81,23 +104,24 @@ export type StudentFormPayload = {
   startDate: string;
   notes?: string;
   guardians: StudentGuardian[];
+  courses: StudentCourseEnrollment[];
 };
 
 export const guardianRelationshipOptions: Array<{ value: GuardianRelationshipType; label: string }> = [
-  { value: "FATHER", label: "Father" },
-  { value: "MOTHER", label: "Mother" },
-  { value: "GRANDMOTHER", label: "Grandmother" },
-  { value: "GRANDFATHER", label: "Grandfather" },
-  { value: "UNCLE", label: "Uncle" },
-  { value: "AUNT", label: "Aunt" },
-  { value: "LEGAL_GUARDIAN", label: "Legal Guardian" },
-  { value: "OTHER", label: "Other" }
+  { value: "FATHER", label: "Pai" },
+  { value: "MOTHER", label: "Mae" },
+  { value: "GRANDMOTHER", label: "Avo (fem.)" },
+  { value: "GRANDFATHER", label: "Avo (masc.)" },
+  { value: "UNCLE", label: "Tio" },
+  { value: "AUNT", label: "Tia" },
+  { value: "LEGAL_GUARDIAN", label: "Responsavel legal" },
+  { value: "OTHER", label: "Outro" }
 ];
 
 export const studentStatusOptions: Array<{ value: StudentStatus; label: string }> = [
-  { value: "ACTIVE", label: "Active" },
-  { value: "PENDING", label: "Pending" },
-  { value: "INACTIVE", label: "Inactive" }
+  { value: "ACTIVE", label: "Ativo" },
+  { value: "PENDING", label: "Pendente" },
+  { value: "INACTIVE", label: "Inativo" }
 ];
 
 const mockPeople: MockPerson[] = [
@@ -109,6 +133,15 @@ const mockPeople: MockPerson[] = [
   { id: "person-6", fullName: "Fernanda Rocha", documentNumber: "678.901.234-55", phone: "(31) 95555-4000", email: "fernanda.rocha@example.com" },
   { id: "person-7", fullName: "Gabriel Almeida", documentNumber: "789.012.345-66", phone: "(41) 94444-5000", email: "gabriel.almeida@example.com" },
   { id: "person-8", fullName: "Helena Ramos", documentNumber: "890.123.456-77", phone: "(41) 93333-6000", email: "helena.ramos@example.com" }
+];
+
+const mockCourses: MockCourse[] = [
+  { id: "course-1", name: "Ballet Infantil", code: "CUR-BAL-01", category: "Artes" },
+  { id: "course-2", name: "Musicalizacao", code: "CUR-MUS-01", category: "Musica" },
+  { id: "course-3", name: "Futebol Kids", code: "CUR-FUT-01", category: "Esportes" },
+  { id: "course-4", name: "Ingles Basico", code: "CUR-ING-01", category: "Idiomas" },
+  { id: "course-5", name: "Robotica Junior", code: "CUR-ROB-01", category: "Tecnologia" },
+  { id: "course-6", name: "Teatro", code: "CUR-TEA-01", category: "Artes" }
 ];
 
 let mockStudents: StudentRecord[] = [
@@ -142,6 +175,15 @@ let mockStudents: StudentRecord[] = [
         canPickupChild: true,
         notes: "Available after 6 PM."
       }
+    ],
+    courses: [
+      {
+        id: "enrollment-1",
+        course: mockCourses[0],
+        registrationNumber: "MAT-BAL-2026-001",
+        startDate: "2026-02-03",
+        endDate: "2026-12-20"
+      }
     ]
   },
   {
@@ -163,6 +205,15 @@ let mockStudents: StudentRecord[] = [
         receivesNotifications: true,
         canPickupChild: false,
         notes: "Send email updates too."
+      }
+    ],
+    courses: [
+      {
+        id: "enrollment-2",
+        course: mockCourses[3],
+        registrationNumber: "MAT-ING-2026-002",
+        startDate: "2026-03-10",
+        endDate: "2026-11-30"
       }
     ]
   },
@@ -186,6 +237,15 @@ let mockStudents: StudentRecord[] = [
         canPickupChild: true,
         notes: "Legal paperwork already reviewed."
       }
+    ],
+    courses: [
+      {
+        id: "enrollment-3",
+        course: mockCourses[2],
+        registrationNumber: "MAT-FUT-2025-118",
+        startDate: "2025-08-14",
+        endDate: "2025-12-10"
+      }
     ]
   }
 ];
@@ -199,9 +259,9 @@ function normalize(value?: string) {
 }
 
 export function getStudentStatusLabel(status: StudentStatus) {
-  if (status === "ACTIVE") return "Active";
-  if (status === "PENDING") return "Pending";
-  return "Inactive";
+  if (status === "ACTIVE") return "Ativo";
+  if (status === "PENDING") return "Pendente";
+  return "Inativo";
 }
 
 export function getRelationshipLabel(value: GuardianRelationshipType) {
@@ -210,6 +270,10 @@ export function getRelationshipLabel(value: GuardianRelationshipType) {
 
 export function getAllMockPeople() {
   return [...mockPeople];
+}
+
+export function getAllMockCourses() {
+  return [...mockCourses];
 }
 
 export async function searchPeople(filters: PersonSearchFilters) {
@@ -230,6 +294,26 @@ export async function searchPeople(filters: PersonSearchFilters) {
     const matchesEmail = !filters.email || normalize(person.email).includes(normalize(filters.email));
 
     return matchesQuery && matchesName && matchesDocument && matchesPhone && matchesEmail;
+  });
+}
+
+export async function searchCourses(filters: CourseSearchFilters) {
+  await wait(300);
+  const query = normalize(filters.query);
+
+  return mockCourses.filter((course) => {
+    const matchesQuery =
+      !query ||
+      [course.name, course.code, course.category]
+        .map((value) => normalize(value))
+        .some((value) => value.includes(query));
+
+    const matchesName = !filters.name || normalize(course.name).includes(normalize(filters.name));
+    const matchesCode = !filters.code || normalize(course.code).includes(normalize(filters.code));
+    const matchesCategory =
+      !filters.category || normalize(course.category).includes(normalize(filters.category));
+
+    return matchesQuery && matchesName && matchesCode && matchesCategory;
   });
 }
 
@@ -284,7 +368,11 @@ export async function getStudentById(studentId: string) {
 
   return {
     ...student,
-    guardians: student.guardians.map((guardian) => ({ ...guardian, person: { ...guardian.person } }))
+    guardians: student.guardians.map((guardian) => ({ ...guardian, person: { ...guardian.person } })),
+    courses: student.courses?.map((enrollment) => ({
+      ...enrollment,
+      course: { ...enrollment.course }
+    })) ?? []
   } satisfies StudentRecord;
 }
 
@@ -299,6 +387,11 @@ export async function saveStudent(studentId: string | null, payload: StudentForm
       ...guardian,
       id: guardian.id || `guardian-${Date.now()}-${index}`,
       notes: guardian.notes?.trim() || undefined
+    })),
+    courses: payload.courses.map((enrollment, index) => ({
+      ...enrollment,
+      id: enrollment.id || `enrollment-${Date.now()}-${index}`,
+      course: { ...enrollment.course }
     }))
   };
 

@@ -60,17 +60,17 @@ export function GuardiansEditor({
 
   function handleSubmitDraft() {
     if (!draft.person) {
-      setErrorMessage("Select a responsible person before adding.");
+      setErrorMessage("Selecione um responsavel antes de adicionar.");
       return;
     }
 
     if (!draft.relationshipType) {
-      setErrorMessage("Select the relationship type.");
+      setErrorMessage("Selecione o parentesco.");
       return;
     }
 
     if (guardians.some((guardian) => guardian.person.id === draft.person?.id && guardian.id !== editingGuardianId)) {
-      setErrorMessage("This person is already linked as a guardian.");
+      setErrorMessage("Esta pessoa ja esta vinculada como responsavel.");
       return;
     }
 
@@ -118,14 +118,14 @@ export function GuardiansEditor({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Add guardians</CardTitle>
+          <CardTitle>Adicionar responsaveis</CardTitle>
           <CardDescription>
-            Link one or more responsible people using the same person selection flow used in General Data.
+            Vincule um ou mais responsaveis usando o mesmo fluxo de selecao de pessoas da aba Dados gerais.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <Field>
-            <FieldLabel>Responsible person</FieldLabel>
+            <FieldLabel>Pessoa responsavel</FieldLabel>
             <PersonAutocomplete
               excludedPersonIds={excludedIds}
               onOpenModal={() => setIsModalOpen(true)}
@@ -139,14 +139,14 @@ export function GuardiansEditor({
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="guardian-relationship-type">Relationship type</FieldLabel>
+              <FieldLabel htmlFor="guardian-relationship-type">Parentesco</FieldLabel>
               <select
                 className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
                 id="guardian-relationship-type"
                 onChange={(event) => setDraft((current) => ({ ...current, relationshipType: event.target.value as StudentGuardian['relationshipType'] }))}
                 value={draft.relationshipType}
               >
-                <option value="">Select relationship</option>
+                <option value="">Selecione o parentesco</option>
                 {guardianRelationshipOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -155,12 +155,12 @@ export function GuardiansEditor({
               </select>
             </Field>
             <Field>
-              <FieldLabel htmlFor="guardian-notes">Notes</FieldLabel>
+              <FieldLabel htmlFor="guardian-notes">Observacoes</FieldLabel>
               <textarea
                 className="min-h-28 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
                 id="guardian-notes"
                 onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
-                placeholder="Specific instructions about the guardian"
+                placeholder="Instrucoes especificas sobre o responsavel"
                 value={draft.notes}
               />
             </Field>
@@ -168,10 +168,10 @@ export function GuardiansEditor({
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {[
-              { key: "isPrimaryGuardian", label: "Primary guardian" },
-              { key: "isFinancialResponsible", label: "Financial responsible" },
-              { key: "receivesNotifications", label: "Receives notifications" },
-              { key: "canPickupChild", label: "Can pick up child" }
+              { key: "isPrimaryGuardian", label: "Responsavel principal" },
+              { key: "isFinancialResponsible", label: "Responsavel financeiro" },
+              { key: "receivesNotifications", label: "Recebe notificacoes" },
+              { key: "canPickupChild", label: "Pode buscar a crianca" }
             ].map((item) => (
               <label
                 className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm font-medium text-[var(--color-foreground)]"
@@ -193,9 +193,9 @@ export function GuardiansEditor({
           {errorMessage ? <FieldMessage className="text-red-600">{errorMessage}</FieldMessage> : null}
 
           <div className="flex flex-wrap gap-3">
-            <Button onClick={handleSubmitDraft}>{editingGuardianId ? "Update guardian" : "Add guardian"}</Button>
+            <Button onClick={handleSubmitDraft}>{editingGuardianId ? "Atualizar responsavel" : "Adicionar responsavel"}</Button>
             <Button onClick={resetDraft} variant="outline">
-              Clear
+              Limpar
             </Button>
           </div>
         </CardContent>
@@ -203,8 +203,8 @@ export function GuardiansEditor({
 
       <Card>
         <CardHeader>
-          <CardTitle>Guardians linked to the student</CardTitle>
-          <CardDescription>Mocked relationship list prepared for future validations and API persistence.</CardDescription>
+          <CardTitle>Responsaveis vinculados ao aluno</CardTitle>
+          <CardDescription>Lista mock de parentesco preparada para futuras validacoes e persistencia via API.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
@@ -212,14 +212,14 @@ export function GuardiansEditor({
               <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
                 <tr>
                   {[
-                    "Guardian name",
-                    "Relationship",
-                    "Phone",
-                    "Primary",
-                    "Financial",
-                    "Notifications",
-                    "Can pick up",
-                    "Actions"
+                    "Nome do responsavel",
+                    "Parentesco",
+                    "Telefone",
+                    "Principal",
+                    "Financeiro",
+                    "Notificacoes",
+                    "Pode buscar",
+                    "Acoes"
                   ].map((label) => (
                     <th className="px-4 py-3 font-semibold" key={label}>{label}</th>
                   ))}
@@ -232,21 +232,21 @@ export function GuardiansEditor({
                       <td className="px-4 py-3 font-medium text-[var(--color-foreground)]">{guardian.person.fullName}</td>
                       <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{getRelationshipLabel(guardian.relationshipType)}</td>
                       <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{guardian.person.phone}</td>
-                      <td className="px-4 py-3">{guardian.isPrimaryGuardian ? <Badge>Yes</Badge> : <Badge variant="neutral">No</Badge>}</td>
-                      <td className="px-4 py-3">{guardian.isFinancialResponsible ? <Badge>Yes</Badge> : <Badge variant="neutral">No</Badge>}</td>
-                      <td className="px-4 py-3">{guardian.receivesNotifications ? <Badge>Yes</Badge> : <Badge variant="neutral">No</Badge>}</td>
-                      <td className="px-4 py-3">{guardian.canPickupChild ? <Badge>Yes</Badge> : <Badge variant="neutral">No</Badge>}</td>
+                      <td className="px-4 py-3">{guardian.isPrimaryGuardian ? <Badge>Sim</Badge> : <Badge variant="neutral">Nao</Badge>}</td>
+                      <td className="px-4 py-3">{guardian.isFinancialResponsible ? <Badge>Sim</Badge> : <Badge variant="neutral">Nao</Badge>}</td>
+                      <td className="px-4 py-3">{guardian.receivesNotifications ? <Badge>Sim</Badge> : <Badge variant="neutral">Nao</Badge>}</td>
+                      <td className="px-4 py-3">{guardian.canPickupChild ? <Badge>Sim</Badge> : <Badge variant="neutral">Nao</Badge>}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
                           <Button onClick={() => handleEdit(guardian)} size="sm" variant="outline">
-                            Edit
+                            Editar
                           </Button>
                           <Button
                             onClick={() => onChange(guardians.filter((item) => item.id !== guardian.id))}
                             size="sm"
                             variant="ghost"
                           >
-                            Remove
+                            Remover
                           </Button>
                         </div>
                       </td>
@@ -255,7 +255,7 @@ export function GuardiansEditor({
                 ) : (
                   <tr className="border-t border-[var(--color-border)]">
                     <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={8}>
-                      No guardians linked yet. Add at least one responsible person to continue.
+                      Nenhum responsavel vinculado ainda. Adicione pelo menos um responsavel para continuar.
                     </td>
                   </tr>
                 )}
@@ -272,7 +272,7 @@ export function GuardiansEditor({
           setErrorMessage(null);
         }}
         open={isModalOpen}
-        title="Search Responsible Person"
+        title="Pesquisar responsavel"
       />
     </div>
   );

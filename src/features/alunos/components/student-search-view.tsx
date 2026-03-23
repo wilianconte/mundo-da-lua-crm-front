@@ -1,72 +1,215 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Plus } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
-  getStudentStatusLabel,
   searchStudents,
-  studentStatusOptions,
   type StudentListItem,
-  type StudentSearchFilters,
   type StudentStatus
 } from "@/features/alunos/api/student-mock-service";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
+import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 
-type SortableColumn = "studentName" | "registrationNumber" | "school" | "gradeClass" | "status" | "primaryGuardianName";
+type FilterFieldKey =
+  | "studentName"
+  | "documentNumber"
+  | "guardianName"
+  | "registrationNumber"
+  | "school"
+  | "gradeClass"
+  | "status";
+type FieldType = "text" | "category";
+type TextOperator = "contains" | "equals" | "startsWith";
+type CategoryOperator = "equals" | "notEquals";
+type FilterOperator = TextOperator | CategoryOperator;
+type SortableColumn =
+  | "studentName"
+  | "registrationNumber"
+  | "school"
+  | "gradeClass"
+  | "status"
+  | "primaryGuardianName";
 type SortDirection = "asc" | "desc";
 
+type FilterField = {
+  key: FilterFieldKey;
+  label: string;
+  type: FieldType;
+};
+
+type FilterChip = {
+  id: string;
+  field: FilterField;
+  operator: FilterOperator;
+  value: string;
+};
+
+const filterFields: FilterField[] = [
+  { key: "studentName", label: "Aluno", type: "text" },
+  { key: "documentNumber", label: "Documento", type: "text" },
+  { key: "guardianName", label: "Responsavel", type: "text" },
+  { key: "registrationNumber", label: "Matricula", type: "text" },
+  { key: "school", label: "Escola", type: "text" },
+  { key: "gradeClass", label: "Turma", type: "text" },
+  { key: "status", label: "Status", type: "category" }
+];
+
+const textOperators: Array<{ key: TextOperator; label: string }> = [
+  { key: "contains", label: "contem" },
+  { key: "equals", label: "e exatamente" },
+  { key: "startsWith", label: "comeca com" }
+];
+
+const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
+  { key: "equals", label: "e igual a" },
+  { key: "notEquals", label: "e diferente de" }
+];
+
 const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
-  { label: "Student", sortKey: "studentName" },
-  { label: "Registration", sortKey: "registrationNumber" },
-  { label: "School", sortKey: "school" },
-  { label: "Grade/Class", sortKey: "gradeClass" },
+  { label: "Aluno", sortKey: "studentName" },
+  { label: "Matricula", sortKey: "registrationNumber" },
+  { label: "Escola", sortKey: "school" },
+  { label: "Turma", sortKey: "gradeClass" },
   { label: "Status", sortKey: "status" },
-  { label: "Primary guardian", sortKey: "primaryGuardianName" },
-  { label: "Contact" },
-  { label: "Actions" }
+  { label: "Responsavel", sortKey: "primaryGuardianName" },
+  { label: "Contato" },
+  { label: "Acao" }
 ];
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
 }
 
+function toStatusEnum(value: string): StudentStatus | null {
+  const normalized = normalize(value);
+  if (normalized === "active" || normalized === "ativo") return "ACTIVE";
+  if (normalized === "pending" || normalized === "pendente") return "PENDING";
+  if (normalized === "inactive" || normalized === "inativo") return "INACTIVE";
+  return null;
+}
+
+function toStatusLabel(status: StudentStatus) {
+  if (status === "ACTIVE") return "Ativo";
+  if (status === "PENDING") return "Pendente";
+  return "Inativo";
+}
+
+function matchesTextOperator(value: string, query: string, operator: TextOperator) {
+  const normalizedValue = normalize(value);
+  const normalizedQuery = normalize(query);
+  if (!normalizedQuery) return true;
+
+  if (operator === "equals") return normalizedValue === normalizedQuery;
+  if (operator === "startsWith") return normalizedValue.startsWith(normalizedQuery);
+  return normalizedValue.includes(normalizedQuery);
+}
+
+function getFilterValue(row: StudentListItem, key: FilterFieldKey) {
+  if (key === "studentName") return row.studentName;
+  if (key === "documentNumber") return row.documentNumber;
+  if (key === "guardianName") return row.primaryGuardianName;
+  if (key === "registrationNumber") return row.registrationNumber;
+  if (key === "school") return row.school;
+  if (key === "gradeClass") return row.gradeClass;
+  return row.status;
+}
+
 export function StudentSearchView() {
-  const [filters, setFilters] = useState<StudentSearchFilters>({});
+  const router = useRouter();
+  const [searchInput, setSearchInput] = useState("");
+  const [freeQuery, setFreeQuery] = useState("");
+  const [selectedField, setSelectedField] = useState<FilterField | null>(null);
+  const [selectedOperator, setSelectedOperator] = useState<FilterOperator>("contains");
+  const [chips, setChips] = useState<FilterChip[]>([]);
+  const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
   const [rows, setRows] = useState<StudentListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortableColumn>("studentName");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const availableOperators = selectedField?.type === "category" ? categoryOperators : textOperators;
+
   useEffect(() => {
     let active = true;
-    searchStudents(filters)
-      .then((response) => {
+
+    async function loadStudents() {
+      try {
+        setIsLoading(true);
+        setErrorMessage(null);
+        const response = await searchStudents({});
         if (!active) return;
         setRows(response);
-      })
-      .finally(() => {
+      } catch {
+        if (!active) return;
+        setRows([]);
+        setErrorMessage("Nao foi possivel carregar a pesquisa de alunos.");
+      } finally {
         if (active) setIsLoading(false);
-      });
+      }
+    }
+
+    loadStudents();
 
     return () => {
       active = false;
     };
-  }, [filters]);
+  }, []);
+
+  const filteredRows = useMemo(() => {
+    const freeQueryValue = normalize(freeQuery);
+
+    return rows.filter((row) => {
+      const matchesFreeQuery =
+        !freeQueryValue ||
+        [
+          row.studentName,
+          row.documentNumber,
+          row.registrationNumber,
+          row.school,
+          row.gradeClass,
+          row.primaryGuardianName
+        ]
+          .map((value) => normalize(value))
+          .some((value) => value.includes(freeQueryValue));
+
+      if (!matchesFreeQuery) return false;
+
+      for (const chip of chips) {
+        if (chip.field.key === "status") {
+          const status = toStatusEnum(chip.value);
+          if (!status) return false;
+
+          const isEqual = row.status === status;
+          if (chip.operator === "notEquals" && isEqual) return false;
+          if (chip.operator === "equals" && !isEqual) return false;
+          continue;
+        }
+
+        const value = chip.value.trim();
+        if (!value) continue;
+        const rowValue = getFilterValue(row, chip.field.key);
+        const operator = chip.operator as TextOperator;
+        if (!matchesTextOperator(String(rowValue), value, operator)) return false;
+      }
+
+      return true;
+    });
+  }, [chips, freeQuery, rows]);
 
   const sortedRows = useMemo(() => {
-    return [...rows].sort((left, right) => {
+    return [...filteredRows].sort((left, right) => {
       const leftValue = normalize(String(left[sortBy]));
       const rightValue = normalize(String(right[sortBy]));
       const comparison = leftValue.localeCompare(rightValue);
       return sortDirection === "asc" ? comparison : -comparison;
     });
-  }, [rows, sortBy, sortDirection]);
+  }, [filteredRows, sortBy, sortDirection]);
 
   function toggleSort(column: SortableColumn) {
     if (sortBy !== column) {
@@ -83,122 +226,173 @@ export function StudentSearchView() {
     return sortDirection === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
   }
 
+  function openFieldDropdown() {
+    setIsFieldDropdownOpen(true);
+  }
+
+  function selectField(field: FilterField) {
+    setSelectedField(field);
+    setSelectedOperator(field.type === "category" ? "equals" : "contains");
+    setIsFieldDropdownOpen(false);
+    setSearchInput("");
+    setFreeQuery("");
+    inputRef.current?.focus();
+  }
+
+  function addChip() {
+    if (!selectedField) return;
+    const value = searchInput.trim();
+    if (!value) return;
+
+    const chip: FilterChip = {
+      id: `${selectedField.key}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      field: selectedField,
+      operator: selectedOperator,
+      value
+    };
+
+    setChips((current) => [...current, chip]);
+    setSearchInput("");
+    setIsFieldDropdownOpen(false);
+  }
+
+  function handleInputChange(value: string) {
+    setSearchInput(value);
+
+    if (selectedField) return;
+
+    if (value.includes("@")) {
+      setIsFieldDropdownOpen(true);
+      setFreeQuery("");
+      return;
+    }
+
+    setIsFieldDropdownOpen(false);
+    setFreeQuery(value);
+  }
+
+  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (!selectedField) return;
+    if (event.key !== "Enter" && event.key !== "Tab") return;
+
+    event.preventDefault();
+    addChip();
+  }
+
+  function removeChip(id: string) {
+    setChips((current) => current.filter((chip) => chip.id !== id));
+  }
+
+  function getOperatorLabel(operator: FilterOperator) {
+    return (
+      [...textOperators, ...categoryOperators].find((item) => item.key === operator)?.label ?? operator
+    );
+  }
+
   function statusBadgeVariant(status: StudentStatus): "success" | "attention" | "neutral" {
     if (status === "ACTIVE") return "success";
     if (status === "PENDING") return "attention";
     return "neutral";
   }
 
+  function openEditStudent(student: StudentListItem) {
+    const params = new URLSearchParams({
+      mode: "edit",
+      id: student.id
+    });
+
+    router.push(`/alunos/cadastro?${params.toString()}`);
+  }
+
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Student</p>
-          <h2 className="text-2xl font-semibold tracking-tight">Student search</h2>
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            Mock list patterned after the People module and ready for future API integration.
-          </p>
+      <section className="space-y-2">
+        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Alunos</p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de alunos</h2>
+            <p className="text-sm text-[var(--color-muted-foreground)]">
+              Omnisearch com filtros tokenizados e busca livre global por aluno, documento e matricula.
+            </p>
+          </div>
+          <Button
+            className="min-w-40"
+            leadingIcon={<Plus className="size-4" />}
+            onClick={() => router.push("/alunos/cadastro")}
+          >
+            Adicionar
+          </Button>
         </div>
-        <Link href="/alunos/cadastro">
-          <Button leadingIcon={<Plus className="size-4" />}>Create student</Button>
-        </Link>
       </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Search mock students by student, guardian, school, grade, and registration data.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              { key: "studentName", label: "Student name", placeholder: "Type student name" },
-              { key: "documentNumber", label: "Document number", placeholder: "CPF/RG" },
-              { key: "guardianName", label: "Guardian name", placeholder: "Primary guardian" },
-              { key: "registrationNumber", label: "Registration", placeholder: "Enrollment number" },
-              { key: "school", label: "School", placeholder: "School unit" },
-              { key: "gradeClass", label: "Grade/Class", placeholder: "Grade or classroom" }
-            ].map((field) => (
-              <div className="space-y-2" key={field.key}>
-                <label className="text-sm font-medium text-[var(--color-foreground)]" htmlFor={`student-filter-${field.key}`}>
-                  {field.label}
-                </label>
-                <Input
-                  id={`student-filter-${field.key}`}
-                  onChange={(event) => {
-                    setIsLoading(true);
-                    setFilters((current) => ({ ...current, [field.key]: event.target.value }));
-                  }}
-                  placeholder={field.placeholder}
-                  value={String(filters[field.key as keyof StudentSearchFilters] ?? "")}
-                />
-              </div>
-            ))}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[var(--color-foreground)]" htmlFor="student-filter-status">
-                Status
-              </label>
-              <select
-                className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                id="student-filter-status"
-                onChange={(event) => {
-                  setIsLoading(true);
-                  setFilters((current) => ({ ...current, status: event.target.value }));
-                }}
-                value={filters.status ?? ""}
-              >
-                <option value="">All statuses</option>
-                {studentStatusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <section className="space-y-5">
+        <TokenizedSearchFilters
+          availableOperators={availableOperators}
+          chips={chips}
+          filterFields={filterFields}
+          getOperatorLabel={getOperatorLabel}
+          inputRef={inputRef}
+          isFieldDropdownOpen={isFieldDropdownOpen}
+          onClearSelectedField={() => {
+            setSelectedField(null);
+            setSearchInput("");
+            inputRef.current?.focus();
+          }}
+          onFilterClick={() => {
+            if (selectedField) addChip();
+          }}
+          onInputChange={handleInputChange}
+          onInputKeyDown={handleInputKeyDown}
+          onOpenFieldDropdown={openFieldDropdown}
+          onOperatorChange={(operator) => setSelectedOperator(operator)}
+          onRemoveChip={removeChip}
+          onSelectField={selectField}
+          searchInput={searchInput}
+          selectedField={selectedField}
+          selectedOperator={selectedOperator}
+        />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Students</CardTitle>
-          <CardDescription>Fake data source with empty/loading states and standard row actions.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <SearchResultsTable
-            canGoNext={false}
-            canGoPrevious={false}
-            columns={tableColumns}
-            emptyText="No students found for the current filters."
-            isLoading={isLoading}
-            loadingText="Loading mock students..."
-            onNextPage={() => undefined}
-            onPreviousPage={() => undefined}
-            onToggleSort={toggleSort}
-            renderRow={(row) => (
-              <tr className="border-t border-[var(--color-border)]" key={row.id}>
-                <td className="px-4 py-3 font-medium text-[var(--color-foreground)]">{row.studentName}</td>
-                <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{row.registrationNumber}</td>
-                <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{row.school}</td>
-                <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{row.gradeClass}</td>
-                <td className="px-4 py-3">
-                  <Badge variant={statusBadgeVariant(row.status)}>{getStudentStatusLabel(row.status)}</Badge>
-                </td>
-                <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{row.primaryGuardianName}</td>
-                <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{row.primaryGuardianPhone}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Link href={`/alunos/cadastro?mode=edit&id=${row.id}`}><Button size="sm" variant="outline">View</Button></Link>
-                    <Link href={`/alunos/cadastro?mode=edit&id=${row.id}`}><Button size="sm" variant="ghost">Edit</Button></Link>
-                  </div>
-                </td>
-              </tr>
-            )}
-            renderSortIcon={renderSortIcon}
-            rows={sortedRows}
-            sortBy={sortBy}
-            totalText={`${sortedRows.length} student(s) listed in mock mode.`}
-          />
-        </CardContent>
-      </Card>
+        {errorMessage ? (
+          <p className="text-sm font-medium text-[var(--color-danger-strong)]">{errorMessage}</p>
+        ) : null}
+
+        <SearchResultsTable
+          canGoNext={false}
+          canGoPrevious={false}
+          columns={tableColumns}
+          emptyText="Nenhum aluno encontrado com os filtros atuais."
+          isLoading={isLoading}
+          loadingText="Carregando alunos..."
+          onNextPage={() => undefined}
+          onPreviousPage={() => undefined}
+          onToggleSort={toggleSort}
+          renderRow={(student) => (
+            <tr
+              className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
+              key={student.id}
+            >
+              <td className="px-4 py-3">{student.studentName}</td>
+              <td className="px-4 py-3">{student.registrationNumber}</td>
+              <td className="px-4 py-3">{student.school}</td>
+              <td className="px-4 py-3">{student.gradeClass}</td>
+              <td className="px-4 py-3">
+                <Badge variant={statusBadgeVariant(student.status)}>{toStatusLabel(student.status)}</Badge>
+              </td>
+              <td className="px-4 py-3">{student.primaryGuardianName}</td>
+              <td className="px-4 py-3">{student.primaryGuardianPhone}</td>
+              <td className="px-4 py-3">
+                <Button onClick={() => openEditStudent(student)} size="sm" variant="outline">
+                  Editar
+                </Button>
+              </td>
+            </tr>
+          )}
+          renderSortIcon={renderSortIcon}
+          rows={sortedRows}
+          sortBy={sortBy}
+          totalText={`${sortedRows.length} alunos encontrados com os filtros atuais.`}
+        />
+      </section>
     </div>
   );
 }
