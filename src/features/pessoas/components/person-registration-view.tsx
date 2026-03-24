@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Save, Trash2, UserPlus } from "lucide-react";
+import { Loader2, Save, Trash2, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -291,9 +291,9 @@ export function PersonRegistrationView() {
                 isSuccessModalOpen ||
                 isDeleteConfirmOpen
               }
-              leadingIcon={<Trash2 className="size-4" />}
+              leadingIcon={isDeletingPerson ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
               onClick={handleDeletePerson}
-              variant="outline"
+              variant="danger-outline"
             >
               {isDeletingPerson ? "Excluindo..." : "Excluir"}
             </Button>
@@ -551,8 +551,9 @@ export function PersonRegistrationView() {
             <div className="mt-5 flex justify-end gap-2">
               <Button
                 disabled={isDeletingPerson}
+                leadingIcon={<X className="size-4" />}
                 onClick={() => setIsDeleteConfirmOpen(false)}
-                variant="ghost"
+                variant="outline"
               >
                 Cancelar
               </Button>
@@ -560,6 +561,7 @@ export function PersonRegistrationView() {
                 disabled={isDeletingPerson}
                 leadingIcon={isDeletingPerson ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 onClick={confirmDeletePerson}
+                variant="danger-outline"
               >
                 {isDeletingPerson ? "Excluindo..." : "Excluir"}
               </Button>

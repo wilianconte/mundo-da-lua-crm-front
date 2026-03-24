@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Loader2, Save } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Save, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -53,6 +53,8 @@ export function CourseRegistrationView() {
   const courseId = searchParams.get("id");
   const [isLoadingCourse, setIsLoadingCourse] = useState(isEditMode && Boolean(courseId));
   const [isDeletingCourse, setIsDeletingCourse] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -117,10 +119,17 @@ export function CourseRegistrationView() {
     };
   }, [courseId, isEditMode, reset]);
 
-  const submitLabel = useMemo(
-    () => (isEditMode ? "Salvar alteracoes" : "Salvar"),
-    [isEditMode]
-  );
+  useEffect(() => {
+    if (!isSuccessModalOpen) return;
+
+    const timeoutId = window.setTimeout(() => {
+      router.push("/cursos/pesquisa");
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isSuccessModalOpen, router]);
+
+  const submitLabel = useMemo(() => "Salvar", []);
 
   async function onSubmit(values: CourseRegistrationSchema) {
     try {
@@ -143,13 +152,13 @@ export function CourseRegistrationView() {
 
       if (isEditMode && courseId) {
         await updateCourse(courseId, input);
-        setSuccessMessage("Curso atualizado com sucesso.");
+        setSuccessMessage("Alteracao realizada com sucesso.");
+        setIsSuccessModalOpen(true);
       } else {
         await createCourse(input);
         setSuccessMessage("Curso criado com sucesso.");
+        window.setTimeout(() => router.push("/cursos/pesquisa"), 1200);
       }
-
-      window.setTimeout(() => router.push("/cursos/pesquisa"), 1200);
     } catch (error) {
       setFormError(mapCourseApiError(error));
     }
@@ -157,14 +166,13 @@ export function CourseRegistrationView() {
 
   async function handleDelete() {
     if (!courseId) return;
-    const confirmed = window.confirm("Deseja excluir este curso?");
-    if (!confirmed) return;
 
     try {
+      setIsDeleteConfirmOpen(false);
       setIsDeletingCourse(true);
       await deleteCourse(courseId);
       setSuccessMessage("Curso excluido com sucesso.");
-      window.setTimeout(() => router.push("/cursos/pesquisa"), 900);
+      setIsSuccessModalOpen(true);
     } catch (error) {
       setFormError(mapCourseApiError(error));
     } finally {
@@ -348,20 +356,22 @@ export function CourseRegistrationView() {
         </Card>
 
         <div className="flex flex-wrap items-center gap-3">
-          {isEditMode ? (
-            <Button
-              disabled={isDeletingCourse || isSubmitting || isLoadingCourse}
-              onClick={handleDelete}
-              size="lg"
-              type="button"
-              variant="ghost"
-            >
-              {isDeletingCourse ? "Excluindo..." : "Excluir"}
-            </Button>
-          ) : null}
           <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+            {isEditMode ? (
+              <Button
+                disabled={isDeletingCourse || isSubmitting || isLoadingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
+                leadingIcon={isDeletingCourse ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={() => setIsDeleteConfirmOpen(true)}
+                size="lg"
+                type="button"
+                variant="danger-outline"
+              >
+                {isDeletingCourse ? "Excluindo..." : "Excluir"}
+              </Button>
+            ) : null}
             <Button
-              disabled={isLoadingCourse || isDeletingCourse}
+              disabled={isLoadingCourse || isDeletingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
+              leadingIcon={<X className="size-4" />}
               onClick={() => router.push("/cursos/pesquisa")}
               size="lg"
               type="button"
@@ -370,7 +380,7 @@ export function CourseRegistrationView() {
               Cancelar
             </Button>
             <Button
-              disabled={isLoadingCourse || isDeletingCourse}
+              disabled={isLoadingCourse || isDeletingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
               leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               size="lg"
               type="submit"
@@ -380,6 +390,63 @@ export function CourseRegistrationView() {
           </div>
         </div>
       </form>
+
+      {isDeleteConfirmOpen ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                Tem certeza que deseja excluir este curso? Esta acao nao podera ser desfeita.
+              </p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                disabled={isDeletingCourse}
+                leadingIcon={<X className="size-4" />}
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isDeletingCourse}
+                leadingIcon={isDeletingCourse ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={handleDelete}
+                variant="danger-outline"
+              >
+                {isDeletingCourse ? "Excluindo..." : "Excluir"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isSuccessModalOpen ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="flex items-start gap-3">
+              <Loader2 className="mt-0.5 size-5 animate-spin text-[var(--color-primary)]" />
+              <div className="space-y-1">
+                <p className="text-base font-semibold text-[var(--color-foreground)]">
+                  {successMessage}
+                </p>
+                <p className="text-sm text-[var(--color-muted-foreground)]">
+                  Redirecionando para a listagem de cursos...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
