@@ -1,4 +1,7 @@
-import { CheckCircle2, Loader2, Plus, Search, Trash2 } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { CheckCircle2, Loader2, Plus, Save, Search, Trash2, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 
 export function SystemDesignComponentsShowcase() {
+  const [isDeleteConfirmExampleOpen, setIsDeleteConfirmExampleOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -59,6 +64,7 @@ export function SystemDesignComponentsShowcase() {
             <Button leadingIcon={<Plus className="size-4" />}>Primario</Button>
             <Button variant="secondary">Secundario</Button>
             <Button variant="outline">Outline</Button>
+            <Button leadingIcon={<Trash2 className="size-4" />} variant="danger-outline">Danger outline</Button>
             <Button variant="ghost">Ghost</Button>
           </CardContent>
         </Card>
@@ -77,6 +83,20 @@ export function SystemDesignComponentsShowcase() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Acoes de formulario (padrao)</CardTitle>
+            <CardDescription>
+              Identidade oficial para botoes de Salvar, Cancelar e Excluir em cadastros.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button leadingIcon={<Save className="size-4" />}>Salvar</Button>
+            <Button leadingIcon={<X className="size-4" />} variant="outline">Cancelar</Button>
+            <Button leadingIcon={<Trash2 className="size-4" />} variant="danger-outline">Excluir</Button>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Estados de interacao</CardTitle>
@@ -116,6 +136,27 @@ export function SystemDesignComponentsShowcase() {
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Modal de confirmacao (delecao)</CardTitle>
+            <CardDescription>Toda delecao deve abrir modal de confirmacao antes da acao destrutiva.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              leadingIcon={<Trash2 className="size-4" />}
+              onClick={() => setIsDeleteConfirmExampleOpen(true)}
+              variant="danger-outline"
+            >
+              Abrir modal de confirmacao
+            </Button>
+            <pre className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 text-xs text-[var(--color-muted-foreground)]">
+{`<Button variant="danger-outline" onClick={() => setOpen(true)}>
+  Excluir
+</Button>`}
+            </pre>
+          </CardContent>
+        </Card>
       </section>
 
       <Card>
@@ -144,6 +185,31 @@ export function SystemDesignComponentsShowcase() {
           </p>
         </CardContent>
       </Card>
+
+      {isDeleteConfirmExampleOpen ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                Este e o padrao oficial de confirmacao antes de deletar qualquer registro.
+              </p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button leadingIcon={<X className="size-4" />} onClick={() => setIsDeleteConfirmExampleOpen(false)} variant="outline">
+                Cancelar
+              </Button>
+              <Button leadingIcon={<Trash2 className="size-4" />} onClick={() => setIsDeleteConfirmExampleOpen(false)} variant="danger-outline">
+                Excluir
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

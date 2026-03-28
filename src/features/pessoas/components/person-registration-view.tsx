@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Save, Trash2, UserPlus } from "lucide-react";
+import { Loader2, Save, Trash2, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -264,11 +264,16 @@ export function PersonRegistrationView() {
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Pessoas</p>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold tracking-tight">
-              {isEditMode ? "Edicao de pessoa" : "Cadastro de pessoa"}
+              <span className="font-mono text-base font-medium uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                Pessoas
+              </span>{" "}
+              <span aria-hidden="true" className="text-[var(--color-muted-foreground)]">
+                |
+              </span>{" "}
+              <span className="text-xl">{isEditMode ? "Edicao de pessoa" : "Cadastro de pessoa"}</span>
             </h2>
             <p className="text-sm text-[var(--color-muted-foreground)]">
               {isEditMode
@@ -286,9 +291,9 @@ export function PersonRegistrationView() {
                 isSuccessModalOpen ||
                 isDeleteConfirmOpen
               }
-              leadingIcon={<Trash2 className="size-4" />}
+              leadingIcon={isDeletingPerson ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
               onClick={handleDeletePerson}
-              variant="outline"
+              variant="danger-outline"
             >
               {isDeletingPerson ? "Excluindo..." : "Excluir"}
             </Button>
@@ -484,7 +489,7 @@ export function PersonRegistrationView() {
               </Field>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap justify-end gap-3">
               <Button
                 disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
                 leadingIcon={<Save className="size-4" />}
@@ -546,8 +551,9 @@ export function PersonRegistrationView() {
             <div className="mt-5 flex justify-end gap-2">
               <Button
                 disabled={isDeletingPerson}
+                leadingIcon={<X className="size-4" />}
                 onClick={() => setIsDeleteConfirmOpen(false)}
-                variant="ghost"
+                variant="outline"
               >
                 Cancelar
               </Button>
@@ -555,6 +561,7 @@ export function PersonRegistrationView() {
                 disabled={isDeletingPerson}
                 leadingIcon={isDeletingPerson ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 onClick={confirmDeletePerson}
+                variant="danger-outline"
               >
                 {isDeletingPerson ? "Excluindo..." : "Excluir"}
               </Button>

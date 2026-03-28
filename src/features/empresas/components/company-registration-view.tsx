@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, Loader2, Save, Trash2 } from "lucide-react";
+import { Building2, Loader2, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -302,11 +302,16 @@ export function CompanyRegistrationView() {
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Empresas</p>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold tracking-tight">
-              {isEditMode ? "Edicao de empresa" : "Cadastro de empresa"}
+              <span className="font-mono text-base font-medium uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+                Empresas
+              </span>{" "}
+              <span aria-hidden="true" className="text-[var(--color-muted-foreground)]">
+                |
+              </span>{" "}
+              <span className="text-xl">{isEditMode ? "Edicao de empresa" : "Cadastro de empresa"}</span>
             </h2>
             <p className="text-sm text-[var(--color-muted-foreground)]">
               {isEditMode
@@ -318,9 +323,9 @@ export function CompanyRegistrationView() {
             <Button
               className="min-w-40"
               disabled={isSubmitting || isLoadingCompany || isDeletingCompany || isSuccessModalOpen || isDeleteConfirmOpen}
-              leadingIcon={<Trash2 className="size-4" />}
+              leadingIcon={isDeletingCompany ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
               onClick={() => setIsDeleteConfirmOpen(true)}
-              variant="outline"
+              variant="danger-outline"
             >
               {isDeletingCompany ? "Excluindo..." : "Excluir"}
             </Button>
@@ -540,16 +545,18 @@ export function CompanyRegistrationView() {
               ) : null}
             </section>
 
-            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[var(--color-border)] pt-6">
+            <div className="flex flex-wrap items-center gap-3 border-t border-[var(--color-border)] pt-6">
               <Button disabled={isSubmitting || isLoadingCompany || isDeletingCompany} onClick={handleClear} type="button" variant="ghost">
                 Limpar
               </Button>
-              <Button disabled={isSubmitting || isLoadingCompany || isDeletingCompany} onClick={() => router.push("/empresas/pesquisa")} type="button" variant="outline">
-                Cancelar
-              </Button>
-              <Button disabled={isSubmitting || isLoadingCompany || isDeletingCompany} leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} type="submit">
-                {isSubmitting ? "Salvando..." : isEditMode ? "Salvar alteracoes" : "Salvar empresa"}
-              </Button>
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+                <Button disabled={isSubmitting || isLoadingCompany || isDeletingCompany} leadingIcon={<X className="size-4" />} onClick={() => router.push("/empresas/pesquisa")} type="button" variant="outline">
+                  Cancelar
+                </Button>
+                <Button disabled={isSubmitting || isLoadingCompany || isDeletingCompany} leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} type="submit">
+                  {isSubmitting ? "Salvando..." : isEditMode ? "Salvar alteracoes" : "Salvar empresa"}
+                </Button>
+              </div>
             </div>
           </form>
         </CardContent>
@@ -563,8 +570,8 @@ export function CompanyRegistrationView() {
               Esta acao executa o soft delete da empresa. Ela deixara de aparecer nas listagens do CRM.
             </p>
             <div className="mt-6 flex justify-end gap-3">
-              <Button onClick={() => setIsDeleteConfirmOpen(false)} variant="ghost">Cancelar</Button>
-              <Button onClick={confirmDeleteCompany} variant="outline">Excluir empresa</Button>
+              <Button leadingIcon={<X className="size-4" />} onClick={() => setIsDeleteConfirmOpen(false)} variant="outline">Cancelar</Button>
+              <Button leadingIcon={<Trash2 className="size-4" />} onClick={confirmDeleteCompany} variant="danger-outline">Excluir empresa</Button>
             </div>
           </div>
         </div>

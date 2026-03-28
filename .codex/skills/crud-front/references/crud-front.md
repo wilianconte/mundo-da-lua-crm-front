@@ -57,6 +57,10 @@ Padrao observado em `pessoas`:
 - botao `Adicionar` apontando para `/cadastro`
 - botao `Editar` apontando para `/cadastro?mode=edit&id=<uuid>`
 
+Regra adicional:
+
+- toda listagem CRUD nova deve usar o modelo de `pessoas` como referencia obrigatoria para UX e estrutura (Omnisearch tokenizado + tabela + estados + navegacao)
+
 ## 4. Cadastro e alteracao
 
 O formulario de criacao e edicao deve ser unico sempre que o contrato permitir.
@@ -76,6 +80,7 @@ Estados obrigatorios:
 - erro global de formulario quando a leitura ou mutation falhar
 - erros por campo via `FieldMessage`
 - feedback de sucesso com redirecionamento para a listagem
+- em atualizacao, usar modal de sucesso e somente depois redirecionar (mesmo padrao de `pessoas`)
 
 ## 5. Exclusao
 
@@ -83,9 +88,11 @@ Exclusao em CRUD de producao deve seguir estas regras:
 
 - aparecer apenas em modo de edicao
 - exigir confirmacao explicita antes da mutation
+- a confirmacao deve ser feita por modal dedicada (padrao do projeto), nunca por `window.confirm`
 - bloquear a UI durante a operacao
-- exibir mensagem de sucesso consistente
+- exibir modal de sucesso consistente
 - redirecionar para a listagem apos concluir
+- o redirecionamento deve acontecer apos a modal de sucesso (nao imediatamente apos a mutation)
 
 Evitar:
 
