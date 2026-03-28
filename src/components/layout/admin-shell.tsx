@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
+import packageJson from "../../../package.json";
 
 import {
   Bell,
@@ -318,6 +319,9 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
         </span>
         <span className="text-[1.15rem] font-semibold leading-tight text-[var(--color-foreground)]">
           Painel administrativo
+        </span>
+        <span className="mt-1 inline-flex py-0.5 text-[0.7rem] font-medium uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]">
+          v{packageJson.version}
         </span>
       </Link>
     </div>
