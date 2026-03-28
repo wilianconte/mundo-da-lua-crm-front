@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { searchPeople, type MockPerson } from "@/features/alunos/api/student-mock-service";
+import { searchStudentPeople } from "@/features/alunos/api/search-student-people";
+import { type MockPerson } from "@/features/alunos/api/student-mock-service";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 
 type FilterFieldKey = "fullName" | "documentNumber" | "phone" | "email";
@@ -44,20 +45,6 @@ type PersonSearchModalProps = {
   title?: string;
 };
 
-function normalize(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function matchesTextOperator(value: string, query: string, operator: TextOperator) {
-  const normalizedValue = normalize(value);
-  const normalizedQuery = normalize(query);
-  if (!normalizedQuery) return true;
-
-  if (operator === "equals") return normalizedValue === normalizedQuery;
-  if (operator === "startsWith") return normalizedValue.startsWith(normalizedQuery);
-  return normalizedValue.includes(normalizedQuery);
-}
-
 export function PersonSearchModal({
   open,
   onClose,
@@ -72,6 +59,7 @@ export function PersonSearchModal({
   const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<MockPerson[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -82,21 +70,25 @@ export function PersonSearchModal({
 
     let active = true;
     setIsLoading(true);
+    setErrorMessage(null);
 
-    searchPeople({ query: freeQuery })
+    searchStudentPeople({
+      query: freeQuery,
+      filters: chips.map((chip) => ({
+        field: chip.field.key,
+        operator: chip.operator,
+        value: chip.value
+      })),
+      limit: 50
+    })
       .then((response) => {
         if (!active) return;
-
-        const filtered = response.filter((person) => {
-          return chips.every((chip) => {
-            const value = chip.value.trim();
-            if (!value) return true;
-            const personValue = String(person[chip.field.key] ?? "");
-            return matchesTextOperator(personValue, value, chip.operator);
-          });
-        });
-
-        setResults(filtered);
+        setResults(response);
+      })
+      .catch(() => {
+        if (!active) return;
+        setResults([]);
+        setErrorMessage("Nao foi possivel carregar pessoas agora.");
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -259,6 +251,12 @@ export function PersonSearchModal({
                       </td>
                     </tr>
                   ))
+                ) : errorMessage ? (
+                  <tr className="border-t border-[var(--color-border)]">
+                    <td className="px-4 py-6 text-center text-red-600" colSpan={5}>
+                      {errorMessage}
+                    </td>
+                  </tr>
                 ) : (
                   <tr className="border-t border-[var(--color-border)]">
                     <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={5}>

@@ -5,7 +5,8 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { searchPeople, type MockPerson } from "@/features/alunos/api/student-mock-service";
+import { searchStudentPeople } from "@/features/alunos/api/search-student-people";
+import { type MockPerson } from "@/features/alunos/api/student-mock-service";
 import { cn } from "@/lib/utils/cn";
 
 type PersonAutocompleteProps = {
@@ -32,6 +33,7 @@ export function PersonAutocomplete({
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -53,6 +55,7 @@ export function PersonAutocomplete({
     if (!query.trim()) {
       setIsLoading(false);
       setIsOpen(false);
+      setErrorMessage(null);
       return;
     }
 
@@ -60,18 +63,30 @@ export function PersonAutocomplete({
     if (selectedLabel && query.trim().toLowerCase() === selectedLabel) {
       setIsLoading(false);
       setIsOpen(false);
+      setErrorMessage(null);
       return;
     }
 
     const loadingId = window.setTimeout(() => setIsLoading(true), 0);
     const timeoutId = window.setTimeout(() => {
-      searchPeople({ query }).then((response) => {
-        if (!active) return;
-        setResults(response.filter((person) => !excludedPersonIds.includes(person.id)));
-        setHighlightedIndex(0);
-        setIsOpen(true);
-        setIsLoading(false);
-      });
+      setErrorMessage(null);
+      searchStudentPeople({ query, limit: 8 })
+        .then((response) => {
+          if (!active) return;
+          setResults(response.filter((person) => !excludedPersonIds.includes(person.id)));
+          setHighlightedIndex(0);
+          setIsOpen(true);
+        })
+        .catch(() => {
+          if (!active) return;
+          setResults([]);
+          setHighlightedIndex(0);
+          setIsOpen(true);
+          setErrorMessage("Nao foi possivel carregar pessoas agora.");
+        })
+        .finally(() => {
+          if (active) setIsLoading(false);
+        });
     }, 180);
 
     return () => {
@@ -145,6 +160,7 @@ export function PersonAutocomplete({
                 setResults([]);
                 setIsOpen(false);
                 setIsLoading(false);
+                setErrorMessage(null);
               }
             }}
             onFocus={() => query && setIsOpen(true)}
@@ -158,7 +174,11 @@ export function PersonAutocomplete({
 
           {isOpen ? (
             <div className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-soft)]">
-              {results.length ? (
+              {errorMessage ? (
+                <div className="px-4 py-4">
+                  <p className="text-sm text-red-600">{errorMessage}</p>
+                </div>
+              ) : results.length ? (
                 results.map((person, index) => (
                   <button
                     className={cn(

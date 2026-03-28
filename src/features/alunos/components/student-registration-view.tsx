@@ -23,6 +23,7 @@ import {
   type StudentCourseEnrollment,
   type StudentGuardian
 } from "@/features/alunos/api/student-mock-service";
+import { getStudentPersonById } from "@/features/alunos/api/search-student-people";
 import { CourseAutocomplete } from "@/features/alunos/components/course-autocomplete";
 import { CourseSearchModal } from "@/features/alunos/components/course-search-modal";
 import { GuardiansEditor } from "@/features/alunos/components/guardians-editor";
@@ -88,16 +89,24 @@ export function StudentRegistrationView() {
     if (!isEditMode || !studentId) return;
 
     let active = true;
-    getStudentById(studentId)
-      .then((student) => {
+
+    async function loadStudent() {
+      try {
+        const student = await getStudentById(studentId);
         if (!active) return;
         if (!student) {
           setFormError("Aluno nao encontrado.");
           return;
         }
 
-        const person = allPeople.find((item) => item.id === student.personId) ?? null;
+        const mockPerson = allPeople.find((item) => item.id === student.personId) ?? null;
+        const person = mockPerson ?? (await getStudentPersonById(student.personId).catch(() => null));
+        if (!active) return;
+
         setSelectedPerson(person);
+        if (!person) {
+          setFormError("Nao foi possivel carregar a pessoa vinculada ao aluno.");
+        }
         setGuardians(student.guardians);
 
         const legacyCourse: StudentCourseEnrollment = {
@@ -119,10 +128,12 @@ export function StudentRegistrationView() {
           status: student.status,
           notes: student.notes ?? ""
         });
-      })
-      .finally(() => {
+      } finally {
         if (active) setIsLoadingStudent(false);
-      });
+      }
+    }
+
+    loadStudent();
 
     return () => {
       active = false;
