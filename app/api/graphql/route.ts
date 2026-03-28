@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
 
-const GRAPHQL_ENDPOINT = "https://mundo-da-lua-crm-core.onrender.com/graphql/";
+const GRAPHQL_ENDPOINT = process.env.GRAPHQL_ENDPOINT;
 
 export async function POST(request: Request) {
+  if (!GRAPHQL_ENDPOINT) {
+    return NextResponse.json(
+      {
+        errors: [
+          {
+            message: "GRAPHQL_ENDPOINT nao configurado."
+          }
+        ]
+      },
+      { status: 500 }
+    );
+  }
+
   const authorization = request.headers.get("authorization");
   const body = await request.text();
 
