@@ -89,10 +89,11 @@ export function StudentRegistrationView() {
     if (!isEditMode || !studentId) return;
 
     let active = true;
+    const currentStudentId = studentId;
 
     async function loadStudent() {
       try {
-        const student = await getStudentById(studentId);
+        const student = await getStudentById(currentStudentId);
         if (!active) return;
         if (!student) {
           setFormError("Aluno nao encontrado.");
