@@ -176,7 +176,6 @@ export const navigationItems: NavItem[] = [
     label: "Configuracoes",
     icon: Settings,
     children: [
-      { label: "Usuarios", href: "/components" },
       { label: "Perfis e Permissoes", href: "/components" },
       { label: "Canais de Atendimento", href: "/components" },
       { label: "Tabelas de Preco", href: "/components" },
@@ -184,6 +183,12 @@ export const navigationItems: NavItem[] = [
       { label: "Modelos de Contrato", href: "/components" },
       { label: "Parametros Gerais", href: "/components" }
     ]
+  },
+  {
+    section: "Acessos",
+    label: "Acessos",
+    icon: Users,
+    children: [{ label: "Usuarios", href: "/usuarios/pesquisa" }]
   },
   {
     section: "System Design",

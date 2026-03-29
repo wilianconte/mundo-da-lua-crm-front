@@ -3,7 +3,7 @@
 import { Menu, Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { NavChildItem, NavItem } from "@/config/navigation";
 import { navigationItems } from "@/config/navigation";
@@ -211,20 +211,22 @@ function SidebarLink({
 
 export function SidebarNav({ className, collapsed = false, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
-  const groupedItems = navigationItems.reduce<Array<{ section?: string; items: NavItem[] }>>(
-    (accumulator, item) => {
-      const currentGroup = accumulator[accumulator.length - 1];
+  const groupedItems = useMemo(
+    () =>
+      navigationItems.reduce<Array<{ section?: string; items: NavItem[] }>>((accumulator, item) => {
+        const currentGroup = accumulator[accumulator.length - 1];
 
-      if (currentGroup && currentGroup.section === item.section) {
-        currentGroup.items.push(item);
+        if (currentGroup && currentGroup.section === item.section) {
+          currentGroup.items.push(item);
+          return accumulator;
+        }
+
+        accumulator.push({ section: item.section, items: [item] });
         return accumulator;
-      }
-
-      accumulator.push({ section: item.section, items: [item] });
-      return accumulator;
-    },
+      }, []),
     []
   );
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   return (
     <nav className={cn("space-y-4", collapsed && "space-y-3", className)}>
@@ -233,19 +235,32 @@ export function SidebarNav({ className, collapsed = false, onNavigate }: Sidebar
           {collapsed ? (
             <div className="h-px w-full bg-[var(--color-border)]/70" />
           ) : group.section ? (
-            <p className="px-2 pt-2 text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]">
-              {group.section}
-            </p>
+            <button
+              aria-expanded={!(collapsedSections[group.section] ?? false)}
+              className="flex w-full items-center justify-between px-2 pt-2 text-left text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]"
+              onClick={() =>
+                setCollapsedSections((current) => ({
+                  ...current,
+                  [group.section]: !(current[group.section] ?? false)
+                }))
+              }
+              type="button"
+            >
+              <span>{group.section}</span>
+              {!(collapsedSections[group.section] ?? false) ? <Minus className="size-3.5" /> : <Plus className="size-3.5" />}
+            </button>
           ) : null}
-          {group.items.map((item) => (
-            <SidebarLink
-              collapsed={collapsed}
-              item={item}
-              key={item.label}
-              onNavigate={onNavigate}
-              pathname={pathname}
-            />
-          ))}
+          {!group.section || !(collapsedSections[group.section] ?? false)
+            ? group.items.map((item) => (
+                <SidebarLink
+                  collapsed={collapsed}
+                  item={item}
+                  key={item.label}
+                  onNavigate={onNavigate}
+                  pathname={pathname}
+                />
+              ))
+            : null}
         </div>
       ))}
     </nav>
