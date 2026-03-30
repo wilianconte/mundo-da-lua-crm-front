@@ -281,23 +281,35 @@ export function PersonRegistrationView() {
                 : "Preencha os dados principais para criar um novo cadastro de pessoa."}
             </p>
           </div>
-          {isEditMode ? (
+          <div className="flex flex-wrap items-center gap-3">
+            {isEditMode ? (
+              <Button
+                className="min-w-40"
+                disabled={
+                  isSubmitting ||
+                  isLoadingPerson ||
+                  isDeletingPerson ||
+                  isSuccessModalOpen ||
+                  isDeleteConfirmOpen
+                }
+                leadingIcon={isDeletingPerson ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={handleDeletePerson}
+                variant="danger-outline"
+              >
+                {isDeletingPerson ? "Excluindo..." : "Excluir"}
+              </Button>
+            ) : null}
             <Button
               className="min-w-40"
-              disabled={
-                isSubmitting ||
-                isLoadingPerson ||
-                isDeletingPerson ||
-                isSuccessModalOpen ||
-                isDeleteConfirmOpen
-              }
-              leadingIcon={isDeletingPerson ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-              onClick={handleDeletePerson}
-              variant="danger-outline"
+              disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
+              form="person-form"
+              leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              size="lg"
+              type="submit"
             >
-              {isDeletingPerson ? "Excluindo..." : "Excluir"}
+              Salvar
             </Button>
-          ) : null}
+          </div>
         </div>
       </section>
 
@@ -322,7 +334,7 @@ export function PersonRegistrationView() {
           </div>
         </CardHeader>
         <CardContent>
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <form className="space-y-6" id="person-form" onSubmit={handleSubmit(onSubmit)}>
             {isLoadingPerson ? (
               <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
                 <Loader2 className="size-4 animate-spin" />
@@ -490,14 +502,6 @@ export function PersonRegistrationView() {
             </div>
 
             <div className="flex flex-wrap justify-end gap-3">
-              <Button
-                disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
-                leadingIcon={<Save className="size-4" />}
-                size="lg"
-                type="submit"
-              >
-                {isSubmitting ? "Salvando..." : isEditMode ? "Salvar alteracoes" : "Salvar pessoa"}
-              </Button>
               <Button
                 disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
                 leadingIcon={<UserPlus className="size-4" />}

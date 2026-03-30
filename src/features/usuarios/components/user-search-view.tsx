@@ -7,23 +7,23 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  getPeople,
-  type GetPeopleVariables,
-  type PersonFilterInput,
-  type PersonNode,
-  type PersonStatus
-} from "@/features/pessoas/api/get-people";
+  getUsers,
+  type GetUsersVariables,
+  type UserFilterInput,
+  type UserNode
+} from "@/features/usuarios/api/get-users";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 import { GraphQLRequestError } from "@/lib/graphql/client";
 
-type FilterFieldKey = "fullName" | "documentNumber" | "email" | "primaryPhone" | "status" | "occupation";
+type FilterFieldKey = "name" | "email" | "isActive" | "personId";
 type FieldType = "text" | "category";
 type TextOperator = "contains" | "equals" | "startsWith";
 type CategoryOperator = "equals" | "notEquals";
 type FilterOperator = TextOperator | CategoryOperator;
-type SortableColumn = "fullName" | "documentNumber" | "primaryPhone" | "status" | "createdAt";
+type SortableColumn = "name" | "email" | "isActive" | "createdAt" | "updatedAt";
 type SortDirection = "asc" | "desc";
+type CursorMode = "forward" | "backward";
 
 type FilterField = {
   key: FilterFieldKey;
@@ -41,12 +41,10 @@ type FilterChip = {
 const PAGE_SIZE = 8;
 
 const filterFields: FilterField[] = [
-  { key: "fullName", label: "Nome", type: "text" },
-  { key: "documentNumber", label: "CPF/CNPJ", type: "text" },
+  { key: "name", label: "Nome", type: "text" },
   { key: "email", label: "Email", type: "text" },
-  { key: "primaryPhone", label: "Telefone", type: "text" },
-  { key: "status", label: "Status", type: "category" },
-  { key: "occupation", label: "Profissao", type: "text" }
+  { key: "isActive", label: "Status", type: "category" },
+  { key: "personId", label: "Vinculo com pessoa", type: "category" }
 ];
 
 const textOperators: Array<{ key: TextOperator; label: string }> = [
@@ -61,12 +59,12 @@ const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
 ];
 
 const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
-  { label: "Nome", sortKey: "fullName" },
-  { label: "E-mail" },
-  { label: "Documento", sortKey: "documentNumber" },
-  { label: "Telefone", sortKey: "primaryPhone" },
-  { label: "Status", sortKey: "status" },
+  { label: "Nome", sortKey: "name" },
+  { label: "E-mail", sortKey: "email" },
+  { label: "Status", sortKey: "isActive" },
+  { label: "Vinculo com pessoa" },
   { label: "Criado em", sortKey: "createdAt" },
+  { label: "Atualizado em", sortKey: "updatedAt" },
   { label: "Acao" }
 ];
 
@@ -74,20 +72,31 @@ function normalize(value: string) {
   return value.trim().toLowerCase();
 }
 
-function toStatusEnum(value: string): PersonStatus | null {
+function toStatusBool(value: string): boolean | null {
   const normalized = normalize(value);
 
-  if (normalized === "active" || normalized === "ativo") return "ACTIVE";
-  if (normalized === "inactive" || normalized === "inativo") return "INACTIVE";
-  if (normalized === "blocked" || normalized === "bloqueado") return "BLOCKED";
+  if (normalized === "active" || normalized === "ativo") return true;
+  if (normalized === "inactive" || normalized === "inativo") return false;
 
   return null;
 }
 
-function toStatusLabel(status: PersonStatus) {
-  if (status === "ACTIVE") return "Ativo";
-  if (status === "INACTIVE") return "Inativo";
-  return "Bloqueado";
+function toStatusLabel(isActive: boolean) {
+  return isActive ? "Ativo" : "Inativo";
+}
+
+function parsePersonLink(value: string): "linked" | "unlinked" | null {
+  const normalized = normalize(value);
+
+  if (normalized === "linked" || normalized === "vinculado" || normalized === "com pessoa") {
+    return "linked";
+  }
+
+  if (normalized === "unlinked" || normalized === "sem vinculo" || normalized === "sem pessoa") {
+    return "unlinked";
+  }
+
+  return null;
 }
 
 function toDateTime(value?: string | null) {
@@ -99,10 +108,10 @@ function toDateTime(value?: string | null) {
 }
 
 function mapSortColumn(column: SortableColumn) {
-  if (column === "fullName") return "fullName";
-  if (column === "documentNumber") return "documentNumber";
-  if (column === "primaryPhone") return "primaryPhone";
-  if (column === "status") return "status";
+  if (column === "name") return "name";
+  if (column === "email") return "email";
+  if (column === "isActive") return "isActive";
+  if (column === "updatedAt") return "updatedAt";
   return "createdAt";
 }
 
@@ -112,27 +121,7 @@ function mapTextOperator(operator: TextOperator): "contains" | "eq" | "startsWit
   return "contains";
 }
 
-type CursorMode = "forward" | "backward";
-
-type PersonSearchViewProps = {
-  basePath?: string;
-  sectionLabel?: string;
-  title?: string;
-  description?: string;
-  loadingText?: string;
-  emptyText?: string;
-  totalText?: (totalCount: number) => string;
-};
-
-export function PersonSearchView({
-  basePath = "/pessoas",
-  sectionLabel = "Pessoas",
-  title = "Pesquisa de pessoas",
-  description = "Omnisearch com filtros tokenizados e busca livre global por nome, email e documento.",
-  loadingText = "Carregando pessoas...",
-  emptyText = "Nenhuma pessoa encontrada com os filtros atuais.",
-  totalText = (totalCount) => `${totalCount} pessoas encontradas com os filtros atuais.`
-}: PersonSearchViewProps = {}) {
+export function UserSearchView() {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [freeQuery, setFreeQuery] = useState("");
@@ -140,9 +129,9 @@ export function PersonSearchView({
   const [selectedOperator, setSelectedOperator] = useState<FilterOperator>("contains");
   const [chips, setChips] = useState<FilterChip[]>([]);
   const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<SortableColumn>("fullName");
+  const [sortBy, setSortBy] = useState<SortableColumn>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [rows, setRows] = useState<PersonNode[]>([]);
+  const [rows, setRows] = useState<UserNode[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -155,37 +144,53 @@ export function PersonSearchView({
   const [cursorMode, setCursorMode] = useState<CursorMode>("forward");
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-
   const availableOperators = selectedField?.type === "category" ? categoryOperators : textOperators;
 
-  const where = useMemo<PersonFilterInput | null>(() => {
-    const nextWhere: PersonFilterInput = {};
+  const where = useMemo<UserFilterInput | null>(() => {
+    const nextWhere: UserFilterInput = {};
 
     if (freeQuery.trim()) {
       nextWhere.or = [
-        { fullName: { contains: freeQuery.trim() } },
-        { email: { contains: freeQuery.trim() } },
-        { documentNumber: { contains: freeQuery.trim() } }
+        { name: { contains: freeQuery.trim() } },
+        { email: { contains: freeQuery.trim() } }
       ];
     }
 
     for (const chip of chips) {
-      if (chip.field.key === "status") {
-        const status = toStatusEnum(chip.value);
-        if (!status) {
+      if (chip.field.key === "isActive") {
+        const isActive = toStatusBool(chip.value);
+        if (isActive === null) {
           continue;
         }
 
-        nextWhere.status = chip.operator === "notEquals" ? { neq: status } : { eq: status };
+        nextWhere.isActive = chip.operator === "notEquals" ? { neq: isActive } : { eq: isActive };
         continue;
       }
 
-      const key = chip.field.key;
+      if (chip.field.key === "personId") {
+        const personLink = parsePersonLink(chip.value);
+        if (!personLink) {
+          continue;
+        }
+
+        const wantsLinked = personLink === "linked";
+        nextWhere.personId =
+          chip.operator === "equals"
+            ? wantsLinked
+              ? { neq: null }
+              : { eq: null }
+            : wantsLinked
+              ? { eq: null }
+              : { neq: null };
+        continue;
+      }
+
       const value = chip.value.trim();
       if (!value) {
         continue;
       }
 
+      const key = chip.field.key;
       const operator = mapTextOperator(chip.operator as TextOperator);
       nextWhere[key] = { [operator]: value };
     }
@@ -196,12 +201,12 @@ export function PersonSearchView({
   useEffect(() => {
     let isMounted = true;
 
-    async function loadPeople() {
+    async function loadUsers() {
       try {
         setIsLoading(true);
         setErrorMessage(null);
 
-        const variables: GetPeopleVariables = {
+        const variables: GetUsersVariables = {
           where,
           order: [{ [mapSortColumn(sortBy)]: sortDirection === "asc" ? "ASC" : "DESC" }]
         };
@@ -221,7 +226,7 @@ export function PersonSearchView({
           delete variables.before;
         }
 
-        const response = await getPeople(variables);
+        const response = await getUsers(variables);
         if (!isMounted) return;
 
         setRows(response.nodes ?? []);
@@ -236,7 +241,8 @@ export function PersonSearchView({
         const message =
           error instanceof GraphQLRequestError
             ? error.message
-            : "Nao foi possivel carregar a pesquisa de pessoas.";
+            : "Nao foi possivel carregar a pesquisa de usuarios.";
+
         setRows([]);
         setTotalCount(0);
         setErrorMessage(message);
@@ -247,7 +253,7 @@ export function PersonSearchView({
       }
     }
 
-    loadPeople();
+    loadUsers();
 
     return () => {
       isMounted = false;
@@ -343,32 +349,29 @@ export function PersonSearchView({
     );
   }
 
-  function openEditPerson(person: PersonNode) {
+  function openEditUser(user: UserNode) {
     const params = new URLSearchParams({
       mode: "edit",
-      id: person.id
+      id: user.id
     });
 
-    router.push(`${basePath}/cadastro?${params.toString()}`);
+    router.push(`/usuarios/cadastro?${params.toString()}`);
   }
-
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
-          {sectionLabel}
-        </p>
+        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Usuarios</p>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de usuarios</h2>
             <p className="text-sm text-[var(--color-muted-foreground)]">
-              {description}
+              Omnisearch com filtros tokenizados e busca livre global por nome e email.
             </p>
           </div>
           <Button
             className="min-w-40"
             leadingIcon={<Plus className="size-4" />}
-            onClick={() => router.push(`${basePath}/cadastro`)}
+            onClick={() => router.push("/usuarios/cadastro")}
           >
             Adicionar
           </Button>
@@ -410,9 +413,9 @@ export function PersonSearchView({
           canGoNext={!isLoading && hasNextPage && Boolean(pageEndCursor)}
           canGoPrevious={!isLoading && hasPreviousPage && Boolean(pageStartCursor)}
           columns={tableColumns}
-          emptyText={emptyText}
+          emptyText="Nenhum usuario encontrado com os filtros atuais."
           isLoading={isLoading}
-          loadingText={loadingText}
+          loadingText="Carregando usuarios..."
           onNextPage={() => {
             setCursorMode("forward");
             setRequestBefore(null);
@@ -424,23 +427,27 @@ export function PersonSearchView({
             setRequestBefore(pageStartCursor);
           }}
           onToggleSort={toggleSort}
-          renderRow={(person) => (
+          renderRow={(user) => (
             <tr
               className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
-              key={person.id}
+              key={user.id}
             >
-              <td className="px-4 py-3">{person.fullName}</td>
-              <td className="px-4 py-3">{person.email ?? "-"}</td>
-              <td className="px-4 py-3">{person.documentNumber ?? "-"}</td>
-              <td className="px-4 py-3">{person.primaryPhone ?? "-"}</td>
+              <td className="px-4 py-3">{user.name}</td>
+              <td className="px-4 py-3">{user.email}</td>
               <td className="px-4 py-3">
-                <Badge variant={person.status === "ACTIVE" ? "success" : "attention"}>
-                  {toStatusLabel(person.status)}
+                <Badge variant={user.isActive ? "success" : "attention"}>
+                  {toStatusLabel(user.isActive)}
                 </Badge>
               </td>
-              <td className="px-4 py-3">{toDateTime(person.createdAt)}</td>
               <td className="px-4 py-3">
-                <Button onClick={() => openEditPerson(person)} size="sm" variant="outline">
+                <Badge variant={user.personId ? "success" : "neutral"}>
+                  {user.personId ? "Vinculado" : "Sem vinculo"}
+                </Badge>
+              </td>
+              <td className="px-4 py-3">{toDateTime(user.createdAt)}</td>
+              <td className="px-4 py-3">{toDateTime(user.updatedAt)}</td>
+              <td className="px-4 py-3">
+                <Button onClick={() => openEditUser(user)} size="sm" variant="outline">
                   Editar
                 </Button>
               </td>
@@ -449,7 +456,7 @@ export function PersonSearchView({
           renderSortIcon={renderSortIcon}
           rows={rows}
           sortBy={sortBy}
-          totalText={totalText(totalCount)}
+          totalText={`${totalCount} usuarios encontrados com os filtros atuais.`}
         />
       </section>
     </div>
