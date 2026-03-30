@@ -10,7 +10,7 @@ import {
   searchStudents,
   type GetStudentsVariables,
   type StudentFilterInput,
-  type StudentStatus
+  type StudentLifecycleStatus
 } from "@/features/alunos/api/student-mock-service";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import {
@@ -80,32 +80,25 @@ function normalize(value: string) {
   return value.trim().toLowerCase();
 }
 
-function toStatusEnum(value: string): StudentStatus | null {
+function toStatusEnum(value: string): StudentLifecycleStatus | null {
   const normalized = normalize(value);
-  if (normalized === "active" || normalized === "ativo") return "Active";
-  if (normalized === "inactive" || normalized === "inativo") return "Inactive";
-  if (normalized === "graduated" || normalized === "formado") return "Graduated";
-  if (normalized === "transferred" || normalized === "transferido") return "Transferred";
-  if (normalized === "suspended" || normalized === "suspenso") return "Suspended";
+  if (normalized === "active" || normalized === "ativo") return "ACTIVE";
+  if (normalized === "inactive" || normalized === "inativo") return "INACTIVE";
   return null;
 }
 
-function toStatusLabel(status: StudentStatus) {
-  if (status === "Active") return "Ativo";
-  if (status === "Inactive") return "Inativo";
-  if (status === "Graduated") return "Formado";
-  if (status === "Transferred") return "Transferido";
-  return "Suspenso";
+function toStatusLabel(status: StudentLifecycleStatus) {
+  if (status === "ACTIVE") return "Ativo";
+  return "Inativo";
 }
 
-function statusBadgeVariant(status: StudentStatus): "success" | "attention" | "neutral" {
-  if (status === "Active" || status === "Graduated") return "success";
-  if (status === "Transferred" || status === "Suspended") return "attention";
+function statusBadgeVariant(status: StudentLifecycleStatus): "success" | "attention" | "neutral" {
+  if (status === "ACTIVE") return "success";
   return "neutral";
 }
 
 function mapSortColumn(column: SortableColumn) {
-  if (column === "status") return "status";
+  if (column === "status") return "enrollmentStatus";
   return "createdAt";
 }
 
@@ -138,9 +131,10 @@ async function buildStudentWhere({
 }: {
   chips: FilterChip[];
   freeQuery: string;
-}): Promise<{ where: StudentFilterInput | null; forceEmpty: boolean }> {
+}): Promise<{ where: StudentFilterInput | null; enrollmentStatus?: StudentLifecycleStatus; forceEmpty: boolean }> {
   const andFilters: StudentFilterInput[] = [];
   const freeQueryValue = freeQuery.trim();
+  let enrollmentStatus: StudentLifecycleStatus | undefined;
 
   if (freeQueryValue) {
     const personIdsFromQuery = await searchPeopleIdsByFilter({
@@ -151,7 +145,7 @@ async function buildStudentWhere({
     }).catch(() => []);
 
     if (!personIdsFromQuery.length) {
-      return { where: null, forceEmpty: true };
+      return { where: null, forceEmpty: true, enrollmentStatus };
     }
 
     andFilters.push({ personId: { in: personIdsFromQuery } });
@@ -165,14 +159,9 @@ async function buildStudentWhere({
       const status = toStatusEnum(value);
       if (!status) continue;
       if (chip.operator === "equals") {
-        andFilters.push({ status: { eq: status } });
+        enrollmentStatus = status;
       } else {
-        const allStatuses: StudentStatus[] = ["Active", "Inactive", "Graduated", "Transferred", "Suspended"];
-        andFilters.push({
-          or: allStatuses
-            .filter((item) => item !== status)
-            .map((item) => ({ status: { eq: item } }))
-        });
+        enrollmentStatus = status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
       }
       continue;
     }
@@ -185,7 +174,7 @@ async function buildStudentWhere({
 
       const personIds = await searchPeopleIdsByFilter(personWhere).catch(() => []);
       if (!personIds.length) {
-        return { where: null, forceEmpty: true };
+        return { where: null, forceEmpty: true, enrollmentStatus };
       }
       andFilters.push({ personId: { in: personIds } });
       continue;
@@ -198,12 +187,12 @@ async function buildStudentWhere({
         : { documentNumber: { [operator]: value } };
     const personIds = await searchPeopleIdsByFilter(personWhere).catch(() => []);
     if (!personIds.length) {
-      return { where: null, forceEmpty: true };
+      return { where: null, forceEmpty: true, enrollmentStatus };
     }
     andFilters.push({ personId: { in: personIds } });
   }
 
-  return { where: mergeAndFilters(andFilters), forceEmpty: false };
+  return { where: mergeAndFilters(andFilters), enrollmentStatus, forceEmpty: false };
 }
 
 export function StudentSearchView() {
@@ -253,6 +242,7 @@ export function StudentSearchView() {
         }
 
         const variables: GetStudentsVariables = {
+          enrollmentStatus: whereResult.enrollmentStatus,
           where: whereResult.where,
           order: [{ [mapSortColumn(sortBy)]: sortDirection === "asc" ? "ASC" : "DESC" }]
         };

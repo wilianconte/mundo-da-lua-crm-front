@@ -17,6 +17,7 @@ import {
   getStudentById,
   mapStudentApiError,
   saveStudent,
+  studentCourseStatusOptions,
   type MockCourse,
   type MockPerson,
   type StudentCourseEnrollment,
@@ -33,10 +34,11 @@ import { FeatureViewHeader } from "@/features/components/registration-view-heade
 import { studentFormSchema, type StudentFormSchema } from "@/features/alunos/schema/student-form-schema";
 import { cn } from "@/lib/utils/cn";
 
-type StudentTabKey = "general" | "guardians" | "health" | "authorizations" | "history";
+type StudentTabKey = "general" | "courses" | "guardians" | "health" | "authorizations" | "history";
 
 const tabs: Array<{ key: StudentTabKey; label: string; description: string }> = [
   { key: "general", label: "Dados gerais", description: "Cadastro principal do aluno e pessoa vinculada." },
+  { key: "courses", label: "Cursos", description: "Matriculas e status dos cursos vinculados ao aluno." },
   { key: "guardians", label: "Responsaveis", description: "Pessoas responsaveis e regras de parentesco." },
   { key: "health", label: "Saude e cuidados", description: "Secao mock preparada para futuros dados clinicos." },
   { key: "authorizations", label: "Autorizacoes", description: "Secao mock preparada para permissoes e regras de retirada." },
@@ -336,13 +338,21 @@ export function StudentRegistrationView() {
       course: selectedCourse,
       registrationNumber: selectedCourse.code,
       startDate: courseStartDate,
-      endDate: courseEndDate || undefined
+      endDate: courseEndDate || undefined,
+      status: "ACTIVE"
     };
 
     setCourses((current) => [...current, enrollment]);
     setSelectedCourse(null);
     setCourseStartDate("");
     setCourseEndDate("");
+    setFormError(null);
+  }
+
+  function handleCourseStatusChange(enrollmentId: string, status: StudentCourseEnrollment["status"]) {
+    setCourses((current) =>
+      current.map((item) => (item.id === enrollmentId ? { ...item, status } : item))
+    );
     setFormError(null);
   }
 
@@ -539,7 +549,7 @@ export function StudentRegistrationView() {
               <CardHeader>
                 <CardTitle>Dados gerais</CardTitle>
                 <CardDescription>
-                  Vincule o aluno a uma pessoa e preencha os dados cadastrais. Cursos e responsaveis sao opcionais.
+                  Vincule o aluno a uma pessoa e preencha os dados cadastrais principais.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -570,6 +580,29 @@ export function StudentRegistrationView() {
 
                 <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
 
+                <Field>
+                  <FieldLabel htmlFor="student-notes">Observacoes gerais</FieldLabel>
+                  <textarea
+                    className="min-h-32 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+                    id="student-notes"
+                    placeholder="Adicione observacoes sobre matricula, adaptacao ou anotacoes internas"
+                    {...register("notes")}
+                  />
+                </Field>
+
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {selectedTab === "courses" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Cursos</CardTitle>
+                <CardDescription>
+                  Gerencie as matriculas do aluno e altere o status de cada curso associado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
                 <Field>
                   <div className="flex items-center gap-2">
                     <FieldLabel>Curso</FieldLabel>
@@ -621,11 +654,12 @@ export function StudentRegistrationView() {
                     </Button>
                   </div>
                 </div>
+
                 <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
-                  <table className="min-w-[680px] w-full border-collapse text-sm">
+                  <table className="min-w-[760px] w-full border-collapse text-sm">
                     <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
                       <tr>
-                        {["Curso", "Inicio", "Fim", "Acao"].map((label) => (
+                        {["Curso", "Inicio", "Fim", "Status", "Acao"].map((label) => (
                           <th className="px-4 py-3 font-semibold" key={label}>
                             {label}
                           </th>
@@ -639,16 +673,31 @@ export function StudentRegistrationView() {
                             <td className="px-4 py-3 font-medium text-[var(--color-foreground)]">
                               {enrollment.course.name}
                             </td>
-                            <td className="px-4 py-3 text-[var(--color-muted-foreground)]">
-                              {enrollment.startDate}
-                            </td>
+                            <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{enrollment.startDate}</td>
                             <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{enrollment.endDate ?? "-"}</td>
+                            <td className="px-4 py-3">
+                              <select
+                                aria-label={`Status do curso ${enrollment.course.name}`}
+                                className="h-9 rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-foreground)]"
+                                onChange={(event) =>
+                                  handleCourseStatusChange(
+                                    enrollment.id,
+                                    event.target.value as StudentCourseEnrollment["status"]
+                                  )
+                                }
+                                value={enrollment.status}
+                              >
+                                {studentCourseStatusOptions.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
                             <td className="px-4 py-3">
                               <Button
                                 disabled={deletingCourseId === enrollment.id}
-                                onClick={() =>
-                                  setCourseToRemove(enrollment)
-                                }
+                                onClick={() => setCourseToRemove(enrollment)}
                                 size="sm"
                                 variant="ghost"
                               >
@@ -659,7 +708,7 @@ export function StudentRegistrationView() {
                         ))
                       ) : (
                         <tr className="border-t border-[var(--color-border)]">
-                          <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={4}>
+                          <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={5}>
                             Nenhum curso adicionado ainda.
                           </td>
                         </tr>
@@ -667,19 +716,6 @@ export function StudentRegistrationView() {
                     </tbody>
                   </table>
                 </div>
-
-                <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
-
-                <Field>
-                  <FieldLabel htmlFor="student-notes">Observacoes gerais</FieldLabel>
-                  <textarea
-                    className="min-h-32 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                    id="student-notes"
-                    placeholder="Adicione observacoes sobre matricula, adaptacao ou anotacoes internas"
-                    {...register("notes")}
-                  />
-                </Field>
-
               </CardContent>
             </Card>
           ) : null}

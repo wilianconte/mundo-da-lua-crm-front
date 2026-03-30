@@ -4,7 +4,8 @@ import { GraphQLRequestError, gqlRequest } from "@/lib/graphql/client";
 
 const MOCK_DELAY_MS = 450;
 
-export type StudentStatus = "Active" | "Inactive" | "Graduated" | "Transferred" | "Suspended";
+export type StudentLifecycleStatus = "ACTIVE" | "INACTIVE";
+export type StudentCourseStatus = "ACTIVE" | "PENDING" | "COMPLETED" | "CANCELLED" | "SUSPENDED";
 export type GuardianRelationshipType =
   | "FATHER"
   | "MOTHER"
@@ -47,12 +48,12 @@ export type StudentCourseEnrollment = {
   registrationNumber: string;
   startDate: string;
   endDate?: string;
+  status: StudentCourseStatus;
 };
 
 export type StudentRecord = {
   id: string;
   personId: string;
-  status: StudentStatus;
   notes?: string;
   guardians: StudentGuardian[];
   courses: StudentCourseEnrollment[];
@@ -62,7 +63,7 @@ export type StudentListItem = {
   id: string;
   studentName: string;
   documentNumber: string;
-  status: StudentStatus;
+  status: StudentLifecycleStatus;
   primaryGuardianName: string;
   primaryGuardianPhone: string;
 };
@@ -107,12 +108,12 @@ export const guardianRelationshipOptions: Array<{ value: GuardianRelationshipTyp
   { value: "OTHER", label: "Outro" }
 ];
 
-export const studentStatusOptions: Array<{ value: StudentStatus; label: string }> = [
-  { value: "Active", label: "Ativo" },
-  { value: "Inactive", label: "Inativo" },
-  { value: "Graduated", label: "Formado" },
-  { value: "Transferred", label: "Transferido" },
-  { value: "Suspended", label: "Suspenso" }
+export const studentCourseStatusOptions: Array<{ value: StudentCourseStatus; label: string }> = [
+  { value: "ACTIVE", label: "Ativo" },
+  { value: "PENDING", label: "Pendente" },
+  { value: "COMPLETED", label: "Concluido" },
+  { value: "CANCELLED", label: "Cancelado" },
+  { value: "SUSPENDED", label: "Suspenso" }
 ];
 
 const mockPeople: MockPerson[] = [
@@ -139,7 +140,6 @@ let mockStudents: StudentRecord[] = [
   {
     id: "student-1",
     personId: "person-1",
-    status: "Active",
     notes: "Needs support during adaptation week.",
     guardians: [
       {
@@ -169,14 +169,14 @@ let mockStudents: StudentRecord[] = [
         course: mockCourses[0],
         registrationNumber: "MAT-BAL-2026-001",
         startDate: "2026-02-03",
-        endDate: "2026-12-20"
+        endDate: "2026-12-20",
+        status: "ACTIVE"
       }
     ]
   },
   {
     id: "student-2",
     personId: "person-7",
-    status: "Transferred",
     notes: "Awaiting school transport confirmation.",
     guardians: [
       {
@@ -196,14 +196,14 @@ let mockStudents: StudentRecord[] = [
         course: mockCourses[3],
         registrationNumber: "MAT-ING-2026-002",
         startDate: "2026-03-10",
-        endDate: "2026-11-30"
+        endDate: "2026-11-30",
+        status: "SUSPENDED"
       }
     ]
   },
   {
     id: "student-3",
     personId: "person-5",
-    status: "Inactive",
     notes: "Temporarily inactive while family is abroad.",
     guardians: [
       {
@@ -223,7 +223,8 @@ let mockStudents: StudentRecord[] = [
         course: mockCourses[2],
         registrationNumber: "MAT-FUT-2025-118",
         startDate: "2025-08-14",
-        endDate: "2025-12-10"
+        endDate: "2025-12-10",
+        status: "COMPLETED"
       }
     ]
   }
@@ -237,11 +238,16 @@ function normalize(value?: string) {
   return value?.trim().toLowerCase() ?? "";
 }
 
-export function getStudentStatusLabel(status: StudentStatus) {
-  if (status === "Active") return "Ativo";
-  if (status === "Inactive") return "Inativo";
-  if (status === "Graduated") return "Formado";
-  if (status === "Transferred") return "Transferido";
+export function getStudentStatusLabel(status: StudentLifecycleStatus) {
+  if (status === "ACTIVE") return "Ativo";
+  return "Inativo";
+}
+
+export function getStudentCourseStatusLabel(status: StudentCourseStatus) {
+  if (status === "ACTIVE") return "Ativo";
+  if (status === "PENDING") return "Pendente";
+  if (status === "COMPLETED") return "Concluido";
+  if (status === "CANCELLED") return "Cancelado";
   return "Suspenso";
 }
 
@@ -304,6 +310,47 @@ const GET_STUDENTS_QUERY = `
     $after: String
     $last: Int
     $before: String
+    $enrollmentStatus: StudentEnrollmentStatus
+    $where: StudentFilterInput
+    $order: [StudentSortInput!]
+  ) {
+    students(
+      first: $first
+      after: $after
+      last: $last
+      before: $before
+      enrollmentStatus: $enrollmentStatus
+      where: $where
+      order: $order
+    ) {
+      totalCount
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      nodes {
+        id
+        personId
+        unitId
+        enrollmentStatus
+        notes
+        createdAt
+        updatedAt
+        createdBy
+        updatedBy
+      }
+    }
+  }
+`;
+
+const GET_STUDENTS_QUERY_LEGACY = `
+  query GetStudents(
+    $first: Int
+    $after: String
+    $last: Int
+    $before: String
     $where: StudentFilterInput
     $order: [StudentSortInput!]
   ) {
@@ -326,7 +373,6 @@ const GET_STUDENTS_QUERY = `
         id
         personId
         unitId
-        status
         notes
         createdAt
         updatedAt
@@ -343,7 +389,6 @@ const GET_STUDENT_BY_ID_QUERY = `
       id
       personId
       notes
-      status
     }
   }
 `;
@@ -358,6 +403,7 @@ const GET_STUDENT_COURSES_QUERY = `
         enrollmentDate
         startDate
         endDate
+        status
       }
     }
   }
@@ -389,7 +435,6 @@ const CREATE_STUDENT_MUTATION = `
         personId
         unitId
         notes
-        status
       }
     }
   }
@@ -442,7 +487,6 @@ const UPDATE_STUDENT_MUTATION = `
         personId
         unitId
         notes
-        status
         updatedAt
         updatedBy
       }
@@ -467,7 +511,6 @@ const UPDATE_STUDENT_COURSE_MUTATION = `
         notes
         status
         updatedAt
-        updatedBy
       }
     }
   }
@@ -487,7 +530,6 @@ const UPDATE_STUDENT_GUARDIAN_MUTATION = `
         canPickupChild
         notes
         updatedAt
-        updatedBy
       }
     }
   }
@@ -511,7 +553,18 @@ const DELETE_STUDENT_GUARDIAN_MUTATION = `
   }
 `;
 
-type BackendStudentStatus = "Active" | "Inactive" | "Graduated" | "Transferred" | "Suspended";
+type BackendStudentLifecycleStatus = "ACTIVE" | "INACTIVE" | "Active" | "Inactive";
+type BackendStudentCourseStatus =
+  | "ACTIVE"
+  | "PENDING"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "SUSPENDED"
+  | "Active"
+  | "Pending"
+  | "Completed"
+  | "Cancelled"
+  | "Suspended";
 
 type StudentsConnectionResponse = {
   students: {
@@ -525,7 +578,7 @@ type StudentsConnectionResponse = {
     nodes: Array<{
       id: string;
       personId: string;
-      status?: BackendStudentStatus | null;
+      enrollmentStatus?: BackendStudentLifecycleStatus | null;
     }>;
   };
 };
@@ -542,17 +595,12 @@ type UuidFilter = {
   in?: string[];
 };
 
-type StudentStatusFilter = {
-  eq?: BackendStudentStatus;
-};
-
 export type StudentFilterInput = {
   and?: StudentFilterInput[];
   or?: StudentFilterInput[];
   id?: UuidFilter;
   personId?: UuidFilter;
   unitId?: UuidFilter;
-  status?: StudentStatusFilter;
 };
 
 export type GetStudentsVariables = {
@@ -560,6 +608,7 @@ export type GetStudentsVariables = {
   after?: string | null;
   last?: number;
   before?: string | null;
+  enrollmentStatus?: StudentLifecycleStatus | null;
   where?: StudentFilterInput | null;
   order?: Array<Record<string, "ASC" | "DESC">>;
 };
@@ -580,7 +629,6 @@ type StudentByIdResponse = {
     id: string;
     personId: string;
     notes?: string | null;
-    status?: BackendStudentStatus | null;
   } | null;
 };
 
@@ -593,6 +641,7 @@ type StudentCoursesResponse = {
       enrollmentDate?: string | null;
       startDate?: string | null;
       endDate?: string | null;
+      status?: BackendStudentCourseStatus | null;
     }>;
   };
 };
@@ -619,7 +668,6 @@ type CreateStudentResponse = {
       id: string;
       personId: string;
       notes?: string | null;
-      status?: BackendStudentStatus | null;
     };
   };
 };
@@ -630,7 +678,6 @@ type UpdateStudentResponse = {
       id: string;
       personId: string;
       notes?: string | null;
-      status?: BackendStudentStatus | null;
     };
   };
 };
@@ -652,9 +699,28 @@ function normalizeOptional(value?: string | null) {
   return trimmed ? trimmed : undefined;
 }
 
-function mapBackendStatusToStudentStatus(status?: BackendStudentStatus | null): StudentStatus {
-  if (!status) return "Active";
-  return status;
+function mapBackendLifecycleStatus(status?: BackendStudentLifecycleStatus | null): StudentLifecycleStatus | null {
+  if (!status) return null;
+  if (status === "ACTIVE" || status === "Active") return "ACTIVE";
+  if (status === "INACTIVE" || status === "Inactive") return "INACTIVE";
+  return null;
+}
+
+function mapBackendCourseStatus(status?: BackendStudentCourseStatus | null): StudentCourseStatus {
+  if (status === "ACTIVE" || status === "Active") return "ACTIVE";
+  if (status === "PENDING" || status === "Pending") return "PENDING";
+  if (status === "COMPLETED" || status === "Completed") return "COMPLETED";
+  if (status === "CANCELLED" || status === "Cancelled") return "CANCELLED";
+  if (status === "SUSPENDED" || status === "Suspended") return "SUSPENDED";
+  return "ACTIVE";
+}
+
+function isActiveLifecycleFromCourses(courses: Array<{ status: StudentCourseStatus }>) {
+  return courses.some((course) => course.status === "ACTIVE");
+}
+
+function toLifecycleStatusFromCourses(courses: Array<{ status: StudentCourseStatus }>): StudentLifecycleStatus {
+  return isActiveLifecycleFromCourses(courses) ? "ACTIVE" : "INACTIVE";
 }
 
 function mapGuardianRelationshipToBackend(value: GuardianRelationshipType):
@@ -774,6 +840,7 @@ function buildUpdateCourseInput(
     enrollmentDate?: string;
     startDate?: string;
     endDate?: string;
+    status?: StudentCourseStatus;
   } = {};
 
   if (!current || (toDateOnly(current.startDate) ?? "") !== (toDateOnly(next.startDate) ?? "")) {
@@ -783,12 +850,140 @@ function buildUpdateCourseInput(
   if (!current || (toDateOnly(current.endDate) ?? "") !== (toDateOnly(next.endDate) ?? "")) {
     input.endDate = toDateOnly(next.endDate);
   }
+  if (!current || current.status !== next.status) {
+    input.status = next.status;
+  }
 
   return input;
 }
 
+function shouldRetryWithoutCourseStatus(error: unknown) {
+  if (!(error instanceof GraphQLRequestError)) return false;
+  const message = error.message.toLowerCase();
+  return message.includes("status") || message.includes("studentcoursestatus") || error.code === "VALIDATION_ERROR";
+}
+
+async function createStudentCourseWithCompatibility(input: {
+  studentId: string;
+  courseId: string;
+  enrollmentDate?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: StudentCourseStatus;
+}) {
+  try {
+    await gqlRequest(CREATE_STUDENT_COURSE_MUTATION, { input });
+  } catch (error) {
+    if (!input.status || !shouldRetryWithoutCourseStatus(error)) {
+      throw error;
+    }
+
+    const { status, ...legacyInput } = input;
+    void status;
+    await gqlRequest(CREATE_STUDENT_COURSE_MUTATION, { input: legacyInput });
+  }
+}
+
+async function updateStudentCourseWithCompatibility(id: string, input: {
+  enrollmentDate?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: StudentCourseStatus;
+}) {
+  try {
+    await gqlRequest(UPDATE_STUDENT_COURSE_MUTATION, { id, input });
+  } catch (error) {
+    if (!input.status || !shouldRetryWithoutCourseStatus(error)) {
+      throw error;
+    }
+
+    const { status, ...legacyInput } = input;
+    void status;
+    await gqlRequest(UPDATE_STUDENT_COURSE_MUTATION, { id, input: legacyInput });
+  }
+}
+
+function normalizeStudentOrder(order: GetStudentsVariables["order"]) {
+  if (!order?.length) return order;
+  return order.map((item) => {
+    if ("status" in item || "enrollmentStatus" in item) {
+      return { createdAt: "DESC" as const };
+    }
+
+    return item;
+  });
+}
+
+function normalizeStudentWhere(where?: StudentFilterInput | null) {
+  if (!where) return undefined;
+  return where;
+}
+
+async function getStudentsConnection(variables: GetStudentsVariables) {
+  try {
+    return await gqlRequest<StudentsConnectionResponse, GetStudentsVariables>(GET_STUDENTS_QUERY, {
+      ...variables,
+      where: normalizeStudentWhere(variables.where),
+      order: normalizeStudentOrder(variables.order)
+    });
+  } catch (error) {
+    if (!(error instanceof GraphQLRequestError)) throw error;
+
+    const message = error.message.toLowerCase();
+    const isSchemaMismatch =
+      message.includes("enrollmentstatus") ||
+      message.includes("studentlifecyclestatus") ||
+      message.includes("field") ||
+      message.includes("cannot query field");
+
+    if (!isSchemaMismatch) {
+      throw error;
+    }
+
+    return gqlRequest<StudentsConnectionResponse, GetStudentsVariables>(GET_STUDENTS_QUERY_LEGACY, {
+      ...variables,
+      enrollmentStatus: undefined,
+      where: undefined,
+      order: variables.order?.map((item) => ("status" in item ? { createdAt: "DESC" } : item))
+    });
+  }
+}
+
+function sortRowsByLifecycleStatus(
+  rows: StudentListItem[],
+  order: GetStudentsVariables["order"]
+) {
+  const statusOrder = order?.find((item) => "status" in item || "enrollmentStatus" in item);
+  if (!statusOrder) return rows;
+
+  const direction = (statusOrder.status ?? statusOrder.enrollmentStatus) === "ASC" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const aValue = a.status === "ACTIVE" ? 0 : 1;
+    const bValue = b.status === "ACTIVE" ? 0 : 1;
+    return (aValue - bValue) * direction;
+  });
+}
+
+async function getStudentLifecycleStatusFromCourses(studentId: string): Promise<StudentLifecycleStatus> {
+  const data = await gqlRequest<
+    StudentCoursesResponse,
+    { first: number; where: { studentId: { eq: string } }; order: Array<Record<string, "ASC" | "DESC">> }
+  >(GET_STUDENT_COURSES_QUERY, {
+    first: 50,
+    where: { studentId: { eq: studentId } },
+    order: [{ createdAt: "DESC" }]
+  });
+
+  const courseStatuses = data.studentCourses.nodes.map((course) => ({
+    status: mapBackendCourseStatus(course.status)
+  }));
+
+  return toLifecycleStatusFromCourses(courseStatuses);
+}
+
 export async function searchStudents(variables: GetStudentsVariables): Promise<StudentConnection> {
-  const data = await gqlRequest<StudentsConnectionResponse, GetStudentsVariables>(GET_STUDENTS_QUERY, variables);
+  const data = await getStudentsConnection(variables);
+  const requestedStatus = variables.enrollmentStatus ?? undefined;
 
   const rows = await Promise.all(
     data.students.nodes.map(async (student) => {
@@ -808,26 +1003,35 @@ export async function searchStudents(variables: GetStudentsVariables): Promise<S
         person = null;
       }
 
+      const backendEnrollmentStatus = mapBackendLifecycleStatus(student.enrollmentStatus);
+      const derivedEnrollmentStatus = await getStudentLifecycleStatusFromCourses(student.id).catch(
+        () => null as StudentLifecycleStatus | null
+      );
+      const enrollmentStatus = derivedEnrollmentStatus ?? backendEnrollmentStatus ?? "INACTIVE";
+
       return {
         id: student.id,
         studentName: person?.fullName ?? "Aluno nao identificado",
         documentNumber: person?.documentNumber ?? "",
-        status: mapBackendStatusToStudentStatus(student.status),
+        status: enrollmentStatus,
         primaryGuardianName: "-",
         primaryGuardianPhone: "-"
       } satisfies StudentListItem;
     })
   );
 
+  const filteredRows = requestedStatus ? rows.filter((row) => row.status === requestedStatus) : rows;
+  const sortedRows = sortRowsByLifecycleStatus(filteredRows, variables.order);
+
   return {
-    totalCount: data.students.totalCount ?? rows.length,
+    totalCount: requestedStatus ? sortedRows.length : data.students.totalCount ?? sortedRows.length,
     pageInfo: {
       hasNextPage: Boolean(data.students.pageInfo?.hasNextPage),
       hasPreviousPage: Boolean(data.students.pageInfo?.hasPreviousPage),
       startCursor: data.students.pageInfo?.startCursor ?? null,
       endCursor: data.students.pageInfo?.endCursor ?? null
     },
-    nodes: rows
+    nodes: sortedRows
   } satisfies StudentConnection;
 }
 
@@ -889,7 +1093,8 @@ export async function getStudentById(studentId: string) {
         },
         registrationNumber: course?.code ?? "",
         startDate: toDateOnly(enrollment.startDate ?? enrollment.enrollmentDate) ?? "",
-        endDate: toDateOnly(enrollment.endDate) ?? undefined
+        endDate: toDateOnly(enrollment.endDate) ?? undefined,
+        status: mapBackendCourseStatus(enrollment.status)
       } satisfies StudentCourseEnrollment;
     })
   );
@@ -897,7 +1102,6 @@ export async function getStudentById(studentId: string) {
   return {
     id: student.id,
     personId: student.personId,
-    status: mapBackendStatusToStudentStatus(student.status),
     notes: student.notes ?? undefined,
     guardians,
     courses
@@ -927,14 +1131,13 @@ export async function saveStudent(studentId: string | null, payload: StudentForm
 
     await Promise.all(
       payload.courses.map((enrollment) =>
-        gqlRequest(CREATE_STUDENT_COURSE_MUTATION, {
-          input: {
-            studentId: createdStudentId,
-            courseId: enrollment.course.id,
-            enrollmentDate: toDateOnly(enrollment.startDate),
-            startDate: toDateOnly(enrollment.startDate),
-            endDate: toDateOnly(enrollment.endDate)
-          }
+        createStudentCourseWithCompatibility({
+          studentId: createdStudentId,
+          courseId: enrollment.course.id,
+          enrollmentDate: toDateOnly(enrollment.startDate),
+          startDate: toDateOnly(enrollment.startDate),
+          endDate: toDateOnly(enrollment.endDate),
+          status: enrollment.status
         })
       )
     );
@@ -964,7 +1167,6 @@ export async function saveStudent(studentId: string | null, payload: StudentForm
     return {
       id: createdStudent.id,
       personId: createdStudent.personId,
-      status: mapBackendStatusToStudentStatus(createdStudent.status),
       notes: createdStudent.notes ?? payload.notes,
       guardians: payload.guardians,
       courses: payload.courses
@@ -999,20 +1201,16 @@ export async function saveStudent(studentId: string | null, payload: StudentForm
           return Promise.resolve();
         }
 
-        return gqlRequest(UPDATE_STUDENT_COURSE_MUTATION, {
-          id: course.id,
-          input: updateInput
-        });
+        return updateStudentCourseWithCompatibility(course.id, updateInput);
       }
 
-      return gqlRequest(CREATE_STUDENT_COURSE_MUTATION, {
-        input: {
-          studentId,
-          courseId: course.course.id,
-          enrollmentDate: toDateOnly(course.startDate),
-          startDate: toDateOnly(course.startDate),
-          endDate: toDateOnly(course.endDate)
-        }
+      return createStudentCourseWithCompatibility({
+        studentId,
+        courseId: course.course.id,
+        enrollmentDate: toDateOnly(course.startDate),
+        startDate: toDateOnly(course.startDate),
+        endDate: toDateOnly(course.endDate),
+        status: course.status
       });
     })
   );
