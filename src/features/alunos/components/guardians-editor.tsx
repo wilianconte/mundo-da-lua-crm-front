@@ -30,8 +30,8 @@ const initialDraft: GuardianDraft = {
   relationshipType: "",
   isPrimaryGuardian: false,
   isFinancialResponsible: false,
-  receivesNotifications: true,
-  canPickupChild: true,
+  receivesNotifications: false,
+  canPickupChild: false,
   notes: ""
 };
 
@@ -42,7 +42,7 @@ export function GuardiansEditor({
   guardians: StudentGuardian[];
   onChange: (guardians: StudentGuardian[]) => void;
 }) {
-  const [draft, setDraft] = useState<GuardianDraft>(initialDraft);
+  const [draft, setDraft] = useState<GuardianDraft>({ ...initialDraft });
   const [editingGuardianId, setEditingGuardianId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export function GuardiansEditor({
   );
 
   function resetDraft() {
-    setDraft(initialDraft);
+    setDraft({ ...initialDraft });
     setEditingGuardianId(null);
     setErrorMessage(null);
   }
@@ -154,17 +154,18 @@ export function GuardiansEditor({
                 ))}
               </select>
             </Field>
-            <Field>
-              <FieldLabel htmlFor="guardian-notes">Observacoes</FieldLabel>
-              <textarea
-                className="min-h-28 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                id="guardian-notes"
-                onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
-                placeholder="Instrucoes especificas sobre o responsavel"
-                value={draft.notes}
-              />
-            </Field>
           </div>
+
+          <Field>
+            <FieldLabel htmlFor="guardian-notes">Observacoes</FieldLabel>
+            <textarea
+              className="min-h-28 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+              id="guardian-notes"
+              onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
+              placeholder="Instrucoes especificas sobre o responsavel"
+              value={draft.notes}
+            />
+          </Field>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {[
@@ -192,10 +193,14 @@ export function GuardiansEditor({
 
           {errorMessage ? <FieldMessage className="text-red-600">{errorMessage}</FieldMessage> : null}
 
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={handleSubmitDraft}>{editingGuardianId ? "Atualizar responsavel" : "Adicionar responsavel"}</Button>
-            <Button onClick={resetDraft} variant="outline">
+          <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
+
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button className="min-w-40" onClick={resetDraft} variant="outline">
               Limpar
+            </Button>
+            <Button className="min-w-40" onClick={handleSubmitDraft}>
+              {editingGuardianId ? "Atualizar" : "Adicionar"}
             </Button>
           </div>
         </CardContent>

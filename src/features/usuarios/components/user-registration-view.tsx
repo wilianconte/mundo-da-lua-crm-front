@@ -1,8 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CheckCircle2, Loader2, Save, Trash2 } from "lucide-react";
-import Link from "next/link";
+import { CheckCircle2, Loader2, Save, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,6 +14,7 @@ import { getStudentPersonById } from "@/features/alunos/api/search-student-peopl
 import { type MockPerson } from "@/features/alunos/api/student-mock-service";
 import { PersonAutocomplete } from "@/features/alunos/components/person-autocomplete";
 import { PersonSearchModal } from "@/features/alunos/components/person-search-modal";
+import { RegistrationViewHeader } from "@/features/components/registration-view-header";
 import { getUserById } from "@/features/usuarios/api/get-user-by-id";
 import { createUser, mapUserApiError } from "@/features/usuarios/api/user-upsert";
 import {
@@ -226,26 +226,9 @@ export function UserRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link
-              aria-label="Voltar para pesquisa de usuarios"
-              className="inline-flex size-11 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-muted-foreground)] transition hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-foreground)]"
-              href="/usuarios/pesquisa"
-            >
-              <ArrowLeft className="size-5" />
-            </Link>
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight">
-                <span className="text-xl">{isEditMode ? "Editar usuario" : "Novo usuario"}</span>
-              </h2>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                Cadastro de conta de acesso com organizacao por dados gerais e grupos de permissao.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
+      <RegistrationViewHeader
+        actions={
+          <>
             {isEditMode ? (
               <Button
                 className="min-w-40"
@@ -267,9 +250,13 @@ export function UserRegistrationView() {
             >
               {isEditMode ? "Atualizar" : "Salvar"}
             </Button>
-          </div>
-        </div>
-      </section>
+          </>
+        }
+        backAriaLabel="Voltar para pesquisa de usuarios"
+        backHref="/usuarios/pesquisa"
+        description="Cadastro de conta de acesso com organizacao por dados gerais e grupos de permissao."
+        title={<span className="text-xl">{isEditMode ? "Editar usuario" : "Novo usuario"}</span>}
+      />
 
       {formError ? (
         <Card className="border-red-200 bg-red-50">

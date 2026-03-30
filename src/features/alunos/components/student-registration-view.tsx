@@ -1,21 +1,18 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Eye, Loader2, Plus, Save, Users, X } from "lucide-react";
-import Link from "next/link";
+import { AlertCircle, Eye, Loader2, Plus, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   getAllMockPeople,
   getStudentById,
-  getStudentStatusLabel,
   saveStudent,
   studentStatusOptions,
   type MockCourse,
@@ -29,6 +26,7 @@ import { CourseSearchModal } from "@/features/alunos/components/course-search-mo
 import { GuardiansEditor } from "@/features/alunos/components/guardians-editor";
 import { PersonAutocomplete } from "@/features/alunos/components/person-autocomplete";
 import { PersonSearchModal } from "@/features/alunos/components/person-search-modal";
+import { RegistrationViewHeader } from "@/features/components/registration-view-header";
 import { studentFormSchema, type StudentFormSchema } from "@/features/alunos/schema/student-form-schema";
 import { cn } from "@/lib/utils/cn";
 
@@ -61,14 +59,14 @@ export function StudentRegistrationView() {
   const [isCourseDetailsModalOpen, setIsCourseDetailsModalOpen] = useState(false);
   const [isLoadingStudent, setIsLoadingStudent] = useState(isEditMode && Boolean(studentId));
   const [formError, setFormError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("Cadastro realizado com sucesso.");
 
   const {
     register,
     handleSubmit,
     reset,
     setValue,
-    control,
     formState: { errors, isSubmitting }
   } = useForm<StudentFormSchema>({
     resolver: zodResolver(studentFormSchema),
@@ -78,8 +76,6 @@ export function StudentRegistrationView() {
       notes: ""
     }
   });
-
-  const status = useWatch({ control, name: "status" });
 
   useEffect(() => {
     register("personId");
@@ -141,6 +137,16 @@ export function StudentRegistrationView() {
     };
   }, [allPeople, isEditMode, studentId, reset]);
 
+  useEffect(() => {
+    if (!isSuccessModalOpen) return;
+
+    const timeoutId = window.setTimeout(() => {
+      router.push("/alunos/pesquisa");
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isSuccessModalOpen, router]);
+
   function handlePersonSelected(person: MockPerson) {
     setSelectedPerson(person);
     setValue("personId", person.id, { shouldValidate: true, shouldDirty: true });
@@ -191,7 +197,6 @@ export function StudentRegistrationView() {
 
     try {
       setFormError(null);
-      setSuccessMessage(null);
 
       const primaryCourse = courses[0];
       await saveStudent(isEditMode ? studentId : null, {
@@ -204,12 +209,8 @@ export function StudentRegistrationView() {
         guardians,
         courses
       });
-      setSuccessMessage(
-        isEditMode
-          ? "Aluno atualizado com sucesso no modo mock."
-          : "Aluno criado com sucesso no modo mock."
-      );
-      window.setTimeout(() => router.push("/alunos/pesquisa"), 1400);
+      setSuccessMessage(isEditMode ? "Alteracao realizada com sucesso." : "Cadastro realizado com sucesso.");
+      setIsSuccessModalOpen(true);
     } catch {
       setFormError("Nao foi possivel salvar o aluno agora.");
     }
@@ -241,63 +242,22 @@ export function StudentRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">
-              <span className="font-mono text-base font-medium uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                Alunos
-              </span>{" "}
-              <span aria-hidden="true" className="text-[var(--color-muted-foreground)]">
-                |
-              </span>{" "}
-              <span className="text-xl">{isEditMode ? "Editar aluno" : "Novo aluno"}</span>
-            </h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              Fluxo de cadastro mock com selecao reutilizavel de pessoas, cursos e gerenciamento de responsaveis.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/alunos/pesquisa">
-              <Button variant="outline">Voltar para pesquisa</Button>
-            </Link>
-            <Button
-              form="student-form"
-              leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              type="submit"
-            >
-              {isEditMode ? "Salvar alteracoes" : "Salvar aluno"}
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {isEditMode && selectedPerson ? (
-        <Card>
-          <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-            <div className="space-y-1">
-              <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">Resumo da edicao</p>
-              <h3 className="text-lg font-semibold text-[var(--color-foreground)]">{selectedPerson.fullName}</h3>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                {selectedPerson.documentNumber} - {selectedPerson.phone}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="attention">Mock persistido localmente</Badge>
-              <Badge variant="neutral">{guardians.length} responsavel(eis)</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {successMessage ? (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <CardContent className="flex items-start gap-3 p-4 text-emerald-800">
-            <CheckCircle2 className="mt-0.5 size-5" />
-            <p className="text-sm font-medium">{successMessage}</p>
-          </CardContent>
-        </Card>
-      ) : null}
+      <RegistrationViewHeader
+        actions={
+          <Button
+            disabled={isSubmitting || isLoadingStudent || isSuccessModalOpen}
+            form="student-form"
+            leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            type="submit"
+          >
+            {isEditMode ? "Salvar" : "Salvar aluno"}
+          </Button>
+        }
+        backAriaLabel="Voltar para pesquisa de alunos"
+        backHref="/alunos/pesquisa"
+        description="Fluxo de cadastro mock com selecao reutilizavel de pessoas, cursos e gerenciamento de responsaveis."
+        title={<span className="text-xl">{isEditMode ? "Editar aluno" : "Novo aluno"}</span>}
+      />
 
       {formError ? (
         <Card className="border-red-200 bg-red-50">
@@ -375,6 +335,8 @@ export function StudentRegistrationView() {
                   ) : null}
                 </Field>
 
+                <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
+
                 <Field>
                   <div className="flex items-center gap-2">
                     <FieldLabel>Curso</FieldLabel>
@@ -439,7 +401,6 @@ export function StudentRegistrationView() {
                     </Button>
                   </div>
                 </div>
-
                 <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
                   <table className="min-w-[680px] w-full border-collapse text-sm">
                     <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
@@ -488,6 +449,8 @@ export function StudentRegistrationView() {
                   </table>
                 </div>
 
+                <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
+
                 <Field>
                   <FieldLabel htmlFor="student-notes">Observacoes gerais</FieldLabel>
                   <textarea
@@ -533,26 +496,6 @@ export function StudentRegistrationView() {
               ])
             : null}
 
-          <Card>
-            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-              <div className="flex items-center gap-3 text-sm text-[var(--color-muted-foreground)]">
-                <Users className="size-4" />
-                {guardians.length} responsavel(eis) vinculado(s)
-                <span>- {getStudentStatusLabel(status ?? "ACTIVE")}</span>
-              </div>
-              <div className="flex gap-3">
-                <Button onClick={() => setSelectedTab("general")} type="button" variant="ghost">
-                  Revisar dados gerais
-                </Button>
-                <Button
-                  leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                  type="submit"
-                >
-                  {isEditMode ? "Salvar alteracoes" : "Salvar aluno"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </form>
       </div>
 
@@ -644,6 +587,26 @@ export function StudentRegistrationView() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      ) : null}
+
+      {isSuccessModalOpen ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="flex items-start gap-3">
+              <Loader2 className="mt-0.5 size-5 animate-spin text-[var(--color-primary)]" />
+              <div className="space-y-1">
+                <p className="text-base font-semibold text-[var(--color-foreground)]">{successMessage}</p>
+                <p className="text-sm text-[var(--color-muted-foreground)]">
+                  Redirecionando para a listagem de alunos...
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

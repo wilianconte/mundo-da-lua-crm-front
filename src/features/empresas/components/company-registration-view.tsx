@@ -546,14 +546,14 @@ export function CompanyRegistrationView() {
             </section>
 
             <div className="flex flex-wrap items-center gap-3 border-t border-[var(--color-border)] pt-6">
-              <Button disabled={isSubmitting || isLoadingCompany || isDeletingCompany} onClick={handleClear} type="button" variant="ghost">
+              <Button className="min-w-40" disabled={isSubmitting || isLoadingCompany || isDeletingCompany} onClick={handleClear} type="button" variant="ghost">
                 Limpar
               </Button>
               <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
-                <Button disabled={isSubmitting || isLoadingCompany || isDeletingCompany} leadingIcon={<X className="size-4" />} onClick={() => router.push("/empresas/pesquisa")} type="button" variant="outline">
+                <Button className="min-w-40" disabled={isSubmitting || isLoadingCompany || isDeletingCompany} leadingIcon={<X className="size-4" />} onClick={() => router.push("/empresas/pesquisa")} type="button" variant="outline">
                   Cancelar
                 </Button>
-                <Button disabled={isSubmitting || isLoadingCompany || isDeletingCompany} leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} type="submit">
+                <Button className="min-w-40" disabled={isSubmitting || isLoadingCompany || isDeletingCompany} leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} type="submit">
                   {isSubmitting ? "Salvando..." : isEditMode ? "Salvar alteracoes" : "Salvar empresa"}
                 </Button>
               </div>

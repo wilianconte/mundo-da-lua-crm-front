@@ -145,6 +145,7 @@ export function ClientRegistrationView() {
 
             <div className="flex flex-wrap gap-3">
               <Button
+                className="min-w-40"
                 leadingIcon={<Save className="size-4" />}
                 size="lg"
                 type="submit"
@@ -152,6 +153,7 @@ export function ClientRegistrationView() {
                 {isSubmitting ? "Salvando..." : "Salvar cliente"}
               </Button>
               <Button
+                className="min-w-40"
                 leadingIcon={<UserPlus className="size-4" />}
                 onClick={handleClear}
                 size="lg"

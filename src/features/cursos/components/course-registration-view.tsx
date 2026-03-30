@@ -359,6 +359,7 @@ export function CourseRegistrationView() {
           <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
             {isEditMode ? (
               <Button
+                className="min-w-40"
                 disabled={isDeletingCourse || isSubmitting || isLoadingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
                 leadingIcon={isDeletingCourse ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 onClick={() => setIsDeleteConfirmOpen(true)}
@@ -370,6 +371,7 @@ export function CourseRegistrationView() {
               </Button>
             ) : null}
             <Button
+              className="min-w-40"
               disabled={isLoadingCourse || isDeletingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
               leadingIcon={<X className="size-4" />}
               onClick={() => router.push("/cursos/pesquisa")}
@@ -380,6 +382,7 @@ export function CourseRegistrationView() {
               Cancelar
             </Button>
             <Button
+              className="min-w-40"
               disabled={isLoadingCourse || isDeletingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
               leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               size="lg"

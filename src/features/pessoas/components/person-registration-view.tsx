@@ -503,6 +503,7 @@ export function PersonRegistrationView() {
 
             <div className="flex flex-wrap justify-end gap-3">
               <Button
+                className="min-w-40"
                 disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
                 leadingIcon={<UserPlus className="size-4" />}
                 onClick={handleClear}
