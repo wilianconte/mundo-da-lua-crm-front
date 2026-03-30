@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { RegistrationViewHeader } from "@/features/components/registration-view-header";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import {
   createPerson,
   deletePerson,
@@ -284,7 +284,7 @@ export function PersonRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <RegistrationViewHeader
+      <FeatureViewHeader
         actions={
           <>
             {isEditMode ? (
@@ -592,3 +592,4 @@ export function PersonRegistrationView() {
     </div>
   );
 }
+

@@ -14,7 +14,7 @@ import { getStudentPersonById } from "@/features/alunos/api/search-student-peopl
 import { type MockPerson } from "@/features/alunos/api/student-mock-service";
 import { PersonAutocomplete } from "@/features/alunos/components/person-autocomplete";
 import { PersonSearchModal } from "@/features/alunos/components/person-search-modal";
-import { RegistrationViewHeader } from "@/features/components/registration-view-header";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { getUserById } from "@/features/usuarios/api/get-user-by-id";
 import { createUser, mapUserApiError } from "@/features/usuarios/api/user-upsert";
 import {
@@ -226,7 +226,7 @@ export function UserRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <RegistrationViewHeader
+      <FeatureViewHeader
         actions={
           <>
             {isEditMode ? (
@@ -444,3 +444,4 @@ export function UserRegistrationView() {
     </div>
   );
 }
+

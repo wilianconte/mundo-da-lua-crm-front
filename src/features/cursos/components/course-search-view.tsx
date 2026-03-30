@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 import { GraphQLRequestError } from "@/lib/graphql/client";
@@ -351,18 +352,17 @@ export function CourseSearchView() {
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Cursos</p>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de cursos</h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              Omnisearch com filtros tokenizados e busca livre por nome e codigo.
-            </p>
-          </div>
-          <Button className="min-w-40" leadingIcon={<Plus className="size-4" />} onClick={() => router.push("/cursos/cadastro")}>
-            Adicionar
-          </Button>
-        </div>
+        <FeatureViewHeader
+          actions={
+            <Button className="min-w-40" leadingIcon={<Plus className="size-4" />} onClick={() => router.push("/cursos/cadastro")}>
+              Adicionar
+            </Button>
+          }
+          backAriaLabel="Voltar para o dashboard"
+          backHref="/"
+          description="Omnisearch com filtros tokenizados e busca livre por nome e codigo."
+          title="Pesquisa de cursos"
+        />
       </section>
 
       <section className="space-y-5">

@@ -1,8 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Eye, Loader2, Plus, Save, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, Eye, Loader2, Plus, Save, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -11,10 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  getAllMockPeople,
+  deleteStudent,
+  deleteStudentCourse,
+  deleteStudentGuardian,
   getStudentById,
+  mapStudentApiError,
   saveStudent,
-  studentStatusOptions,
   type MockCourse,
   type MockPerson,
   type StudentCourseEnrollment,
@@ -27,7 +29,7 @@ import { CourseSearchModal } from "@/features/alunos/components/course-search-mo
 import { GuardiansEditor } from "@/features/alunos/components/guardians-editor";
 import { PersonAutocomplete } from "@/features/alunos/components/person-autocomplete";
 import { PersonSearchModal } from "@/features/alunos/components/person-search-modal";
-import { RegistrationViewHeader } from "@/features/components/registration-view-header";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { studentFormSchema, type StudentFormSchema } from "@/features/alunos/schema/student-form-schema";
 import { cn } from "@/lib/utils/cn";
 
@@ -54,6 +56,10 @@ type StudentRegistrationDraft = {
   selectedTab: StudentTabKey;
 };
 
+function isPersistedEntityId(id: string) {
+  return !id.startsWith("enrollment-") && !id.startsWith("guardian-draft-") && !id.startsWith("legacy-course-");
+}
+
 export function StudentRegistrationView() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,7 +68,6 @@ export function StudentRegistrationView() {
   const restoreStateKey = searchParams.get("restoreState");
   const createdPersonId = searchParams.get("createdPersonId");
   const createdCourseId = searchParams.get("createdCourseId");
-  const allPeople = useMemo(() => getAllMockPeople(), []);
   const hasRestoredStateRef = useRef(false);
   const [selectedTab, setSelectedTab] = useState<StudentTabKey>("general");
   const [selectedPerson, setSelectedPerson] = useState<MockPerson | null>(null);
@@ -76,9 +81,15 @@ export function StudentRegistrationView() {
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [isCourseDetailsModalOpen, setIsCourseDetailsModalOpen] = useState(false);
   const [isLoadingStudent, setIsLoadingStudent] = useState(isEditMode && Boolean(studentId));
+  const [isDeletingStudent, setIsDeletingStudent] = useState(false);
+  const [isDeleteStudentConfirmOpen, setIsDeleteStudentConfirmOpen] = useState(false);
+  const [courseToRemove, setCourseToRemove] = useState<StudentCourseEnrollment | null>(null);
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isSuccessModalLoading, setIsSuccessModalLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("Cadastro realizado com sucesso.");
+  const [successRedirectPath, setSuccessRedirectPath] = useState("/alunos/pesquisa");
 
   const {
     register,
@@ -91,8 +102,14 @@ export function StudentRegistrationView() {
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
       personId: "",
-      status: "ACTIVE",
-      notes: ""
+      registrationNumber: "",
+      schoolName: "",
+      gradeOrClass: "",
+      enrollmentType: "",
+      classGroup: "",
+      startDate: "",
+      notes: "",
+      academicObservation: ""
     }
   });
 
@@ -120,8 +137,7 @@ export function StudentRegistrationView() {
           return;
         }
 
-        const mockPerson = allPeople.find((item) => item.id === student.personId) ?? null;
-        const person = mockPerson ?? (await getStudentPersonById(student.personId).catch(() => null));
+        const person = await getStudentPersonById(student.personId).catch(() => null);
         if (!active) return;
 
         setSelectedPerson(person);
@@ -130,25 +146,22 @@ export function StudentRegistrationView() {
         }
         setGuardians(student.guardians);
 
-        const legacyCourse: StudentCourseEnrollment = {
-          id: `legacy-course-${student.id}`,
-          course: {
-            id: `legacy-${student.id}`,
-            name: student.school || "Curso legado",
-            code: "LEGACY",
-            category: student.gradeClass || "Legado"
-          },
-          registrationNumber: student.registrationNumber,
-          startDate: student.startDate,
-          endDate: undefined
-        };
-        setCourses(student.courses?.length ? student.courses : [legacyCourse]);
+        setCourses(student.courses ?? []);
 
         reset({
           personId: student.personId,
-          status: student.status,
-          notes: student.notes ?? ""
+          registrationNumber: student.registrationNumber ?? "",
+          schoolName: student.schoolName ?? "",
+          gradeOrClass: student.gradeOrClass ?? "",
+          enrollmentType: student.enrollmentType ?? "",
+          classGroup: student.classGroup ?? "",
+          startDate: student.startDate ?? "",
+          notes: student.notes ?? "",
+          academicObservation: student.academicObservation ?? ""
         });
+      } catch (error) {
+        if (!active) return;
+        setFormError(mapStudentApiError(error));
       } finally {
         if (active) setIsLoadingStudent(false);
       }
@@ -159,17 +172,17 @@ export function StudentRegistrationView() {
     return () => {
       active = false;
     };
-  }, [allPeople, isEditMode, studentId, reset, restoreStateKey]);
+  }, [isEditMode, studentId, reset, restoreStateKey]);
 
   useEffect(() => {
-    if (!isSuccessModalOpen) return;
+    if (!isSuccessModalOpen || isSuccessModalLoading) return;
 
     const timeoutId = window.setTimeout(() => {
-      router.push("/alunos/pesquisa");
+      router.push(successRedirectPath);
     }, 3000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [isSuccessModalOpen, router]);
+  }, [isSuccessModalLoading, isSuccessModalOpen, router, successRedirectPath]);
 
   useEffect(() => {
     if (hasRestoredStateRef.current) return;
@@ -189,7 +202,17 @@ export function StudentRegistrationView() {
           setSelectedCourse(parsed.selectedCourse ?? null);
           setCourseStartDate(parsed.courseStartDate ?? "");
           setCourseEndDate(parsed.courseEndDate ?? "");
-          reset(parsed.formValues ?? { personId: "", status: "ACTIVE", notes: "" });
+          reset(parsed.formValues ?? {
+            personId: "",
+            registrationNumber: "",
+            schoolName: "",
+            gradeOrClass: "",
+            enrollmentType: "",
+            classGroup: "",
+            startDate: "",
+            notes: "",
+            academicObservation: ""
+          });
         } catch {
           setFormError("Nao foi possivel restaurar o estado anterior do cadastro.");
         } finally {
@@ -324,6 +347,11 @@ export function StudentRegistrationView() {
       return;
     }
 
+    if (courseEndDate && courseEndDate <= courseStartDate) {
+      setFormError("A data de fim do curso deve ser posterior a data de inicio.");
+      return;
+    }
+
     const enrollment: StudentCourseEnrollment = {
       id: `enrollment-${Date.now()}`,
       course: selectedCourse,
@@ -340,30 +368,85 @@ export function StudentRegistrationView() {
   }
 
   async function onSubmit(values: StudentFormSchema) {
-    if (!courses.length) {
-      setFormError("Adicione pelo menos um curso para salvar o aluno.");
-      return;
-    }
-
     try {
       setFormError(null);
+      setSuccessRedirectPath("/alunos/pesquisa");
+      setSuccessMessage(isEditMode ? "Salvando alteracao..." : "Salvando cadastro...");
+      setIsSuccessModalLoading(true);
+      setIsSuccessModalOpen(true);
 
-      const primaryCourse = courses[0];
       await saveStudent(isEditMode ? studentId : null, {
         ...values,
-        registrationNumber: primaryCourse.registrationNumber,
-        school: primaryCourse.course.name,
-        gradeClass: primaryCourse.course.category,
-        startDate: primaryCourse.startDate,
-        notes: values.notes,
         guardians,
         courses
       });
       setSuccessMessage(isEditMode ? "Alteracao realizada com sucesso." : "Cadastro realizado com sucesso.");
-      setIsSuccessModalOpen(true);
-    } catch {
-      setFormError("Nao foi possivel salvar o aluno agora.");
+      setIsSuccessModalLoading(false);
+    } catch (error) {
+      setIsSuccessModalLoading(false);
+      setIsSuccessModalOpen(false);
+      setFormError(mapStudentApiError(error));
     }
+  }
+
+  async function confirmDeleteStudent() {
+    if (!studentId || !isEditMode) return;
+
+    try {
+      setFormError(null);
+      setIsDeleteStudentConfirmOpen(false);
+      setIsDeletingStudent(true);
+      const deleted = await deleteStudent(studentId);
+      if (!deleted) {
+        setFormError("Nao foi possivel excluir o aluno.");
+        return;
+      }
+
+      setSuccessMessage("Aluno excluido com sucesso.");
+      setSuccessRedirectPath("/alunos/pesquisa");
+      setIsSuccessModalLoading(false);
+      setIsSuccessModalOpen(true);
+    } catch (error) {
+      setFormError(mapStudentApiError(error));
+    } finally {
+      setIsDeletingStudent(false);
+    }
+  }
+
+  async function confirmRemoveCourse() {
+    if (!courseToRemove) return;
+
+    try {
+      setFormError(null);
+      setDeletingCourseId(courseToRemove.id);
+      const shouldDeleteOnBackend = isEditMode && isPersistedEntityId(courseToRemove.id);
+      if (shouldDeleteOnBackend) {
+        const deleted = await deleteStudentCourse(courseToRemove.id);
+        if (!deleted) {
+          setFormError("Nao foi possivel remover o curso.");
+          return;
+        }
+      }
+
+      setCourses((current) => current.filter((item) => item.id !== courseToRemove.id));
+      setCourseToRemove(null);
+    } catch (error) {
+      setFormError(mapStudentApiError(error));
+    } finally {
+      setDeletingCourseId(null);
+    }
+  }
+
+  async function handleRemoveGuardian(guardian: StudentGuardian) {
+    const shouldDeleteOnBackend = isEditMode && isPersistedEntityId(guardian.id);
+    if (shouldDeleteOnBackend) {
+      const deleted = await deleteStudentGuardian(guardian.id);
+      if (!deleted) {
+        throw new Error("Nao foi possivel remover o responsavel.");
+      }
+    }
+
+    setGuardians((current) => current.filter((item) => item.id !== guardian.id));
   }
 
   function renderPlaceholder(title: string, description: string, fields: string[]) {
@@ -392,20 +475,41 @@ export function StudentRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <RegistrationViewHeader
+      <FeatureViewHeader
         actions={
-          <Button
-            disabled={isSubmitting || isLoadingStudent || isSuccessModalOpen}
-            form="student-form"
-            leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            type="submit"
-          >
-            Salvar
-          </Button>
+          <>
+            {isEditMode ? (
+              <Button
+                className="min-w-40"
+                disabled={
+                  isDeletingStudent ||
+                  isSubmitting ||
+                  isLoadingStudent ||
+                  isDeleteStudentConfirmOpen ||
+                  isSuccessModalOpen
+                }
+                leadingIcon={isDeletingStudent ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={() => setIsDeleteStudentConfirmOpen(true)}
+                type="button"
+                variant="danger-outline"
+              >
+                {isDeletingStudent ? "Excluindo..." : "Excluir"}
+              </Button>
+            ) : null}
+            <Button
+              className="min-w-40"
+              disabled={isDeletingStudent || isSubmitting || isLoadingStudent || isSuccessModalOpen}
+              form="student-form"
+              leadingIcon={<Save className="size-4" />}
+              type="submit"
+            >
+              Salvar
+            </Button>
+          </>
         }
         backAriaLabel="Voltar para pesquisa de alunos"
         backHref="/alunos/pesquisa"
-        description="Fluxo de cadastro mock com selecao reutilizavel de pessoas, cursos e gerenciamento de responsaveis."
+        description="Cadastro de estudante com vinculo opcional de cursos e responsaveis."
         title={<span className="text-xl">{isEditMode ? "Editar aluno" : "Novo aluno"}</span>}
       />
 
@@ -446,7 +550,7 @@ export function StudentRegistrationView() {
           {isLoadingStudent ? (
             <Card>
               <CardContent className="flex items-center gap-3 p-6 text-sm text-[var(--color-muted-foreground)]">
-                <Loader2 className="size-4 animate-spin" /> Carregando dados mock do aluno...
+                <Loader2 className="size-4 animate-spin" /> Carregando dados do aluno...
               </CardContent>
             </Card>
           ) : null}
@@ -456,7 +560,7 @@ export function StudentRegistrationView() {
               <CardHeader>
                 <CardTitle>Dados gerais</CardTitle>
                 <CardDescription>
-                  Vincule o aluno a uma pessoa e adicione os cursos com matricula e data de inicio.
+                  Vincule o aluno a uma pessoa e preencha os dados cadastrais. Cursos e responsaveis sao opcionais.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -487,6 +591,70 @@ export function StudentRegistrationView() {
 
                 <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
 
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="student-registration-number">Matricula</FieldLabel>
+                    <Input
+                      id="student-registration-number"
+                      placeholder="Numero de matricula"
+                      {...register("registrationNumber")}
+                    />
+                    {errors.registrationNumber ? (
+                      <FieldMessage className="text-red-600">{errors.registrationNumber.message}</FieldMessage>
+                    ) : null}
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="student-start-date">Data de inicio do estudante</FieldLabel>
+                    <Input id="student-start-date" type="date" {...register("startDate")} />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="student-school-name">Escola</FieldLabel>
+                    <Input
+                      id="student-school-name"
+                      placeholder="Nome da escola"
+                      {...register("schoolName")}
+                    />
+                    {errors.schoolName ? (
+                      <FieldMessage className="text-red-600">{errors.schoolName.message}</FieldMessage>
+                    ) : null}
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="student-grade-or-class">Serie ou turma</FieldLabel>
+                    <Input
+                      id="student-grade-or-class"
+                      placeholder="Ex.: 5 ano / Turma A"
+                      {...register("gradeOrClass")}
+                    />
+                    {errors.gradeOrClass ? (
+                      <FieldMessage className="text-red-600">{errors.gradeOrClass.message}</FieldMessage>
+                    ) : null}
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="student-enrollment-type">Tipo de matricula</FieldLabel>
+                    <Input
+                      id="student-enrollment-type"
+                      placeholder="Ex.: Regular"
+                      {...register("enrollmentType")}
+                    />
+                    {errors.enrollmentType ? (
+                      <FieldMessage className="text-red-600">{errors.enrollmentType.message}</FieldMessage>
+                    ) : null}
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="student-class-group">Turma</FieldLabel>
+                    <Input
+                      id="student-class-group"
+                      placeholder="Ex.: Turma A"
+                      {...register("classGroup")}
+                    />
+                    {errors.classGroup ? (
+                      <FieldMessage className="text-red-600">{errors.classGroup.message}</FieldMessage>
+                    ) : null}
+                  </Field>
+                </div>
+
+                <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
+
                 <Field>
                   <div className="flex items-center gap-2">
                     <FieldLabel>Curso</FieldLabel>
@@ -509,7 +677,7 @@ export function StudentRegistrationView() {
                   />
                 </Field>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                   <Field>
                     <FieldLabel htmlFor="course-start-date">Inicio</FieldLabel>
                     <Input
@@ -527,20 +695,6 @@ export function StudentRegistrationView() {
                       type="date"
                       value={courseEndDate}
                     />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="student-status">Status</FieldLabel>
-                    <select
-                      className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                      id="student-status"
-                      {...register("status")}
-                    >
-                      {studentStatusOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
                   </Field>
                   <div className="flex items-end">
                     <Button
@@ -576,15 +730,14 @@ export function StudentRegistrationView() {
                             <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{enrollment.endDate ?? "-"}</td>
                             <td className="px-4 py-3">
                               <Button
+                                disabled={deletingCourseId === enrollment.id}
                                 onClick={() =>
-                                  setCourses((current) =>
-                                    current.filter((item) => item.id !== enrollment.id)
-                                  )
+                                  setCourseToRemove(enrollment)
                                 }
                                 size="sm"
                                 variant="ghost"
                               >
-                                Remover
+                                {deletingCourseId === enrollment.id ? "Removendo..." : "Remover"}
                               </Button>
                             </td>
                           </tr>
@@ -611,11 +764,28 @@ export function StudentRegistrationView() {
                     {...register("notes")}
                   />
                 </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="student-academic-observation">Observacao academica</FieldLabel>
+                  <textarea
+                    className="min-h-28 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+                    id="student-academic-observation"
+                    placeholder="Ex.: dificuldade em matematica"
+                    {...register("academicObservation")}
+                  />
+                </Field>
               </CardContent>
             </Card>
           ) : null}
 
-          {selectedTab === "guardians" ? <GuardiansEditor guardians={guardians} onChange={setGuardians} /> : null}
+          {selectedTab === "guardians" ? (
+            <GuardiansEditor
+              guardians={guardians}
+              onChange={setGuardians}
+              onCreateGuardianPerson={handleCreatePersonFromStudent}
+              onRemoveGuardian={handleRemoveGuardian}
+            />
+          ) : null}
 
           {selectedTab === "health"
             ? renderPlaceholder("Saude e cuidados", "Placeholders preparados para futuros registros de saude e cuidado.", [
@@ -753,9 +923,79 @@ export function StudentRegistrationView() {
               <div className="space-y-1">
                 <p className="text-base font-semibold text-[var(--color-foreground)]">{successMessage}</p>
                 <p className="text-sm text-[var(--color-muted-foreground)]">
-                  Redirecionando para a listagem de alunos...
+                  {isSuccessModalLoading ? "Aguarde, estamos processando os dados..." : "Redirecionando para a listagem de alunos..."}
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isDeleteStudentConfirmOpen ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                Deseja excluir este aluno? Esta acao nao podera ser desfeita.
+              </p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                disabled={isDeletingStudent}
+                leadingIcon={<X className="size-4" />}
+                onClick={() => setIsDeleteStudentConfirmOpen(false)}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isDeletingStudent}
+                leadingIcon={isDeletingStudent ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={confirmDeleteStudent}
+                variant="danger-outline"
+              >
+                {isDeletingStudent ? "Excluindo..." : "Excluir"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {courseToRemove ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                Deseja remover a matricula do curso <strong>{courseToRemove.course.name}</strong>?
+              </p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                disabled={deletingCourseId === courseToRemove.id}
+                leadingIcon={<X className="size-4" />}
+                onClick={() => setCourseToRemove(null)}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={deletingCourseId === courseToRemove.id}
+                leadingIcon={deletingCourseId === courseToRemove.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={confirmRemoveCourse}
+                variant="danger-outline"
+              >
+                {deletingCourseId === courseToRemove.id ? "Removendo..." : "Remover"}
+              </Button>
             </div>
           </div>
         </div>
@@ -763,3 +1003,4 @@ export function StudentRegistrationView() {
     </div>
   );
 }
+

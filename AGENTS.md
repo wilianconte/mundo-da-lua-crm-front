@@ -28,6 +28,11 @@ Este repositorio deve priorizar mudancas pequenas, seguras e faceis de revisar.
 - Se token expirar ou retornar `AUTH_NOT_AUTHORIZED`, limpar sessao local e redirecionar para `/login`.
 - Enquanto refresh token nao existir no backend, validar `expiresAt` localmente antes de requests autenticados.
 
+## Enums GraphQL (padrao do projeto)
+- Valores de enum enviados ao backend devem usar `SCREAMING_SNAKE_CASE`, conforme o schema GraphQL.
+- Nao converter enum GraphQL para `PascalCase` ou `camelCase` no payload (ex.: enviar `MOTHER`, nao `Mother`).
+- Ao integrar novos enums, preferir tipos/constantes gerados por GraphQL Codegen para evitar drift de convencao.
+
 ## Testes e validacoes
 - Execute testes relevantes para a area alterada sempre que possivel.
 - Se a mudanca impactar comportamento, crie ou ajuste testes.

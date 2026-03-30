@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode } from "react";
 
-type RegistrationViewHeaderProps = {
+type FeatureViewHeaderProps = {
   actions?: ReactNode;
   backAriaLabel: string;
   backHref: string;
@@ -10,13 +10,13 @@ type RegistrationViewHeaderProps = {
   title: ReactNode;
 };
 
-export function RegistrationViewHeader({
+export function FeatureViewHeader({
   actions,
   backAriaLabel,
   backHref,
   description,
   title
-}: RegistrationViewHeaderProps) {
+}: FeatureViewHeaderProps) {
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -38,3 +38,6 @@ export function RegistrationViewHeader({
     </section>
   );
 }
+
+// Compatibilidade temporaria: manter export antigo durante migracao de imports.
+export const RegistrationViewHeader = FeatureViewHeader;

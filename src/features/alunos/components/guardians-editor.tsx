@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Loader2, Trash2, X } from "lucide-react";
 
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Badge } from "@/components/ui/badge";
@@ -37,14 +38,20 @@ const initialDraft: GuardianDraft = {
 
 export function GuardiansEditor({
   guardians,
-  onChange
+  onChange,
+  onCreateGuardianPerson,
+  onRemoveGuardian
 }: {
   guardians: StudentGuardian[];
   onChange: (guardians: StudentGuardian[]) => void;
+  onCreateGuardianPerson?: (query: string) => void;
+  onRemoveGuardian?: (guardian: StudentGuardian) => Promise<void> | void;
 }) {
   const [draft, setDraft] = useState<GuardianDraft>({ ...initialDraft });
   const [editingGuardianId, setEditingGuardianId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [guardianToRemove, setGuardianToRemove] = useState<StudentGuardian | null>(null);
+  const [isRemovingGuardian, setIsRemovingGuardian] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const excludedIds = useMemo(
@@ -114,6 +121,30 @@ export function GuardiansEditor({
     setErrorMessage(null);
   }
 
+  async function confirmRemoveGuardian() {
+    if (!guardianToRemove) return;
+
+    try {
+      setErrorMessage(null);
+      setIsRemovingGuardian(true);
+
+      if (onRemoveGuardian) {
+        await onRemoveGuardian(guardianToRemove);
+      } else {
+        onChange(guardians.filter((item) => item.id !== guardianToRemove.id));
+      }
+
+      if (editingGuardianId === guardianToRemove.id) {
+        resetDraft();
+      }
+      setGuardianToRemove(null);
+    } catch {
+      setErrorMessage("Nao foi possivel remover o responsavel.");
+    } finally {
+      setIsRemovingGuardian(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -128,6 +159,7 @@ export function GuardiansEditor({
             <FieldLabel>Pessoa responsavel</FieldLabel>
             <PersonAutocomplete
               excludedPersonIds={excludedIds}
+              onCreateNew={onCreateGuardianPerson}
               onOpenModal={() => setIsModalOpen(true)}
               onSelect={(person) => {
                 setDraft((current) => ({ ...current, person }));
@@ -247,7 +279,8 @@ export function GuardiansEditor({
                             Editar
                           </Button>
                           <Button
-                            onClick={() => onChange(guardians.filter((item) => item.id !== guardian.id))}
+                            disabled={isRemovingGuardian}
+                            onClick={() => setGuardianToRemove(guardian)}
                             size="sm"
                             variant="ghost"
                           >
@@ -260,7 +293,7 @@ export function GuardiansEditor({
                 ) : (
                   <tr className="border-t border-[var(--color-border)]">
                     <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={8}>
-                      Nenhum responsavel vinculado ainda. Adicione pelo menos um responsavel para continuar.
+                      Nenhum responsavel vinculado ainda.
                     </td>
                   </tr>
                 )}
@@ -277,8 +310,42 @@ export function GuardiansEditor({
           setErrorMessage(null);
         }}
         open={isModalOpen}
-        title="Pesquisar responsavel"
       />
+
+      {guardianToRemove ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                Deseja remover o responsavel <strong>{guardianToRemove.person.fullName}</strong>?
+              </p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                disabled={isRemovingGuardian}
+                leadingIcon={<X className="size-4" />}
+                onClick={() => setGuardianToRemove(null)}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isRemovingGuardian}
+                leadingIcon={isRemovingGuardian ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={confirmRemoveGuardian}
+                variant="danger-outline"
+              >
+                {isRemovingGuardian ? "Removendo..." : "Remover"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   type PersonNode,
   type PersonStatus
 } from "@/features/pessoas/api/get-people";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 import { GraphQLRequestError } from "@/lib/graphql/client";
@@ -355,24 +356,22 @@ export function PersonSearchView({
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
-          {sectionLabel}
-        </p>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              {description}
-            </p>
-          </div>
-          <Button
-            className="min-w-40"
-            leadingIcon={<Plus className="size-4" />}
-            onClick={() => router.push(`${basePath}/cadastro`)}
-          >
-            Adicionar
-          </Button>
-        </div>
+        <span className="sr-only">{sectionLabel}</span>
+        <FeatureViewHeader
+          actions={
+            <Button
+              className="min-w-40"
+              leadingIcon={<Plus className="size-4" />}
+              onClick={() => router.push(`${basePath}/cadastro`)}
+            >
+              Adicionar
+            </Button>
+          }
+          backAriaLabel="Voltar para o dashboard"
+          backHref="/"
+          description={description}
+          title={title}
+        />
       </section>
 
       <section className="space-y-5">
@@ -455,3 +454,4 @@ export function PersonSearchView({
     </div>
   );
 }
+

@@ -34,12 +34,33 @@ function getFirstHref(items?: NavChildItem[]): string | undefined {
   return undefined;
 }
 
+function isPathActive(pathname: string, href?: string): boolean {
+  if (!href) {
+    return false;
+  }
+
+  if (pathname === href) {
+    return true;
+  }
+
+  if (href.endsWith("/pesquisa") || href.endsWith("/cadastro")) {
+    const parentPath = href.replace(/\/(pesquisa|cadastro)$/, "");
+    if (!parentPath) {
+      return false;
+    }
+
+    return pathname === parentPath || pathname.startsWith(`${parentPath}/`);
+  }
+
+  return false;
+}
+
 function hasActivePath(items: NavChildItem[] | undefined, pathname: string): boolean {
   if (!items?.length) {
     return false;
   }
 
-  return items.some((item) => item.href === pathname || hasActivePath(item.children, pathname));
+  return items.some((item) => isPathActive(pathname, item.href) || hasActivePath(item.children, pathname));
 }
 
 function ChildNavItem({
@@ -54,7 +75,7 @@ function ChildNavItem({
   level: number;
 }) {
   const hasChildren = Boolean(item.children?.length);
-  const isChildActive = item.href ? pathname === item.href : false;
+  const isChildActive = isPathActive(pathname, item.href);
   const [expanded, setExpanded] = useState(hasActivePath(item.children, pathname));
 
   if (hasChildren) {
@@ -124,7 +145,7 @@ function SidebarLink({
 }) {
   const [expanded, setExpanded] = useState(item.defaultExpanded || hasActivePath(item.children, pathname) || false);
   const Icon = item.icon;
-  const isActive = item.href ? pathname === item.href : expanded;
+  const isActive = item.href ? isPathActive(pathname, item.href) : expanded;
 
   if (collapsed) {
     const href = item.href ?? getFirstHref(item.children) ?? "#";

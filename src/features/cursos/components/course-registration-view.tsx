@@ -10,7 +10,7 @@ import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { RegistrationViewHeader } from "@/features/components/registration-view-header";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import {
   createCourse,
   deleteCourse,
@@ -203,7 +203,7 @@ export function CourseRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <RegistrationViewHeader
+      <FeatureViewHeader
         actions={
           <>
             {isEditMode ? (
@@ -445,3 +445,4 @@ export function CourseRegistrationView() {
     </div>
   );
 }
+
