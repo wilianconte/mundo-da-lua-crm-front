@@ -24,15 +24,12 @@ import { GraphQLRequestError } from "@/lib/graphql/client";
 type FilterFieldKey =
   | "studentName"
   | "documentNumber"
-  | "registrationNumber"
-  | "school"
-  | "gradeClass"
   | "status";
 type FieldType = "text" | "category";
 type TextOperator = "contains" | "equals" | "startsWith";
 type CategoryOperator = "equals" | "notEquals";
 type FilterOperator = TextOperator | CategoryOperator;
-type SortableColumn = "registrationNumber" | "school" | "gradeClass" | "status" | "createdAt";
+type SortableColumn = "status" | "createdAt";
 type SortDirection = "asc" | "desc";
 type CursorMode = "forward" | "backward";
 
@@ -56,9 +53,6 @@ const PAGE_SIZE = 20;
 const filterFields: FilterField[] = [
   { key: "studentName", label: "Aluno", type: "text" },
   { key: "documentNumber", label: "Documento", type: "text" },
-  { key: "registrationNumber", label: "Matricula", type: "text" },
-  { key: "school", label: "Escola", type: "text" },
-  { key: "gradeClass", label: "Turma", type: "text" },
   { key: "status", label: "Status", type: "category" }
 ];
 
@@ -75,9 +69,6 @@ const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
 
 const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
   { label: "Aluno" },
-  { label: "Matricula", sortKey: "registrationNumber" },
-  { label: "Escola", sortKey: "school" },
-  { label: "Turma", sortKey: "gradeClass" },
   { label: "Status", sortKey: "status" },
   { label: "Responsavel" },
   { label: "Contato" },
@@ -113,9 +104,6 @@ function statusBadgeVariant(status: StudentStatus): "success" | "attention" | "n
 }
 
 function mapSortColumn(column: SortableColumn) {
-  if (column === "registrationNumber") return "registrationNumber";
-  if (column === "school") return "schoolName";
-  if (column === "gradeClass") return "gradeOrClass";
   if (column === "status") return "status";
   return "createdAt";
 }
@@ -161,17 +149,11 @@ async function buildStudentWhere({
       ]
     }).catch(() => []);
 
-    const orFilters: StudentFilterInput[] = [
-      { registrationNumber: { contains: freeQueryValue } },
-      { schoolName: { contains: freeQueryValue } },
-      { gradeOrClass: { contains: freeQueryValue } }
-    ];
-
-    if (personIdsFromQuery.length) {
-      orFilters.push({ personId: { in: personIdsFromQuery } });
+    if (!personIdsFromQuery.length) {
+      return { where: null, forceEmpty: true };
     }
 
-    andFilters.push({ or: orFilters });
+    andFilters.push({ personId: { in: personIdsFromQuery } });
   }
 
   for (const chip of chips) {
@@ -209,17 +191,15 @@ async function buildStudentWhere({
     }
 
     const operator = mapTextOperator(chip.operator as TextOperator);
-    if (chip.field.key === "registrationNumber") {
-      andFilters.push({ registrationNumber: { [operator]: value } });
-      continue;
+    const personWhere: PersonFilterInput =
+      chip.field.key === "studentName"
+        ? { fullName: { [operator]: value } }
+        : { documentNumber: { [operator]: value } };
+    const personIds = await searchPeopleIdsByFilter(personWhere).catch(() => []);
+    if (!personIds.length) {
+      return { where: null, forceEmpty: true };
     }
-
-    if (chip.field.key === "school") {
-      andFilters.push({ schoolName: { [operator]: value } });
-      continue;
-    }
-
-    andFilters.push({ gradeOrClass: { [operator]: value } });
+    andFilters.push({ personId: { in: personIds } });
   }
 
   return { where: mergeAndFilters(andFilters), forceEmpty: false };
@@ -430,7 +410,7 @@ export function StudentSearchView() {
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de alunos</h2>
             <p className="text-sm text-[var(--color-muted-foreground)]">
-              Omnisearch com filtros tokenizados e busca por aluno, documento, matricula, escola e turma.
+              Omnisearch com filtros tokenizados e busca por aluno, documento e status.
             </p>
           </div>
           <Button
@@ -498,9 +478,6 @@ export function StudentSearchView() {
               key={student.id}
             >
               <td className="px-4 py-3">{student.studentName}</td>
-              <td className="px-4 py-3">{student.registrationNumber}</td>
-              <td className="px-4 py-3">{student.school}</td>
-              <td className="px-4 py-3">{student.gradeClass}</td>
               <td className="px-4 py-3">
                 <Badge variant={statusBadgeVariant(student.status)}>{toStatusLabel(student.status)}</Badge>
               </td>

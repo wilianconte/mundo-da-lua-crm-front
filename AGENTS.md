@@ -45,3 +45,10 @@ Este repositorio deve priorizar mudancas pequenas, seguras e faceis de revisar.
 - Resuma o que mudou.
 - Liste riscos ou pendencias.
 - Cite os testes/validacoes executados.
+
+## Acionamento do backend (obrigatorio)
+- Sempre que for necessario consultar informacoes ou solicitar alteracoes no backend, usar o Claude CLI no repositorio `mundo-da-lua-crm-core`.
+- Comando padrao:
+  `cd "D:\Dev\Mundo da Lua\mundo-da-lua-crm\mundo-da-lua-crm-core" && claude -p "<instrucao>" --dangerously-skip-permissions`
+- Em PowerShell, pode usar o equivalente:
+  `Set-Location "D:\Dev\Mundo da Lua\mundo-da-lua-crm\mundo-da-lua-crm-core"; claude -p "<instrucao>" --dangerously-skip-permissions`

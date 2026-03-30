@@ -51,16 +51,9 @@ export type StudentCourseEnrollment = {
 
 export type StudentRecord = {
   id: string;
-  registrationNumber: string;
   personId: string;
   status: StudentStatus;
-  schoolName: string;
-  gradeOrClass: string;
-  enrollmentType?: string;
-  classGroup?: string;
-  startDate?: string;
   notes?: string;
-  academicObservation?: string;
   guardians: StudentGuardian[];
   courses: StudentCourseEnrollment[];
 };
@@ -69,9 +62,6 @@ export type StudentListItem = {
   id: string;
   studentName: string;
   documentNumber: string;
-  registrationNumber: string;
-  school: string;
-  gradeClass: string;
   status: StudentStatus;
   primaryGuardianName: string;
   primaryGuardianPhone: string;
@@ -82,9 +72,6 @@ export type StudentSearchFilters = {
   documentNumber?: string;
   guardianName?: string;
   status?: string;
-  registrationNumber?: string;
-  school?: string;
-  gradeClass?: string;
 };
 
 export type PersonSearchFilters = {
@@ -104,14 +91,7 @@ export type CourseSearchFilters = {
 
 export type StudentFormPayload = {
   personId: string;
-  registrationNumber?: string;
-  schoolName?: string;
-  gradeOrClass?: string;
-  enrollmentType?: string;
-  classGroup?: string;
-  startDate?: string;
   notes?: string;
-  academicObservation?: string;
   guardians: StudentGuardian[];
   courses: StudentCourseEnrollment[];
 };
@@ -159,11 +139,7 @@ let mockStudents: StudentRecord[] = [
   {
     id: "student-1",
     personId: "person-1",
-    registrationNumber: "STU-2026-001",
     status: "Active",
-    schoolName: "Mundo da Lua Kids",
-    gradeOrClass: "Grade 2 / Sun",
-    startDate: "2026-02-03",
     notes: "Needs support during adaptation week.",
     guardians: [
       {
@@ -200,11 +176,7 @@ let mockStudents: StudentRecord[] = [
   {
     id: "student-2",
     personId: "person-7",
-    registrationNumber: "STU-2026-002",
     status: "Transferred",
-    schoolName: "Mundo da Lua Bilingual",
-    gradeOrClass: "Grade 1 / Moon",
-    startDate: "2026-03-10",
     notes: "Awaiting school transport confirmation.",
     guardians: [
       {
@@ -231,11 +203,7 @@ let mockStudents: StudentRecord[] = [
   {
     id: "student-3",
     personId: "person-5",
-    registrationNumber: "STU-2025-118",
     status: "Inactive",
-    schoolName: "Mundo da Lua Kids",
-    gradeOrClass: "Grade 3 / Star",
-    startDate: "2025-08-14",
     notes: "Temporarily inactive while family is abroad.",
     guardians: [
       {
@@ -357,16 +325,9 @@ const GET_STUDENTS_QUERY = `
       nodes {
         id
         personId
-        registrationNumber
-        schoolName
-        gradeOrClass
-        enrollmentType
         unitId
-        classGroup
-        startDate
         status
         notes
-        academicObservation
         createdAt
         updatedAt
         createdBy
@@ -381,14 +342,7 @@ const GET_STUDENT_BY_ID_QUERY = `
     studentById(id: $id) {
       id
       personId
-      registrationNumber
-      schoolName
-      gradeOrClass
-      enrollmentType
-      classGroup
-      startDate
       notes
-      academicObservation
       status
     }
   }
@@ -433,15 +387,8 @@ const CREATE_STUDENT_MUTATION = `
       student {
         id
         personId
-        registrationNumber
-        schoolName
-        gradeOrClass
-        enrollmentType
         unitId
-        classGroup
-        startDate
         notes
-        academicObservation
         status
       }
     }
@@ -493,15 +440,8 @@ const UPDATE_STUDENT_MUTATION = `
       student {
         id
         personId
-        registrationNumber
-        schoolName
-        gradeOrClass
-        enrollmentType
         unitId
-        classGroup
-        startDate
         notes
-        academicObservation
         status
         updatedAt
         updatedBy
@@ -585,10 +525,6 @@ type StudentsConnectionResponse = {
     nodes: Array<{
       id: string;
       personId: string;
-      registrationNumber?: string | null;
-      schoolName?: string | null;
-      gradeOrClass?: string | null;
-      classGroup?: string | null;
       status?: BackendStudentStatus | null;
     }>;
   };
@@ -615,10 +551,6 @@ export type StudentFilterInput = {
   or?: StudentFilterInput[];
   id?: UuidFilter;
   personId?: UuidFilter;
-  registrationNumber?: StringFilter;
-  schoolName?: StringFilter;
-  gradeOrClass?: StringFilter;
-  classGroup?: StringFilter;
   unitId?: UuidFilter;
   status?: StudentStatusFilter;
 };
@@ -647,14 +579,7 @@ type StudentByIdResponse = {
   studentById: {
     id: string;
     personId: string;
-    registrationNumber?: string | null;
-    schoolName?: string | null;
-    gradeOrClass?: string | null;
-    enrollmentType?: string | null;
-    classGroup?: string | null;
-    startDate?: string | null;
     notes?: string | null;
-    academicObservation?: string | null;
     status?: BackendStudentStatus | null;
   } | null;
 };
@@ -693,14 +618,7 @@ type CreateStudentResponse = {
     student: {
       id: string;
       personId: string;
-      registrationNumber?: string | null;
-      schoolName?: string | null;
-      gradeOrClass?: string | null;
-      enrollmentType?: string | null;
-      classGroup?: string | null;
-      startDate?: string | null;
       notes?: string | null;
-      academicObservation?: string | null;
       status?: BackendStudentStatus | null;
     };
   };
@@ -711,14 +629,7 @@ type UpdateStudentResponse = {
     student: {
       id: string;
       personId: string;
-      registrationNumber?: string | null;
-      schoolName?: string | null;
-      gradeOrClass?: string | null;
-      enrollmentType?: string | null;
-      classGroup?: string | null;
-      startDate?: string | null;
       notes?: string | null;
-      academicObservation?: string | null;
       status?: BackendStudentStatus | null;
     };
   };
@@ -845,39 +756,11 @@ function toDateOnly(value?: string | null) {
 
 function buildUpdateStudentInput(current: StudentRecord, payload: StudentFormPayload) {
   const input: {
-    registrationNumber?: string;
-    schoolName?: string;
-    gradeOrClass?: string;
-    enrollmentType?: string;
-    classGroup?: string;
-    startDate?: string;
     notes?: string;
-    academicObservation?: string;
   } = {};
 
-  if ((current.registrationNumber ?? "") !== (payload.registrationNumber ?? "")) {
-    input.registrationNumber = normalizeOptional(payload.registrationNumber);
-  }
-  if ((current.schoolName ?? "") !== (payload.schoolName ?? "")) {
-    input.schoolName = normalizeOptional(payload.schoolName);
-  }
-  if ((current.gradeOrClass ?? "") !== (payload.gradeOrClass ?? "")) {
-    input.gradeOrClass = normalizeOptional(payload.gradeOrClass);
-  }
-  if ((current.enrollmentType ?? "") !== (payload.enrollmentType ?? "")) {
-    input.enrollmentType = normalizeOptional(payload.enrollmentType);
-  }
-  if ((current.classGroup ?? "") !== (payload.classGroup ?? "")) {
-    input.classGroup = normalizeOptional(payload.classGroup);
-  }
-  if ((toDateOnly(current.startDate) ?? "") !== (toDateOnly(payload.startDate) ?? "")) {
-    input.startDate = toDateOnly(payload.startDate);
-  }
   if ((current.notes ?? "") !== (payload.notes ?? "")) {
     input.notes = normalizeOptional(payload.notes);
-  }
-  if ((current.academicObservation ?? "") !== (payload.academicObservation ?? "")) {
-    input.academicObservation = normalizeOptional(payload.academicObservation);
   }
 
   return input;
@@ -929,9 +812,6 @@ export async function searchStudents(variables: GetStudentsVariables): Promise<S
         id: student.id,
         studentName: person?.fullName ?? "Aluno nao identificado",
         documentNumber: person?.documentNumber ?? "",
-        registrationNumber: student.registrationNumber ?? "-",
-        school: student.schoolName ?? "-",
-        gradeClass: student.gradeOrClass ?? "-",
         status: mapBackendStatusToStudentStatus(student.status),
         primaryGuardianName: "-",
         primaryGuardianPhone: "-"
@@ -1017,15 +897,8 @@ export async function getStudentById(studentId: string) {
   return {
     id: student.id,
     personId: student.personId,
-    registrationNumber: student.registrationNumber ?? "",
     status: mapBackendStatusToStudentStatus(student.status),
-    schoolName: student.schoolName ?? "",
-    gradeOrClass: student.gradeOrClass ?? "",
-    enrollmentType: student.enrollmentType ?? undefined,
-    classGroup: student.classGroup ?? undefined,
-    startDate: toDateOnly(student.startDate) ?? undefined,
     notes: student.notes ?? undefined,
-    academicObservation: student.academicObservation ?? undefined,
     guardians,
     courses
   } satisfies StudentRecord;
@@ -1038,28 +911,14 @@ export async function saveStudent(studentId: string | null, payload: StudentForm
       {
         input: {
           personId: string;
-          registrationNumber?: string;
-          schoolName?: string;
-          gradeOrClass?: string;
-          enrollmentType?: string;
           unitId?: string;
-          classGroup?: string;
-          startDate?: string;
           notes?: string;
-          academicObservation?: string;
         };
       }
     >(CREATE_STUDENT_MUTATION, {
       input: {
         personId: payload.personId,
-        registrationNumber: normalizeOptional(payload.registrationNumber),
-        schoolName: normalizeOptional(payload.schoolName),
-        gradeOrClass: normalizeOptional(payload.gradeOrClass),
-        enrollmentType: normalizeOptional(payload.enrollmentType),
-        classGroup: normalizeOptional(payload.classGroup),
-        startDate: toDateOnly(payload.startDate),
-        notes: normalizeOptional(payload.notes),
-        academicObservation: normalizeOptional(payload.academicObservation)
+        notes: normalizeOptional(payload.notes)
       }
     });
 
@@ -1105,15 +964,8 @@ export async function saveStudent(studentId: string | null, payload: StudentForm
     return {
       id: createdStudent.id,
       personId: createdStudent.personId,
-      registrationNumber: createdStudent.registrationNumber ?? payload.registrationNumber ?? "",
       status: mapBackendStatusToStudentStatus(createdStudent.status),
-      schoolName: createdStudent.schoolName ?? payload.schoolName ?? "",
-      gradeOrClass: createdStudent.gradeOrClass ?? payload.gradeOrClass ?? "",
-      enrollmentType: createdStudent.enrollmentType ?? payload.enrollmentType ?? undefined,
-      classGroup: createdStudent.classGroup ?? payload.classGroup ?? undefined,
-      startDate: createdStudent.startDate ?? payload.startDate ?? undefined,
       notes: createdStudent.notes ?? payload.notes,
-      academicObservation: createdStudent.academicObservation ?? payload.academicObservation,
       guardians: payload.guardians,
       courses: payload.courses
     } satisfies StudentRecord;

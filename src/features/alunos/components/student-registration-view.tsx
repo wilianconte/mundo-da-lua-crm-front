@@ -102,14 +102,7 @@ export function StudentRegistrationView() {
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
       personId: "",
-      registrationNumber: "",
-      schoolName: "",
-      gradeOrClass: "",
-      enrollmentType: "",
-      classGroup: "",
-      startDate: "",
-      notes: "",
-      academicObservation: ""
+      notes: ""
     }
   });
 
@@ -150,14 +143,7 @@ export function StudentRegistrationView() {
 
         reset({
           personId: student.personId,
-          registrationNumber: student.registrationNumber ?? "",
-          schoolName: student.schoolName ?? "",
-          gradeOrClass: student.gradeOrClass ?? "",
-          enrollmentType: student.enrollmentType ?? "",
-          classGroup: student.classGroup ?? "",
-          startDate: student.startDate ?? "",
-          notes: student.notes ?? "",
-          academicObservation: student.academicObservation ?? ""
+          notes: student.notes ?? ""
         });
       } catch (error) {
         if (!active) return;
@@ -204,14 +190,7 @@ export function StudentRegistrationView() {
           setCourseEndDate(parsed.courseEndDate ?? "");
           reset(parsed.formValues ?? {
             personId: "",
-            registrationNumber: "",
-            schoolName: "",
-            gradeOrClass: "",
-            enrollmentType: "",
-            classGroup: "",
-            startDate: "",
-            notes: "",
-            academicObservation: ""
+            notes: ""
           });
         } catch {
           setFormError("Nao foi possivel restaurar o estado anterior do cadastro.");
@@ -591,70 +570,6 @@ export function StudentRegistrationView() {
 
                 <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor="student-registration-number">Matricula</FieldLabel>
-                    <Input
-                      id="student-registration-number"
-                      placeholder="Numero de matricula"
-                      {...register("registrationNumber")}
-                    />
-                    {errors.registrationNumber ? (
-                      <FieldMessage className="text-red-600">{errors.registrationNumber.message}</FieldMessage>
-                    ) : null}
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="student-start-date">Data de inicio do estudante</FieldLabel>
-                    <Input id="student-start-date" type="date" {...register("startDate")} />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="student-school-name">Escola</FieldLabel>
-                    <Input
-                      id="student-school-name"
-                      placeholder="Nome da escola"
-                      {...register("schoolName")}
-                    />
-                    {errors.schoolName ? (
-                      <FieldMessage className="text-red-600">{errors.schoolName.message}</FieldMessage>
-                    ) : null}
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="student-grade-or-class">Serie ou turma</FieldLabel>
-                    <Input
-                      id="student-grade-or-class"
-                      placeholder="Ex.: 5 ano / Turma A"
-                      {...register("gradeOrClass")}
-                    />
-                    {errors.gradeOrClass ? (
-                      <FieldMessage className="text-red-600">{errors.gradeOrClass.message}</FieldMessage>
-                    ) : null}
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="student-enrollment-type">Tipo de matricula</FieldLabel>
-                    <Input
-                      id="student-enrollment-type"
-                      placeholder="Ex.: Regular"
-                      {...register("enrollmentType")}
-                    />
-                    {errors.enrollmentType ? (
-                      <FieldMessage className="text-red-600">{errors.enrollmentType.message}</FieldMessage>
-                    ) : null}
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="student-class-group">Turma</FieldLabel>
-                    <Input
-                      id="student-class-group"
-                      placeholder="Ex.: Turma A"
-                      {...register("classGroup")}
-                    />
-                    {errors.classGroup ? (
-                      <FieldMessage className="text-red-600">{errors.classGroup.message}</FieldMessage>
-                    ) : null}
-                  </Field>
-                </div>
-
-                <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
-
                 <Field>
                   <div className="flex items-center gap-2">
                     <FieldLabel>Curso</FieldLabel>
@@ -765,15 +680,6 @@ export function StudentRegistrationView() {
                   />
                 </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="student-academic-observation">Observacao academica</FieldLabel>
-                  <textarea
-                    className="min-h-28 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                    id="student-academic-observation"
-                    placeholder="Ex.: dificuldade em matematica"
-                    {...register("academicObservation")}
-                  />
-                </Field>
               </CardContent>
             </Card>
           ) : null}
