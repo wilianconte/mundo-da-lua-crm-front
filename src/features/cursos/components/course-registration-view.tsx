@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Loader2, Save, Trash2, X } from "lucide-react";
+import { AlertCircle, Loader2, Save, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -10,6 +10,7 @@ import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { RegistrationViewHeader } from "@/features/components/registration-view-header";
 import {
   createCourse,
   deleteCourse,
@@ -51,17 +52,21 @@ export function CourseRegistrationView() {
   const searchParams = useSearchParams();
   const isEditMode = searchParams.get("mode") === "edit";
   const courseId = searchParams.get("id");
+  const returnTo = searchParams.get("returnTo");
+  const prefillName = searchParams.get("prefillName");
   const [isLoadingCourse, setIsLoadingCourse] = useState(isEditMode && Boolean(courseId));
   const [isDeletingCourse, setIsDeletingCourse] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [successRedirectPath, setSuccessRedirectPath] = useState("/cursos/pesquisa");
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting }
   } = useForm<CourseRegistrationSchema>({
     resolver: zodResolver(courseRegistrationSchema),
@@ -123,11 +128,17 @@ export function CourseRegistrationView() {
     if (!isSuccessModalOpen) return;
 
     const timeoutId = window.setTimeout(() => {
-      router.push("/cursos/pesquisa");
+      router.push(successRedirectPath);
     }, 3000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [isSuccessModalOpen, router]);
+  }, [isSuccessModalOpen, router, successRedirectPath]);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    if (!prefillName?.trim()) return;
+    setValue("name", prefillName.trim(), { shouldDirty: true });
+  }, [isEditMode, prefillName, setValue]);
 
   const submitLabel = useMemo(() => "Salvar", []);
 
@@ -153,11 +164,20 @@ export function CourseRegistrationView() {
       if (isEditMode && courseId) {
         await updateCourse(courseId, input);
         setSuccessMessage("Alteracao realizada com sucesso.");
+        setSuccessRedirectPath("/cursos/pesquisa");
         setIsSuccessModalOpen(true);
       } else {
-        await createCourse(input);
-        setSuccessMessage("Curso criado com sucesso.");
-        window.setTimeout(() => router.push("/cursos/pesquisa"), 1200);
+        const createdCourse = await createCourse(input);
+        setSuccessMessage("Cadastro realizado com sucesso.");
+        if (returnTo) {
+          const nextParams = new URLSearchParams(returnTo.includes("?") ? returnTo.split("?")[1] : "");
+          nextParams.set("createdCourseId", createdCourse.id);
+          const basePath = returnTo.split("?")[0] || "/cursos/pesquisa";
+          setSuccessRedirectPath(nextParams.toString() ? `${basePath}?${nextParams.toString()}` : basePath);
+        } else {
+          setSuccessRedirectPath("/cursos/pesquisa");
+        }
+        setIsSuccessModalOpen(true);
       }
     } catch (error) {
       setFormError(mapCourseApiError(error));
@@ -172,6 +192,7 @@ export function CourseRegistrationView() {
       setIsDeletingCourse(true);
       await deleteCourse(courseId);
       setSuccessMessage("Curso excluido com sucesso.");
+      setSuccessRedirectPath("/cursos/pesquisa");
       setIsSuccessModalOpen(true);
     } catch (error) {
       setFormError(mapCourseApiError(error));
@@ -182,31 +203,37 @@ export function CourseRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">
-            <span className="font-mono text-base font-medium uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-              Cursos
-            </span>{" "}
-            <span aria-hidden="true" className="text-[var(--color-muted-foreground)]">
-              |
-            </span>{" "}
-            <span className="text-xl">{isEditMode ? "Editar curso" : "Novo curso"}</span>
-          </h2>
-          <p className="text-sm text-[var(--color-muted-foreground)]">
-            Cadastro de cursos com validacoes e integracao GraphQL.
-          </p>
-        </div>
-      </section>
-
-      {successMessage ? (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <CardContent className="flex items-start gap-3 p-4 text-emerald-800">
-            <CheckCircle2 className="mt-0.5 size-5" />
-            <p className="text-sm font-medium">{successMessage}</p>
-          </CardContent>
-        </Card>
-      ) : null}
+      <RegistrationViewHeader
+        actions={
+          <>
+            {isEditMode ? (
+              <Button
+                className="min-w-40"
+                disabled={isDeletingCourse || isSubmitting || isLoadingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
+                leadingIcon={isDeletingCourse ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={() => setIsDeleteConfirmOpen(true)}
+                type="button"
+                variant="danger-outline"
+              >
+                {isDeletingCourse ? "Excluindo..." : "Excluir"}
+              </Button>
+            ) : null}
+            <Button
+              className="min-w-40"
+              disabled={isLoadingCourse || isDeletingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
+              form="course-form"
+              leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              type="submit"
+            >
+              {submitLabel}
+            </Button>
+          </>
+        }
+        backAriaLabel="Voltar para pesquisa de cursos"
+        backHref="/cursos/pesquisa"
+        description="Cadastro de cursos com validacoes e integracao GraphQL."
+        title={<span className="text-xl">{isEditMode ? "Editar curso" : "Novo curso"}</span>}
+      />
 
       {formError ? (
         <Card className="border-red-200 bg-red-50">
@@ -355,43 +382,6 @@ export function CourseRegistrationView() {
           </CardContent>
         </Card>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
-            {isEditMode ? (
-              <Button
-                className="min-w-40"
-                disabled={isDeletingCourse || isSubmitting || isLoadingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
-                leadingIcon={isDeletingCourse ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                onClick={() => setIsDeleteConfirmOpen(true)}
-                size="lg"
-                type="button"
-                variant="danger-outline"
-              >
-                {isDeletingCourse ? "Excluindo..." : "Excluir"}
-              </Button>
-            ) : null}
-            <Button
-              className="min-w-40"
-              disabled={isLoadingCourse || isDeletingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
-              leadingIcon={<X className="size-4" />}
-              onClick={() => router.push("/cursos/pesquisa")}
-              size="lg"
-              type="button"
-              variant="outline"
-            >
-              Cancelar
-            </Button>
-            <Button
-              className="min-w-40"
-              disabled={isLoadingCourse || isDeletingCourse || isDeleteConfirmOpen || isSuccessModalOpen}
-              leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              size="lg"
-              type="submit"
-            >
-              {submitLabel}
-            </Button>
-          </div>
-        </div>
       </form>
 
       {isDeleteConfirmOpen ? (
@@ -443,7 +433,9 @@ export function CourseRegistrationView() {
                   {successMessage}
                 </p>
                 <p className="text-sm text-[var(--color-muted-foreground)]">
-                  Redirecionando para a listagem de cursos...
+                  {successRedirectPath.startsWith("/alunos/cadastro")
+                    ? "Redirecionando para o cadastro de aluno..."
+                    : "Redirecionando para a listagem de cursos..."}
                 </p>
               </div>
             </div>

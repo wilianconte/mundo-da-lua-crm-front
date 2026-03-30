@@ -1,3 +1,5 @@
+import { getPersonById } from "@/features/pessoas/api/person-upsert";
+
 const MOCK_DELAY_MS = 450;
 
 export type StudentStatus = "ACTIVE" | "PENDING" | "INACTIVE";
@@ -319,15 +321,39 @@ export async function searchCourses(filters: CourseSearchFilters) {
 
 export async function searchStudents(filters: StudentSearchFilters) {
   await wait();
+  const studentsWithPerson = await Promise.all(
+    mockStudents.map(async (student) => {
+      const mockPerson = mockPeople.find((item) => item.id === student.personId);
+      if (mockPerson) {
+        return { student, person: mockPerson };
+      }
 
-  return mockStudents
-    .map<StudentListItem>((student) => {
-      const person = mockPeople.find((item) => item.id === student.personId);
+      try {
+        const person = await getPersonById(student.personId);
+        if (!person) return { student, person: null };
+        return {
+          student,
+          person: {
+            id: person.id,
+            fullName: person.fullName,
+            documentNumber: person.documentNumber ?? "",
+            phone: person.primaryPhone ?? "",
+            email: person.email ?? ""
+          } satisfies MockPerson
+        };
+      } catch {
+        return { student, person: null };
+      }
+    })
+  );
+
+  return studentsWithPerson
+    .map<StudentListItem>(({ student, person }) => {
       const primaryGuardian = student.guardians.find((guardian) => guardian.isPrimaryGuardian) ?? student.guardians[0];
 
       return {
         id: student.id,
-        studentName: person?.fullName ?? "Unknown student",
+        studentName: person?.fullName ?? "Aluno nao identificado",
         documentNumber: person?.documentNumber ?? "",
         registrationNumber: student.registrationNumber,
         school: student.school,

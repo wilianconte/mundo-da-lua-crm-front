@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Eye, Loader2, Plus, Save, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -20,6 +20,7 @@ import {
   type StudentCourseEnrollment,
   type StudentGuardian
 } from "@/features/alunos/api/student-mock-service";
+import { getStudentCourseById } from "@/features/alunos/api/search-student-courses";
 import { getStudentPersonById } from "@/features/alunos/api/search-student-people";
 import { CourseAutocomplete } from "@/features/alunos/components/course-autocomplete";
 import { CourseSearchModal } from "@/features/alunos/components/course-search-modal";
@@ -40,12 +41,29 @@ const tabs: Array<{ key: StudentTabKey; label: string; description: string }> = 
   { key: "history", label: "Historico / Observacoes", description: "Secao mock preparada para ocorrencias e registros internos." }
 ];
 
+const STUDENT_REGISTRATION_STATE_PREFIX = "mdl:student-registration:";
+
+type StudentRegistrationDraft = {
+  courseEndDate: string;
+  courseStartDate: string;
+  courses: StudentCourseEnrollment[];
+  formValues: StudentFormSchema;
+  guardians: StudentGuardian[];
+  selectedCourse: MockCourse | null;
+  selectedPerson: MockPerson | null;
+  selectedTab: StudentTabKey;
+};
+
 export function StudentRegistrationView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEditMode = searchParams.get("mode") === "edit";
   const studentId = searchParams.get("id");
+  const restoreStateKey = searchParams.get("restoreState");
+  const createdPersonId = searchParams.get("createdPersonId");
+  const createdCourseId = searchParams.get("createdCourseId");
   const allPeople = useMemo(() => getAllMockPeople(), []);
+  const hasRestoredStateRef = useRef(false);
   const [selectedTab, setSelectedTab] = useState<StudentTabKey>("general");
   const [selectedPerson, setSelectedPerson] = useState<MockPerson | null>(null);
   const [guardians, setGuardians] = useState<StudentGuardian[]>([]);
@@ -66,6 +84,7 @@ export function StudentRegistrationView() {
     register,
     handleSubmit,
     reset,
+    getValues,
     setValue,
     formState: { errors, isSubmitting }
   } = useForm<StudentFormSchema>({
@@ -82,6 +101,11 @@ export function StudentRegistrationView() {
   }, [register]);
 
   useEffect(() => {
+    if (restoreStateKey) {
+      setIsLoadingStudent(false);
+      return;
+    }
+
     if (!isEditMode || !studentId) return;
 
     let active = true;
@@ -135,7 +159,7 @@ export function StudentRegistrationView() {
     return () => {
       active = false;
     };
-  }, [allPeople, isEditMode, studentId, reset]);
+  }, [allPeople, isEditMode, studentId, reset, restoreStateKey]);
 
   useEffect(() => {
     if (!isSuccessModalOpen) return;
@@ -147,10 +171,136 @@ export function StudentRegistrationView() {
     return () => window.clearTimeout(timeoutId);
   }, [isSuccessModalOpen, router]);
 
+  useEffect(() => {
+    if (hasRestoredStateRef.current) return;
+    if (!restoreStateKey && !createdPersonId && !createdCourseId) return;
+
+    hasRestoredStateRef.current = true;
+
+    if (restoreStateKey && typeof window !== "undefined") {
+      const rawState = window.sessionStorage.getItem(restoreStateKey);
+      if (rawState) {
+        try {
+          const parsed = JSON.parse(rawState) as StudentRegistrationDraft;
+          setSelectedTab(parsed.selectedTab ?? "general");
+          setSelectedPerson(parsed.selectedPerson ?? null);
+          setGuardians(parsed.guardians ?? []);
+          setCourses(parsed.courses ?? []);
+          setSelectedCourse(parsed.selectedCourse ?? null);
+          setCourseStartDate(parsed.courseStartDate ?? "");
+          setCourseEndDate(parsed.courseEndDate ?? "");
+          reset(parsed.formValues ?? { personId: "", status: "ACTIVE", notes: "" });
+        } catch {
+          setFormError("Nao foi possivel restaurar o estado anterior do cadastro.");
+        } finally {
+          window.sessionStorage.removeItem(restoreStateKey);
+        }
+      }
+    }
+
+    if (createdPersonId) {
+      getStudentPersonById(createdPersonId)
+        .then((person) => {
+          if (!person) return;
+          setSelectedPerson(person);
+          setValue("personId", person.id, { shouldValidate: true, shouldDirty: true });
+          setFormError(null);
+        })
+        .catch(() => {
+          setFormError("Pessoa recem-cadastrada nao encontrada para vincular ao aluno.");
+        });
+    }
+
+    if (createdCourseId) {
+      getStudentCourseById(createdCourseId)
+        .then((course) => {
+          if (!course) return;
+          setSelectedCourse(course);
+          setFormError(null);
+        })
+        .catch(() => {
+          setFormError("Curso recem-cadastrado nao encontrado para vincular ao aluno.");
+        });
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("restoreState");
+    nextParams.delete("createdPersonId");
+    nextParams.delete("createdCourseId");
+    const nextUrl = nextParams.toString() ? `/alunos/cadastro?${nextParams.toString()}` : "/alunos/cadastro";
+    router.replace(nextUrl);
+  }, [createdCourseId, createdPersonId, restoreStateKey, reset, router, searchParams, setValue]);
+
   function handlePersonSelected(person: MockPerson) {
     setSelectedPerson(person);
     setValue("personId", person.id, { shouldValidate: true, shouldDirty: true });
     setFormError(null);
+  }
+
+  function handleCreatePersonFromStudent(query: string) {
+    if (typeof window === "undefined") {
+      router.push("/pessoas/cadastro");
+      return;
+    }
+
+    const stateKey = `${STUDENT_REGISTRATION_STATE_PREFIX}${Date.now()}`;
+    const snapshot: StudentRegistrationDraft = {
+      courseEndDate,
+      courseStartDate,
+      courses,
+      formValues: getValues(),
+      guardians,
+      selectedCourse,
+      selectedPerson,
+      selectedTab
+    };
+
+    window.sessionStorage.setItem(stateKey, JSON.stringify(snapshot));
+
+    const returnParams = new URLSearchParams(searchParams.toString());
+    returnParams.delete("restoreState");
+    returnParams.delete("createdPersonId");
+    returnParams.delete("createdCourseId");
+    returnParams.set("restoreState", stateKey);
+    const returnTo = `/alunos/cadastro${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
+
+    const personParams = new URLSearchParams();
+    personParams.set("returnTo", returnTo);
+    personParams.set("prefillName", query.trim());
+    router.push(`/pessoas/cadastro?${personParams.toString()}`);
+  }
+
+  function handleCreateCourseFromStudent(query: string) {
+    if (typeof window === "undefined") {
+      router.push("/cursos/cadastro");
+      return;
+    }
+
+    const stateKey = `${STUDENT_REGISTRATION_STATE_PREFIX}${Date.now()}`;
+    const snapshot: StudentRegistrationDraft = {
+      courseEndDate,
+      courseStartDate,
+      courses,
+      formValues: getValues(),
+      guardians,
+      selectedCourse,
+      selectedPerson,
+      selectedTab
+    };
+
+    window.sessionStorage.setItem(stateKey, JSON.stringify(snapshot));
+
+    const returnParams = new URLSearchParams(searchParams.toString());
+    returnParams.delete("restoreState");
+    returnParams.delete("createdPersonId");
+    returnParams.delete("createdCourseId");
+    returnParams.set("restoreState", stateKey);
+    const returnTo = `/alunos/cadastro${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
+
+    const courseParams = new URLSearchParams();
+    courseParams.set("returnTo", returnTo);
+    courseParams.set("prefillName", query.trim());
+    router.push(`/cursos/cadastro?${courseParams.toString()}`);
   }
 
   function handleCourseSelected(course: MockCourse) {
@@ -250,7 +400,7 @@ export function StudentRegistrationView() {
             leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             type="submit"
           >
-            {isEditMode ? "Salvar" : "Salvar aluno"}
+            Salvar
           </Button>
         }
         backAriaLabel="Voltar para pesquisa de alunos"
@@ -325,7 +475,7 @@ export function StudentRegistrationView() {
                   </div>
                   <PersonAutocomplete
                     label="Pessoa"
-                    onCreateNew={() => router.push("/pessoas/cadastro")}
+                    onCreateNew={handleCreatePersonFromStudent}
                     onOpenModal={() => setIsPersonModalOpen(true)}
                     onSelect={handlePersonSelected}
                     value={selectedPerson}
@@ -352,6 +502,7 @@ export function StudentRegistrationView() {
                   </div>
                   <CourseAutocomplete
                     excludedCourseIds={courses.map((course) => course.course.id)}
+                    onCreateNew={handleCreateCourseFromStudent}
                     onOpenModal={() => setIsCourseModalOpen(true)}
                     onSelect={handleCourseSelected}
                     value={selectedCourse}
