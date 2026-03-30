@@ -238,12 +238,18 @@ export function SidebarNav({ className, collapsed = false, onNavigate }: Sidebar
             <button
               aria-expanded={!(collapsedSections[group.section] ?? false)}
               className="flex w-full items-center justify-between px-2 pt-2 text-left text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]"
-              onClick={() =>
+              onClick={() => {
+                const section = group.section;
+
+                if (!section) {
+                  return;
+                }
+
                 setCollapsedSections((current) => ({
                   ...current,
-                  [group.section]: !(current[group.section] ?? false)
-                }))
-              }
+                  [section]: !(current[section] ?? false)
+                }));
+              }}
               type="button"
             >
               <span>{group.section}</span>
