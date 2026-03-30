@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CheckCircle2, Loader2, Save } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -16,7 +16,7 @@ import { type MockPerson } from "@/features/alunos/api/student-mock-service";
 import { PersonAutocomplete } from "@/features/alunos/components/person-autocomplete";
 import { PersonSearchModal } from "@/features/alunos/components/person-search-modal";
 import { getUserById } from "@/features/usuarios/api/get-user-by-id";
-import { createUser, mapUserApiError, updateUser } from "@/features/usuarios/api/user-upsert";
+import { createUser, mapUserApiError } from "@/features/usuarios/api/user-upsert";
 import {
   userRegistrationSchema,
   type UserRegistrationSchema
@@ -77,7 +77,7 @@ export function UserRegistrationView() {
       email: "",
       password: "",
       confirmPassword: "",
-      status: "ACTIVE",
+      isActive: true,
       personId: "",
       groups: []
     }),
@@ -127,7 +127,7 @@ export function UserRegistrationView() {
           email: user.email ?? "",
           password: "",
           confirmPassword: "",
-          status: user.isActive ? "ACTIVE" : "INACTIVE",
+          isActive: user.isActive,
           personId: user.personId ?? "",
           groups: []
         });
@@ -189,12 +189,21 @@ export function UserRegistrationView() {
   function handlePersonSelected(person: MockPerson) {
     setSelectedPerson(person);
     setValue("personId", person.id, { shouldValidate: true, shouldDirty: true });
-    setValue("email", person.email, { shouldValidate: true, shouldDirty: true });
+    setValue("email", person.email ?? "", { shouldValidate: true, shouldDirty: true });
+  }
+
+  function handleDeleteUser() {
+    setFormError("Exclusao de usuario ainda nao esta disponivel.");
   }
 
   async function onSubmit(values: UserRegistrationSchema) {
     try {
       setFormError(null);
+      if (isEditMode) {
+        setFormError("Atualizacao de usuario ainda nao esta disponivel.");
+        return;
+      }
+
       if (!selectedPerson) {
         setFormError("Selecione uma pessoa para continuar.");
         return;
@@ -204,15 +213,10 @@ export function UserRegistrationView() {
         name: selectedPerson.fullName,
         email: values.email,
         password: values.password,
-        isActive: values.status === "ACTIVE",
-        personId: values.personId
+        personId: values.personId || undefined
       };
 
-      if (isEditMode && userId) {
-        await updateUser(userId, payload);
-      } else {
-        await createUser(payload);
-      }
+      await createUser(payload);
 
       setIsSuccessModalOpen(true);
     } catch (error) {
@@ -242,12 +246,26 @@ export function UserRegistrationView() {
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
+            {isEditMode ? (
+              <Button
+                className="min-w-40"
+                disabled={isSubmitting || isLoadingUser || isSuccessModalOpen}
+                leadingIcon={<Trash2 className="size-4" />}
+                onClick={handleDeleteUser}
+                type="button"
+                variant="danger-outline"
+              >
+                Excluir
+              </Button>
+            ) : null}
             <Button
+              className="min-w-40"
+              disabled={isSubmitting || isLoadingUser || isSuccessModalOpen}
               form="user-form"
               leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               type="submit"
             >
-              Salvar
+              {isEditMode ? "Atualizar" : "Salvar"}
             </Button>
           </div>
         </div>
@@ -350,17 +368,19 @@ export function UserRegistrationView() {
                   {errors.confirmPassword ? <FieldMessage>{errors.confirmPassword.message}</FieldMessage> : null}
                 </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="user-status">Status</FieldLabel>
-                  <select
-                    className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                    id="user-status"
-                    {...register("status")}
+                <Field className="md:col-span-2">
+                  <label
+                    className="inline-flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-foreground)]"
+                    htmlFor="user-is-active"
                   >
-                    <option value="ACTIVE">Ativo</option>
-                    <option value="INACTIVE">Inativo</option>
-                  </select>
-                  {errors.status ? <FieldMessage>{errors.status.message}</FieldMessage> : null}
+                    <input
+                      className="size-4 accent-[var(--color-primary)]"
+                      id="user-is-active"
+                      type="checkbox"
+                      {...register("isActive")}
+                    />
+                    Ativo
+                  </label>
                 </Field>
 
               </CardContent>

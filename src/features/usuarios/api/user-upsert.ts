@@ -16,22 +16,6 @@ const CREATE_USER_MUTATION = `
   }
 `;
 
-const UPDATE_USER_MUTATION = `
-  mutation UpdateUser($id: UUID!, $input: UpdateUserInput!) {
-    updateUser(id: $id, input: $input) {
-      id
-      name
-      email
-      isActive
-      personId
-      createdAt
-      updatedAt
-      createdBy
-      updatedBy
-    }
-  }
-`;
-
 export type UserUpsertRecord = {
   id: string;
   name: string;
@@ -48,16 +32,11 @@ export type UserUpsertInput = {
   name: string;
   email: string;
   password: string;
-  isActive: boolean;
-  personId: string;
+  personId?: string;
 };
 
 type CreateUserResponse = {
   createUser: UserUpsertRecord;
-};
-
-type UpdateUserResponse = {
-  updateUser: UserUpsertRecord;
 };
 
 export async function createUser(input: UserUpsertInput) {
@@ -65,17 +44,10 @@ export async function createUser(input: UserUpsertInput) {
   return data.createUser;
 }
 
-export async function updateUser(id: string, input: UserUpsertInput) {
-  const data = await gqlRequest<UpdateUserResponse, { id: string; input: UserUpsertInput }>(
-    UPDATE_USER_MUTATION,
-    { id, input }
-  );
-  return data.updateUser;
-}
-
 const USER_ERROR_MESSAGES: Record<string, string> = {
   USER_NOT_FOUND: "Usuario nao encontrado.",
-  USER_EMAIL_DUPLICATE: "Este e-mail ja esta cadastrado."
+  USER_EMAIL_DUPLICATE: "Este e-mail ja esta cadastrado.",
+  USER_PERSON_ALREADY_LINKED: "A pessoa selecionada ja esta vinculada a outro usuario."
 };
 
 export function mapUserApiError(error: unknown): string {
