@@ -1,5 +1,12 @@
 import * as Sentry from "@sentry/nextjs";
-import { clearAuthSession, getValidToken } from "@/lib/auth/session";
+import {
+  clearAuthSession,
+  getAuthRefreshToken,
+  getAuthTenantId,
+  getValidToken,
+  isRefreshTokenExpired,
+  saveAuthSession
+} from "@/lib/auth/session";
 
 const GRAPHQL_ENDPOINT = "/api/graphql";
 
@@ -17,6 +24,18 @@ type GraphQLResponse<TData> = {
 
 type GqlRequestOptions = {
   requiresAuth?: boolean;
+};
+
+type RefreshTokenMutationResponse = {
+  refreshToken: {
+    token: string;
+    expiresAt: string;
+    refreshToken: string;
+    refreshTokenExpiresAt: string;
+    userId: string;
+    name: string;
+    email: string;
+  };
 };
 
 export class GraphQLRequestError extends Error {
@@ -49,33 +68,137 @@ function redirectToLogin() {
   window.location.href = "/login";
 }
 
+const REFRESH_TOKEN_MUTATION = `
+  mutation RefreshToken($input: RefreshTokenInput!) {
+    refreshToken(input: $input) {
+      token
+      expiresAt
+      refreshToken
+      refreshTokenExpiresAt
+      userId
+      name
+      email
+    }
+  }
+`;
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function executeGraphQLRequest<TData>(
+  query: string,
+  variables?: Record<string, unknown>,
+  headers?: Record<string, string>
+) {
+  const response = await fetch(GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(headers ?? {})
+    },
+    body: JSON.stringify({ query, variables: variables ?? {} })
+  });
+
+  const json = (await response.json()) as GraphQLResponse<TData>;
+  return { response, json };
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = (async () => {
+    const refreshToken = getAuthRefreshToken();
+    const tenantId = getAuthTenantId();
+    if (!refreshToken || !tenantId || isRefreshTokenExpired()) {
+      return null;
+    }
+
+    try {
+      const { json } = await executeGraphQLRequest<RefreshTokenMutationResponse>(
+        REFRESH_TOKEN_MUTATION,
+        {
+          input: {
+            tenantId,
+            refreshToken
+          }
+        }
+      );
+
+      if (json.errors?.length || !json.data?.refreshToken) {
+        return null;
+      }
+
+      const refreshed = json.data.refreshToken;
+      saveAuthSession({
+        token: refreshed.token,
+        expiresAt: refreshed.expiresAt,
+        refreshToken: refreshed.refreshToken,
+        refreshTokenExpiresAt: refreshed.refreshTokenExpiresAt,
+        tenantId,
+        user: {
+          userId: refreshed.userId,
+          name: refreshed.name,
+          email: refreshed.email
+        }
+      });
+
+      return refreshed.token;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
+
+async function getAccessTokenOrRefresh() {
+  const currentToken = getValidToken();
+  if (currentToken) {
+    return currentToken;
+  }
+
+  return refreshAccessToken();
+}
+
 export async function gqlRequest<TData, TVariables extends Record<string, unknown> = Record<string, unknown>>(
   query: string,
   variables?: TVariables,
   options: GqlRequestOptions = {}
 ): Promise<TData> {
   const { requiresAuth = true } = options;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json"
-  };
+  const headers: Record<string, string> = {};
+  let usedToken: string | null = null;
 
   if (requiresAuth) {
-    const token = getValidToken();
+    const token = await getAccessTokenOrRefresh();
     if (!token) {
+      clearAuthSession();
       redirectToLogin();
       throw new GraphQLRequestError("Sessao expirada. Entre novamente.", "AUTH_NOT_AUTHORIZED");
     }
 
+    usedToken = token;
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(GRAPHQL_ENDPOINT, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query, variables: variables ?? {} })
-  });
+  let { response, json } = await executeGraphQLRequest<TData>(query, variables, headers);
 
-  const json = (await response.json()) as GraphQLResponse<TData>;
+  if (json.errors?.length) {
+    const unauthorized = json.errors.some(isUnauthorizedError);
+    if (unauthorized) {
+      if (requiresAuth) {
+        const refreshedToken = await refreshAccessToken();
+        if (refreshedToken && refreshedToken !== usedToken) {
+          ({ response, json } = await executeGraphQLRequest<TData>(query, variables, {
+            Authorization: `Bearer ${refreshedToken}`
+          }));
+        }
+      }
+    }
+  }
 
   if (json.errors?.length) {
     const unauthorized = json.errors.some(isUnauthorizedError);

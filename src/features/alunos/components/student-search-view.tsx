@@ -12,6 +12,7 @@ import {
   type StudentFilterInput,
   type StudentStatus
 } from "@/features/alunos/api/student-mock-service";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import {
   getPeople,
   type GetPeopleVariables,
@@ -405,22 +406,21 @@ export function StudentSearchView() {
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Alunos</p>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de alunos</h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              Omnisearch com filtros tokenizados e busca por aluno, documento e status.
-            </p>
-          </div>
-          <Button
-            className="min-w-40"
-            leadingIcon={<Plus className="size-4" />}
-            onClick={() => router.push("/alunos/cadastro")}
-          >
-            Adicionar
-          </Button>
-        </div>
+        <FeatureViewHeader
+          actions={
+            <Button
+              className="min-w-40"
+              leadingIcon={<Plus className="size-4" />}
+              onClick={() => router.push("/alunos/cadastro")}
+            >
+              Adicionar
+            </Button>
+          }
+          backAriaLabel="Voltar para o dashboard"
+          backHref="/"
+          description="Omnisearch com filtros tokenizados e busca por aluno, documento e status."
+          title="Pesquisa de alunos"
+        />
       </section>
 
       <section className="space-y-5">

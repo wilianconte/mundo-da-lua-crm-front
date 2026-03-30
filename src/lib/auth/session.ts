@@ -1,6 +1,9 @@
 export const AUTH_STORAGE_KEYS = {
   token: "auth_token",
   expiresAt: "auth_expires_at",
+  refreshToken: "auth_refresh_token",
+  refreshTokenExpiresAt: "auth_refresh_expires_at",
+  tenantId: "auth_tenant_id",
   user: "auth_user"
 } as const;
 
@@ -13,6 +16,9 @@ export type AuthUser = {
 export type AuthSession = {
   token: string;
   expiresAt: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: string;
+  tenantId: string;
   user: AuthUser;
 };
 
@@ -27,6 +33,9 @@ export function saveAuthSession(session: AuthSession) {
 
   window.localStorage.setItem(AUTH_STORAGE_KEYS.token, session.token);
   window.localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, session.expiresAt);
+  window.localStorage.setItem(AUTH_STORAGE_KEYS.refreshToken, session.refreshToken);
+  window.localStorage.setItem(AUTH_STORAGE_KEYS.refreshTokenExpiresAt, session.refreshTokenExpiresAt);
+  window.localStorage.setItem(AUTH_STORAGE_KEYS.tenantId, session.tenantId);
   window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(session.user));
 }
 
@@ -37,6 +46,9 @@ export function clearAuthSession() {
 
   window.localStorage.removeItem(AUTH_STORAGE_KEYS.token);
   window.localStorage.removeItem(AUTH_STORAGE_KEYS.expiresAt);
+  window.localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
+  window.localStorage.removeItem(AUTH_STORAGE_KEYS.refreshTokenExpiresAt);
+  window.localStorage.removeItem(AUTH_STORAGE_KEYS.tenantId);
   window.localStorage.removeItem(AUTH_STORAGE_KEYS.user);
 }
 
@@ -54,6 +66,30 @@ export function getAuthExpiresAt(): string | null {
   }
 
   return window.localStorage.getItem(AUTH_STORAGE_KEYS.expiresAt);
+}
+
+export function getAuthRefreshToken(): string | null {
+  if (!canUseStorage()) {
+    return null;
+  }
+
+  return window.localStorage.getItem(AUTH_STORAGE_KEYS.refreshToken);
+}
+
+export function getAuthRefreshTokenExpiresAt(): string | null {
+  if (!canUseStorage()) {
+    return null;
+  }
+
+  return window.localStorage.getItem(AUTH_STORAGE_KEYS.refreshTokenExpiresAt);
+}
+
+export function getAuthTenantId(): string | null {
+  if (!canUseStorage()) {
+    return null;
+  }
+
+  return window.localStorage.getItem(AUTH_STORAGE_KEYS.tenantId);
 }
 
 export function getAuthUser(): AuthUser | null {
@@ -74,18 +110,25 @@ export function getAuthUser(): AuthUser | null {
   }
 }
 
-export function isTokenExpired(referenceDate = new Date()): boolean {
-  const expiresAt = getAuthExpiresAt();
-  if (!expiresAt) {
+function isDateExpired(rawDate: string | null, referenceDate = new Date()) {
+  if (!rawDate) {
     return true;
   }
 
-  const expiresDate = new Date(expiresAt);
+  const expiresDate = new Date(rawDate);
   if (Number.isNaN(expiresDate.getTime())) {
     return true;
   }
 
   return expiresDate <= referenceDate;
+}
+
+export function isTokenExpired(referenceDate = new Date()): boolean {
+  return isDateExpired(getAuthExpiresAt(), referenceDate);
+}
+
+export function isRefreshTokenExpired(referenceDate = new Date()): boolean {
+  return isDateExpired(getAuthRefreshTokenExpiresAt(), referenceDate);
 }
 
 export function isAuthenticated(): boolean {
@@ -94,14 +137,23 @@ export function isAuthenticated(): boolean {
     return false;
   }
 
-  return !isTokenExpired();
+  if (!isTokenExpired()) {
+    return true;
+  }
+
+  const refreshToken = getAuthRefreshToken();
+  return Boolean(refreshToken) && !isRefreshTokenExpired();
 }
 
 export function getValidToken(): string | null {
-  if (!isAuthenticated()) {
-    clearAuthSession();
+  const token = getAuthToken();
+  if (!token) {
     return null;
   }
 
-  return getAuthToken();
+  if (isTokenExpired()) {
+    return null;
+  }
+
+  return token;
 }

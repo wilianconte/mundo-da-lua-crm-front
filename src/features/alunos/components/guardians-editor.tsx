@@ -149,7 +149,7 @@ export function GuardiansEditor({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Adicionar responsaveis</CardTitle>
+          <CardTitle>Responsaveis</CardTitle>
           <CardDescription>
             Vincule um ou mais responsaveis usando o mesmo fluxo de selecao de pessoas da aba Dados gerais.
           </CardDescription>
@@ -235,15 +235,13 @@ export function GuardiansEditor({
               {editingGuardianId ? "Atualizar" : "Adicionar"}
             </Button>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Responsaveis vinculados ao aluno</CardTitle>
-          <CardDescription>Lista mock de parentesco preparada para futuras validacoes e persistencia via API.</CardDescription>
-        </CardHeader>
-        <CardContent>
+          <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
+
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-[var(--color-foreground)]">Responsaveis vinculados ao aluno</p>
+          </div>
+
           <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
             <table className="min-w-[920px] w-full border-collapse text-sm">
               <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">

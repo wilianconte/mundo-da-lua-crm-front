@@ -65,6 +65,9 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
       saveAuthSession({
         token: response.token,
         expiresAt: response.expiresAt,
+        refreshToken: response.refreshToken,
+        refreshTokenExpiresAt: response.refreshTokenExpiresAt,
+        tenantId: DEFAULT_TENANT_ID,
         user: {
           userId: response.userId,
           name: response.name,
