@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import {
   clearAuthSession,
+  getAuthUser,
   getAuthRefreshToken,
   getAuthTenantId,
   getValidToken,
@@ -139,7 +140,8 @@ async function refreshAccessToken(): Promise<string | null> {
         user: {
           userId: refreshed.userId,
           name: refreshed.name,
-          email: refreshed.email
+          email: refreshed.email,
+          permissions: getAuthUser()?.permissions ?? []
         }
       });
 
@@ -171,6 +173,7 @@ export async function gqlRequest<TData, TVariables extends Record<string, unknow
   const { requiresAuth = true } = options;
   const headers: Record<string, string> = {};
   let usedToken: string | null = null;
+  let refreshedTokenFromUnauthorized: string | null | undefined;
 
   if (requiresAuth) {
     const token = await getAccessTokenOrRefresh();
@@ -190,10 +193,10 @@ export async function gqlRequest<TData, TVariables extends Record<string, unknow
     const unauthorized = json.errors.some(isUnauthorizedError);
     if (unauthorized) {
       if (requiresAuth) {
-        const refreshedToken = await refreshAccessToken();
-        if (refreshedToken && refreshedToken !== usedToken) {
+        refreshedTokenFromUnauthorized = await refreshAccessToken();
+        if (refreshedTokenFromUnauthorized && refreshedTokenFromUnauthorized !== usedToken) {
           ({ response, json } = await executeGraphQLRequest<TData>(query, variables, {
-            Authorization: `Bearer ${refreshedToken}`
+            Authorization: `Bearer ${refreshedTokenFromUnauthorized}`
           }));
         }
       }
@@ -203,9 +206,15 @@ export async function gqlRequest<TData, TVariables extends Record<string, unknow
   if (json.errors?.length) {
     const unauthorized = json.errors.some(isUnauthorizedError);
     if (unauthorized) {
-      await clearAuthSession();
-      redirectToLogin();
-      throw new GraphQLRequestError("Sessao expirada. Entre novamente.", "AUTH_NOT_AUTHORIZED");
+      // AUTH_NOT_AUTHORIZED pode significar falta de permissão no recurso (RBAC),
+      // não necessariamente sessão expirada. Só encerra sessão quando o refresh falha.
+      if (requiresAuth && refreshedTokenFromUnauthorized === null) {
+        await clearAuthSession();
+        redirectToLogin();
+        throw new GraphQLRequestError("Sessao expirada. Entre novamente.", "AUTH_NOT_AUTHORIZED");
+      }
+
+      throw new GraphQLRequestError("Voce nao tem permissao para acessar este recurso.", "AUTH_NOT_AUTHORIZED");
     }
 
     const firstError = json.errors[0];

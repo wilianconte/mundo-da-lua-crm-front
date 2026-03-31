@@ -7,6 +7,8 @@ import { useMemo, useState } from "react";
 
 import type { NavChildItem, NavItem } from "@/config/navigation";
 import { navigationItems } from "@/config/navigation";
+import { canAccessPath } from "@/lib/auth/permissions";
+import { getAuthUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
 
 type SidebarNavProps = {
@@ -14,6 +16,46 @@ type SidebarNavProps = {
   collapsed?: boolean;
   onNavigate?: () => void;
 };
+
+function filterChildrenByPermissions(items: NavChildItem[], permissions: string[]): NavChildItem[] {
+  return items
+    .map((item) => {
+      const nextChildren = item.children?.length
+        ? filterChildrenByPermissions(item.children, permissions)
+        : undefined;
+
+      const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : true;
+      if (!hasHrefAccess && (!nextChildren || nextChildren.length === 0)) {
+        return null;
+      }
+
+      return {
+        ...item,
+        children: nextChildren
+      };
+    })
+    .filter((item): item is NavChildItem => Boolean(item));
+}
+
+function filterNavigationByPermissions(items: NavItem[], permissions: string[]): NavItem[] {
+  return items
+    .map((item) => {
+      const nextChildren = item.children?.length
+        ? filterChildrenByPermissions(item.children, permissions)
+        : undefined;
+
+      const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : true;
+      if (!hasHrefAccess && (!nextChildren || nextChildren.length === 0)) {
+        return null;
+      }
+
+      return {
+        ...item,
+        children: nextChildren
+      };
+    })
+    .filter((item): item is NavItem => Boolean(item));
+}
 
 function getFirstHref(items?: NavChildItem[]): string | undefined {
   if (!items?.length) {
@@ -232,9 +274,14 @@ function SidebarLink({
 
 export function SidebarNav({ className, collapsed = false, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
+  const userPermissions = useMemo(() => getAuthUser()?.permissions ?? [], []);
+  const allowedNavigationItems = useMemo(
+    () => (userPermissions.length ? filterNavigationByPermissions(navigationItems, userPermissions) : navigationItems),
+    [userPermissions]
+  );
   const groupedItems = useMemo(
     () =>
-      navigationItems.reduce<Array<{ section?: string; items: NavItem[] }>>((accumulator, item) => {
+      allowedNavigationItems.reduce<Array<{ section?: string; items: NavItem[] }>>((accumulator, item) => {
         const currentGroup = accumulator[accumulator.length - 1];
 
         if (currentGroup && currentGroup.section === item.section) {
@@ -245,7 +292,7 @@ export function SidebarNav({ className, collapsed = false, onNavigate }: Sidebar
         accumulator.push({ section: item.section, items: [item] });
         return accumulator;
       }, []),
-    []
+    [allowedNavigationItems]
   );
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 

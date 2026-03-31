@@ -12,6 +12,12 @@ const GET_USER_BY_ID_QUERY = `
       updatedAt
       createdBy
       updatedBy
+      roles {
+        id
+        name
+        description
+        isActive
+      }
     }
   }
 `;
@@ -26,6 +32,12 @@ export type UserByIdNode = {
   updatedAt?: string | null;
   createdBy?: string | null;
   updatedBy?: string | null;
+  roles: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    isActive: boolean;
+  }>;
 };
 
 type GetUserByIdResponse = {

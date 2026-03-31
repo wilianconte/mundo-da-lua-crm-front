@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Loader2, Save, Trash2 } from "lucide-react";
+import { CheckCircle2, Loader2, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,8 +15,9 @@ import { type MockPerson } from "@/features/alunos/api/student-mock-service";
 import { PersonAutocomplete } from "@/features/alunos/components/person-autocomplete";
 import { PersonSearchModal } from "@/features/alunos/components/person-search-modal";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
+import { getRoles, type RoleNode } from "@/features/grupos/api/get-roles";
 import { getUserById } from "@/features/usuarios/api/get-user-by-id";
-import { createUser, mapUserApiError } from "@/features/usuarios/api/user-upsert";
+import { createUser, deleteUser, mapUserApiError, updateUser } from "@/features/usuarios/api/user-upsert";
 import {
   userRegistrationSchema,
   type UserRegistrationSchema
@@ -26,39 +27,11 @@ import { cn } from "@/lib/utils/cn";
 
 type UserTabKey = "general" | "groups";
 
-type GroupOption = {
-  id: string;
-  label: string;
-  description: string;
-};
-
 const tabs: Array<{ key: UserTabKey; label: string; description: string }> = [
   { key: "general", label: "Dados Gerais", description: "Informacoes principais da conta de acesso." },
   { key: "groups", label: "Grupos", description: "Controle de perfis e grupos de permissao." }
 ];
-
-const groupOptions: GroupOption[] = [
-  {
-    id: "ADMIN",
-    label: "Administrador",
-    description: "Acesso amplo para administracao e configuracoes do sistema."
-  },
-  {
-    id: "COORDINATION",
-    label: "Coordenacao",
-    description: "Gestao pedagogica e acompanhamento operacional."
-  },
-  {
-    id: "SERVICE_DESK",
-    label: "Atendimento",
-    description: "Atendimento de leads, alunos, familias e comunicacoes."
-  },
-  {
-    id: "FINANCIAL",
-    label: "Financeiro",
-    description: "Controle de cobrancas, recebimentos e fluxo financeiro."
-  }
-];
+const GROUPS_PAGE_SIZE = 50;
 
 export function UserRegistrationView() {
   const router = useRouter();
@@ -69,8 +42,15 @@ export function UserRegistrationView() {
   const [selectedPerson, setSelectedPerson] = useState<MockPerson | null>(null);
   const [isPersonModalOpen, setIsPersonModalOpen] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(isEditMode && Boolean(userId));
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [availableGroups, setAvailableGroups] = useState<RoleNode[]>([]);
+  const [groupsError, setGroupsError] = useState<string | null>(null);
+  const [loadedUserName, setLoadedUserName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("Usuario cadastrado com sucesso.");
 
   const defaultValues = useMemo<UserRegistrationSchema>(
     () => ({
@@ -107,6 +87,53 @@ export function UserRegistrationView() {
   }, [register]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function loadGroups() {
+      try {
+        setIsLoadingGroups(true);
+        setGroupsError(null);
+
+        const loadedGroups: RoleNode[] = [];
+        let afterCursor: string | null = null;
+        let hasNextPage = true;
+
+        while (hasNextPage) {
+          const response = await getRoles({
+            first: GROUPS_PAGE_SIZE,
+            after: afterCursor,
+            where: { isActive: { eq: true } },
+            order: [{ name: "ASC" }]
+          });
+
+          loadedGroups.push(...(response.nodes ?? []));
+          hasNextPage = Boolean(response.pageInfo?.hasNextPage);
+          afterCursor = response.pageInfo?.endCursor ?? null;
+        }
+
+        if (!isMounted) return;
+        setAvailableGroups(loadedGroups);
+      } catch (error) {
+        if (!isMounted) return;
+        setGroupsError(
+          error instanceof GraphQLRequestError ? error.message : "Nao foi possivel carregar os grupos."
+        );
+        setAvailableGroups([]);
+      } finally {
+        if (isMounted) {
+          setIsLoadingGroups(false);
+        }
+      }
+    }
+
+    loadGroups();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isEditMode || !userId) return;
     const currentUserId = userId;
     let isMounted = true;
@@ -129,8 +156,9 @@ export function UserRegistrationView() {
           confirmPassword: "",
           isActive: user.isActive,
           personId: user.personId ?? "",
-          groups: []
+          groups: user.roles?.map((role) => role.id) ?? []
         });
+        setLoadedUserName(user.name ?? "");
 
         if (user.personId) {
           const person = await getStudentPersonById(user.personId).catch(() => null);
@@ -190,33 +218,83 @@ export function UserRegistrationView() {
     setSelectedPerson(person);
     setValue("personId", person.id, { shouldValidate: true, shouldDirty: true });
     setValue("email", person.email ?? "", { shouldValidate: true, shouldDirty: true });
+    setLoadedUserName(person.fullName ?? "");
   }
 
   function handleDeleteUser() {
-    setFormError("Exclusao de usuario ainda nao esta disponivel.");
+    setIsDeleteConfirmOpen(true);
+  }
+
+  async function confirmDeleteUser() {
+    if (!isEditMode || !userId) return;
+
+    try {
+      setFormError(null);
+      setIsDeletingUser(true);
+      setIsDeleteConfirmOpen(false);
+      const deleted = await deleteUser(userId);
+
+      if (!deleted) {
+        setFormError("Nao foi possivel excluir o usuario.");
+        return;
+      }
+
+      setSuccessMessage("Usuario excluido com sucesso.");
+      setIsSuccessModalOpen(true);
+    } catch (error) {
+      setFormError(mapUserApiError(error));
+    } finally {
+      setIsDeletingUser(false);
+    }
   }
 
   async function onSubmit(values: UserRegistrationSchema) {
     try {
       setFormError(null);
-      if (isEditMode) {
-        setFormError("Atualizacao de usuario ainda nao esta disponivel.");
+
+      if (!values.groups.length) {
+        setFormError("Selecione pelo menos um grupo para continuar.");
         return;
       }
 
-      if (!selectedPerson) {
+      const resolvedName = selectedPerson?.fullName ?? loadedUserName.trim();
+
+      if (!resolvedName) {
+        setFormError("Nao foi possivel identificar o nome do usuario.");
+        return;
+      }
+
+      if (!values.personId) {
         setFormError("Selecione uma pessoa para continuar.");
         return;
       }
 
-      const payload = {
-        name: selectedPerson.fullName,
+      if (!isEditMode && !values.password) {
+        setFormError("Informe a senha.");
+        return;
+      }
+
+      const basePayload = {
+        name: resolvedName,
         email: values.email,
-        password: values.password,
-        personId: values.personId || undefined
+        personId: values.personId || undefined,
+        roleIds: values.groups
       };
 
-      await createUser(payload);
+      if (isEditMode && userId) {
+        await updateUser(userId, {
+          ...basePayload,
+          password: values.password || undefined,
+          isActive: values.isActive
+        });
+        setSuccessMessage("Usuario atualizado com sucesso.");
+      } else {
+        await createUser({
+          ...basePayload,
+          password: values.password || undefined
+        });
+        setSuccessMessage("Usuario cadastrado com sucesso.");
+      }
 
       setIsSuccessModalOpen(true);
     } catch (error) {
@@ -232,18 +310,18 @@ export function UserRegistrationView() {
             {isEditMode ? (
               <Button
                 className="min-w-40"
-                disabled={isSubmitting || isLoadingUser || isSuccessModalOpen}
-                leadingIcon={<Trash2 className="size-4" />}
+                disabled={isSubmitting || isLoadingUser || isDeletingUser || isSuccessModalOpen || isDeleteConfirmOpen}
+                leadingIcon={isDeletingUser ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 onClick={handleDeleteUser}
                 type="button"
                 variant="danger-outline"
               >
-                Excluir
+                {isDeletingUser ? "Excluindo..." : "Excluir"}
               </Button>
             ) : null}
             <Button
               className="min-w-40"
-              disabled={isSubmitting || isLoadingUser || isSuccessModalOpen}
+              disabled={isSubmitting || isLoadingUser || isDeletingUser || isSuccessModalOpen || isDeleteConfirmOpen}
               form="user-form"
               leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               type="submit"
@@ -303,7 +381,7 @@ export function UserRegistrationView() {
             <Card>
               <CardHeader>
                 <CardTitle>Dados Gerais</CardTitle>
-              <CardDescription>Informacoes principais para identificacao e acesso do usuario.</CardDescription>
+                <CardDescription>Informacoes principais para identificacao e acesso do usuario.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2">
                 <Field className="md:col-span-2">
@@ -381,7 +459,25 @@ export function UserRegistrationView() {
                 <CardDescription>Selecione os grupos que definem as permissoes desta conta.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {groupOptions.map((group) => {
+                {isLoadingGroups ? (
+                  <div className="flex items-center gap-2 text-sm text-[var(--color-muted-foreground)]">
+                    <Loader2 className="size-4 animate-spin" />
+                    Carregando grupos...
+                  </div>
+                ) : null}
+
+                {!isLoadingGroups && groupsError ? (
+                  <p className="text-sm font-medium text-[var(--color-danger-strong)]">{groupsError}</p>
+                ) : null}
+
+                {!isLoadingGroups && !groupsError && availableGroups.length === 0 ? (
+                  <p className="text-sm text-[var(--color-muted-foreground)]">
+                    Nenhum grupo ativo encontrado.
+                  </p>
+                ) : null}
+
+                {!isLoadingGroups && !groupsError
+                  ? availableGroups.map((group) => {
                   const checked = selectedGroups.includes(group.id);
                   return (
                     <label
@@ -400,12 +496,15 @@ export function UserRegistrationView() {
                         type="checkbox"
                       />
                       <div>
-                        <p className="text-sm font-semibold text-[var(--color-foreground)]">{group.label}</p>
-                        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{group.description}</p>
+                        <p className="text-sm font-semibold text-[var(--color-foreground)]">{group.name}</p>
+                        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+                          {group.description || "Sem descricao"}
+                        </p>
                       </div>
                     </label>
                   );
-                })}
+                  })
+                  : null}
                 {errors.groups ? <FieldMessage>{errors.groups.message}</FieldMessage> : null}
               </CardContent>
             </Card>
@@ -425,12 +524,47 @@ export function UserRegistrationView() {
               <CheckCircle2 className="mt-0.5 size-5 text-emerald-600" />
               <div className="space-y-1">
                 <p className="text-base font-semibold text-[var(--color-foreground)]">
-                  {isEditMode ? "Usuario atualizado com sucesso." : "Usuario cadastrado com sucesso."}
+                  {successMessage}
                 </p>
                 <p className="text-sm text-[var(--color-muted-foreground)]">
                   Redirecionando para a listagem de usuarios...
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isDeleteConfirmOpen ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                Tem certeza que deseja excluir este usuario? Esta acao nao podera ser desfeita.
+              </p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                disabled={isDeletingUser}
+                leadingIcon={<X className="size-4" />}
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isDeletingUser}
+                leadingIcon={isDeletingUser ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={confirmDeleteUser}
+                variant="danger-outline"
+              >
+                {isDeletingUser ? "Excluindo..." : "Excluir"}
+              </Button>
             </div>
           </div>
         </div>

@@ -16,6 +16,28 @@ const CREATE_USER_MUTATION = `
   }
 `;
 
+const UPDATE_USER_MUTATION = `
+  mutation UpdateUser($id: UUID!, $input: UpdateUserInput!) {
+    updateUser(id: $id, input: $input) {
+      id
+      name
+      email
+      isActive
+      personId
+      createdAt
+      updatedAt
+      createdBy
+      updatedBy
+    }
+  }
+`;
+
+const DELETE_USER_MUTATION = `
+  mutation DeleteUser($id: UUID!) {
+    deleteUser(id: $id)
+  }
+`;
+
 export type UserUpsertRecord = {
   id: string;
   name: string;
@@ -31,17 +53,46 @@ export type UserUpsertRecord = {
 export type UserUpsertInput = {
   name: string;
   email: string;
-  password: string;
+  password?: string;
+  isActive?: boolean;
   personId?: string;
+  roleIds?: string[];
 };
 
 type CreateUserResponse = {
   createUser: UserUpsertRecord;
 };
 
+type UpdateUserResponse = {
+  updateUser: UserUpsertRecord;
+};
+
+type DeleteUserResponse = {
+  deleteUser: boolean;
+};
+
+type DeleteUserVariables = {
+  id: string;
+};
+
+type UpdateUserVariables = {
+  id: string;
+  input: UserUpsertInput;
+};
+
 export async function createUser(input: UserUpsertInput) {
   const data = await gqlRequest<CreateUserResponse, { input: UserUpsertInput }>(CREATE_USER_MUTATION, { input });
   return data.createUser;
+}
+
+export async function updateUser(id: string, input: UserUpsertInput) {
+  const data = await gqlRequest<UpdateUserResponse, UpdateUserVariables>(UPDATE_USER_MUTATION, { id, input });
+  return data.updateUser;
+}
+
+export async function deleteUser(id: string) {
+  const data = await gqlRequest<DeleteUserResponse, DeleteUserVariables>(DELETE_USER_MUTATION, { id });
+  return data.deleteUser;
 }
 
 const USER_ERROR_MESSAGES: Record<string, string> = {

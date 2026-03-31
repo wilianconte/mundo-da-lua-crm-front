@@ -188,7 +188,10 @@ export const navigationItems: NavItem[] = [
     section: "Acessos",
     label: "Acessos",
     icon: Users,
-    children: [{ label: "Usuarios", href: "/usuarios/pesquisa" }]
+    children: [
+      { label: "Usuarios", href: "/usuarios/pesquisa" },
+      { label: "Grupos", href: "/grupos/pesquisa" }
+    ]
   },
   {
     section: "System Design",

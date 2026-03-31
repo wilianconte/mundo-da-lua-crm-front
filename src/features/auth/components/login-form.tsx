@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
+import { getMyPermissionsWithToken } from "@/features/auth/api/get-my-permissions";
 import { login } from "@/features/auth/api/login";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
         email: values.email.trim().toLowerCase(),
         password: values.password
       });
+      const permissions = await getMyPermissionsWithToken(response.token).catch(() => []);
 
       await saveAuthSession({
         token: response.token,
@@ -71,7 +73,8 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
         user: {
           userId: response.userId,
           name: response.name,
-          email: response.email
+          email: response.email,
+          permissions
         }
       });
 

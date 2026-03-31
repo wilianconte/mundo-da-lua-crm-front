@@ -6,6 +6,7 @@ export type AuthUser = {
   userId: string;
   name: string;
   email: string;
+  permissions: string[];
 };
 
 export type AuthSession = {
@@ -165,11 +166,31 @@ export function getAuthUser(): AuthUser | null {
   }
 
   try {
-    return JSON.parse(rawUser) as AuthUser;
+    const parsed = JSON.parse(rawUser) as Partial<AuthUser>;
+    if (!parsed || typeof parsed.userId !== "string" || typeof parsed.name !== "string" || typeof parsed.email !== "string") {
+      throw new Error("Invalid auth user payload.");
+    }
+
+    return {
+      userId: parsed.userId,
+      name: parsed.name,
+      email: parsed.email,
+      permissions: Array.isArray(parsed.permissions)
+        ? parsed.permissions.filter((permission): permission is string => typeof permission === "string")
+        : []
+    };
   } catch {
     void clearAuthSession();
     return null;
   }
+}
+
+export function updateAuthUser(user: AuthUser) {
+  if (!canUseStorage()) {
+    return;
+  }
+
+  window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(user));
 }
 
 function isDateExpired(rawDate: string | null, referenceDate = new Date()) {
