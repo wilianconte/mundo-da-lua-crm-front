@@ -3,11 +3,11 @@
 import { Menu, Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { NavChildItem, NavItem } from "@/config/navigation";
 import { navigationItems } from "@/config/navigation";
-import { canAccessPath } from "@/lib/auth/permissions";
+import { SYSTEM_PERMISSIONS, canAccessPath } from "@/lib/auth/permissions";
 import { getAuthUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
 
@@ -17,15 +17,31 @@ type SidebarNavProps = {
   onNavigate?: () => void;
 };
 
-function filterChildrenByPermissions(items: NavChildItem[], permissions: string[]): NavChildItem[] {
+function isAdminUser(permissions: string[]) {
+  return (
+    permissions.includes(SYSTEM_PERMISSIONS.usersManage) &&
+    permissions.includes(SYSTEM_PERMISSIONS.rolesManage)
+  );
+}
+
+function isUnimplementedMenuItem(href?: string) {
+  return href === "/components" || href?.startsWith("/system-design") === true;
+}
+
+function filterChildrenByPermissions(items: NavChildItem[], permissions: string[], isAdmin: boolean): NavChildItem[] {
   return items
     .map((item) => {
       const nextChildren = item.children?.length
-        ? filterChildrenByPermissions(item.children, permissions)
+        ? filterChildrenByPermissions(item.children, permissions, isAdmin)
         : undefined;
 
-      const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : true;
-      if (!hasHrefAccess && (!nextChildren || nextChildren.length === 0)) {
+      if (isUnimplementedMenuItem(item.href) && !isAdmin) {
+        return null;
+      }
+
+      const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : false;
+      const hasVisibleChildren = Boolean(nextChildren?.length);
+      if (!hasHrefAccess && !hasVisibleChildren) {
         return null;
       }
 
@@ -38,14 +54,21 @@ function filterChildrenByPermissions(items: NavChildItem[], permissions: string[
 }
 
 function filterNavigationByPermissions(items: NavItem[], permissions: string[]): NavItem[] {
+  const isAdmin = isAdminUser(permissions);
+
   return items
     .map((item) => {
       const nextChildren = item.children?.length
-        ? filterChildrenByPermissions(item.children, permissions)
+        ? filterChildrenByPermissions(item.children, permissions, isAdmin)
         : undefined;
 
-      const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : true;
-      if (!hasHrefAccess && (!nextChildren || nextChildren.length === 0)) {
+      if (isUnimplementedMenuItem(item.href) && !isAdmin) {
+        return null;
+      }
+
+      const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : false;
+      const hasVisibleChildren = Boolean(nextChildren?.length);
+      if (!hasHrefAccess && !hasVisibleChildren) {
         return null;
       }
 
@@ -274,9 +297,17 @@ function SidebarLink({
 
 export function SidebarNav({ className, collapsed = false, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
-  const userPermissions = useMemo(() => getAuthUser()?.permissions ?? [], []);
+  const [userPermissions, setUserPermissions] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    setUserPermissions(getAuthUser()?.permissions ?? []);
+  }, []);
+
   const allowedNavigationItems = useMemo(
-    () => (userPermissions.length ? filterNavigationByPermissions(navigationItems, userPermissions) : navigationItems),
+    () =>
+      userPermissions && userPermissions.length
+        ? filterNavigationByPermissions(navigationItems, userPermissions)
+        : navigationItems,
     [userPermissions]
   );
   const groupedItems = useMemo(
