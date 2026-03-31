@@ -4,6 +4,7 @@ import { AUTH_COOKIE_KEYS } from "@/lib/auth/session-keys";
 import { isValidSessionSignature } from "@/lib/auth/server-session-signature";
 
 const LOGIN_ROUTE = "/login";
+const PUBLIC_ROUTES = new Set([LOGIN_ROUTE, "/esqueci-senha", "/criar-conta"]);
 const COOKIE_SECURITY_OPTIONS = {
   httpOnly: true,
   sameSite: "lax" as const,
@@ -96,14 +97,14 @@ function clearAuthCookies(response: NextResponse) {
 
 export async function proxy(request: NextRequest) {
   const pathname = normalizePathname(request.nextUrl.pathname);
-  const isLoginRoute = pathname === LOGIN_ROUTE;
+  const isPublicRoute = PUBLIC_ROUTES.has(pathname);
   const isAuthenticated = await hasValidSession(request);
 
-  if (isLoginRoute && isAuthenticated) {
+  if (isPublicRoute && isAuthenticated) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (!isLoginRoute && !isAuthenticated) {
+  if (!isPublicRoute && !isAuthenticated) {
     const loginUrl = new URL(LOGIN_ROUTE, request.url);
     if (pathname !== "/") {
       loginUrl.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
