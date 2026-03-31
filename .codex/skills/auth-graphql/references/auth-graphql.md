@@ -19,6 +19,8 @@ mutation Login($input: LoginInput!) {
   login(input: $input) {
     token
     expiresAt
+    refreshToken
+    refreshTokenExpiresAt
     userId
     name
     email
@@ -44,12 +46,22 @@ Salvar em `localStorage`:
 
 - `auth_token`
 - `auth_expires_at`
+- `auth_refresh_token`
+- `auth_refresh_expires_at`
+- `auth_tenant_id`
 - `auth_user` com:
   - `userId`
   - `name`
   - `email`
 
-`tenantId` nao precisa ser persistido no front para requests autenticados.
+Sincronizar no servidor via `/api/auth/session` cookies `httpOnly`:
+
+- `auth_token`
+- `auth_expires_at`
+- `auth_refresh_token`
+- `auth_refresh_expires_at`
+- `auth_tenant_id`
+- `auth_session_sig` (assinatura de integridade)
 
 ## Requisicoes GraphQL autenticadas
 
@@ -65,18 +77,16 @@ Padrao recomendado:
 
 ## Sessao expirada
 
-Enquanto nao houver refresh token:
-
-- validar `expiresAt` localmente antes de requests autenticados
-- se expirado:
-  - limpar storage de auth
+- se `auth_token` estiver expirado, tentar renovar via mutation GraphQL `refreshToken`
+- se renovacao falhar (ou `AUTH_NOT_AUTHORIZED`):
+  - limpar storage/cookies de auth
   - redirecionar para `/login`
 
 ## Logout
 
 No logout:
 
-- limpar `auth_token`, `auth_expires_at`, `auth_user`
+- limpar `auth_token`, `auth_expires_at`, `auth_refresh_token`, `auth_refresh_expires_at`, `auth_tenant_id`, `auth_user`
 - redirecionar para `/login`
 
 ## Tratamento de erros GraphQL
@@ -116,14 +126,20 @@ Acao esperada:
 - Form login: `src/features/auth/components/login-form.tsx`
 - Guard dashboard: `src/features/auth/components/dashboard-auth-guard.tsx`
 - Proxy Next para GraphQL: `app/api/graphql/route.ts`
+- API de sessao para cookies `httpOnly`: `app/api/auth/session/route.ts`
+- Gate server-side de rotas: `proxy.ts`
+- Assinatura de sessao: `src/lib/auth/server-session-signature.ts`
 
 ## Checklist rapido para PR
 
 - login funciona com mutation GraphQL
 - login usa `requiresAuth: false`
 - sessao persiste no storage com as chaves corretas
+- `saveAuthSession` e `clearAuthSession` sincronizam cookies via `/api/auth/session`
 - browser continua usando `/api/graphql` em vez de chamar o endpoint externo diretamente
 - bearer injetado em requests autenticados
-- expiracao local bloqueia uso de token vencido
-- logout limpa sessao e redireciona
+- `proxy.ts` bloqueia acesso sem sessao valida
+- expiracao dispara tentativa de `refreshToken` antes de encerrar sessao
+- logout limpa storage + cookies e redireciona
+- `AUTH_GATE_SECRET` (ou `NEXTAUTH_SECRET`) definido em producao
 - erros de auth tratados com UX clara

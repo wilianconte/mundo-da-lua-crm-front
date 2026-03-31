@@ -130,7 +130,7 @@ async function refreshAccessToken(): Promise<string | null> {
       }
 
       const refreshed = json.data.refreshToken;
-      saveAuthSession({
+      await saveAuthSession({
         token: refreshed.token,
         expiresAt: refreshed.expiresAt,
         refreshToken: refreshed.refreshToken,
@@ -175,7 +175,7 @@ export async function gqlRequest<TData, TVariables extends Record<string, unknow
   if (requiresAuth) {
     const token = await getAccessTokenOrRefresh();
     if (!token) {
-      clearAuthSession();
+      await clearAuthSession();
       redirectToLogin();
       throw new GraphQLRequestError("Sessao expirada. Entre novamente.", "AUTH_NOT_AUTHORIZED");
     }
@@ -203,7 +203,7 @@ export async function gqlRequest<TData, TVariables extends Record<string, unknow
   if (json.errors?.length) {
     const unauthorized = json.errors.some(isUnauthorizedError);
     if (unauthorized) {
-      clearAuthSession();
+      await clearAuthSession();
       redirectToLogin();
       throw new GraphQLRequestError("Sessao expirada. Entre novamente.", "AUTH_NOT_AUTHORIZED");
     }

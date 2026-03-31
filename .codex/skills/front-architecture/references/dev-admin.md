@@ -389,10 +389,12 @@ Do not add subscriptions without clear benefit.
 Authentication:
 
 - use the centralized session layer in `src/lib/auth/session.ts`
-- persist only `auth_token`, `auth_expires_at`, and `auth_user` while the backend does not offer refresh token or server-managed session
-- validate local expiration before authenticated requests and clear the session on `AUTH_NOT_AUTHORIZED`
-- protect private routes with middleware and session validation aligned with the current implementation
-- treat secure cookie-based sessions as a future architecture evolution, not as a parallel flow to introduce per feature
+- persist in local session storage: `auth_token`, `auth_expires_at`, `auth_refresh_token`, `auth_refresh_expires_at`, `auth_tenant_id`, `auth_user`
+- synchronize server-side `httpOnly` auth cookies via `app/api/auth/session/route.ts`
+- sign and validate auth cookies using `auth_session_sig` through `src/lib/auth/server-session-signature.ts`
+- require `AUTH_GATE_SECRET` (or `NEXTAUTH_SECRET`) in production to sign session cookies
+- validate expiration and attempt `refreshToken` before ending the session; clear on `AUTH_NOT_AUTHORIZED`
+- protect private routes with `proxy.ts` (current Next.js gate convention replacing `middleware.ts`)
 
 Authorization:
 

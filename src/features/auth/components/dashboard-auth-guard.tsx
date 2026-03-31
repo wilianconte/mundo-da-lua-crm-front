@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { isAuthenticated } from "@/lib/auth/session";
 
@@ -11,16 +11,12 @@ type DashboardAuthGuardProps = {
 
 export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
   const router = useRouter();
-  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     function validateSession() {
       if (!isAuthenticated()) {
         router.replace("/login");
-        return;
       }
-
-      setIsReady(true);
     }
 
     validateSession();
@@ -28,10 +24,6 @@ export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
 
     return () => window.clearInterval(intervalId);
   }, [router]);
-
-  if (!isReady) {
-    return null;
-  }
 
   return <>{children}</>;
 }

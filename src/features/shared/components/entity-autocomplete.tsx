@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Search } from "lucide-react";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,7 @@ export function EntityAutocomplete<T>({
     return () => window.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const excludedIdsKey = excludedIds.join("|");
+  const excludedIdSet = useMemo(() => new Set(excludedIds), [excludedIds]);
 
   useEffect(() => {
     let active = true;
@@ -83,7 +83,7 @@ export function EntityAutocomplete<T>({
       search({ query })
         .then((response) => {
           if (!active) return;
-          setResults(response.filter((item) => !excludedIds.includes(getId(item))));
+          setResults(response.filter((item) => !excludedIdSet.has(getId(item))));
           setHighlightedIndex(0);
           setIsOpen(true);
         })
@@ -104,7 +104,7 @@ export function EntityAutocomplete<T>({
       window.clearTimeout(loadingId);
       window.clearTimeout(timeoutId);
     };
-  }, [query, excludedIdsKey, value, getId, getLabel, onSearchErrorMessage, search]);
+  }, [query, excludedIdSet, value, getId, getLabel, onSearchErrorMessage, search]);
 
   useEffect(() => {
     if (!value) {

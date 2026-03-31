@@ -1,11 +1,6 @@
-export const AUTH_STORAGE_KEYS = {
-  token: "auth_token",
-  expiresAt: "auth_expires_at",
-  refreshToken: "auth_refresh_token",
-  refreshTokenExpiresAt: "auth_refresh_expires_at",
-  tenantId: "auth_tenant_id",
-  user: "auth_user"
-} as const;
+import { AUTH_COOKIE_KEYS, AUTH_STORAGE_KEYS } from "@/lib/auth/session-keys";
+
+export { AUTH_COOKIE_KEYS, AUTH_STORAGE_KEYS };
 
 export type AuthUser = {
   userId: string;
@@ -22,11 +17,22 @@ export type AuthSession = {
   user: AuthUser;
 };
 
+type SessionCookiePayload = Pick<
+  AuthSession,
+  "token" | "expiresAt" | "refreshToken" | "refreshTokenExpiresAt" | "tenantId"
+>;
+
+const AUTH_SESSION_SYNC_ROUTE = "/api/auth/session";
+
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-export function saveAuthSession(session: AuthSession) {
+function canSyncWithServer(): boolean {
+  return typeof window !== "undefined" && typeof window.fetch === "function";
+}
+
+function writeSessionToStorage(session: AuthSession) {
   if (!canUseStorage()) {
     return;
   }
@@ -39,7 +45,7 @@ export function saveAuthSession(session: AuthSession) {
   window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(session.user));
 }
 
-export function clearAuthSession() {
+function clearSessionFromStorage() {
   if (!canUseStorage()) {
     return;
   }
@@ -50,6 +56,62 @@ export function clearAuthSession() {
   window.localStorage.removeItem(AUTH_STORAGE_KEYS.refreshTokenExpiresAt);
   window.localStorage.removeItem(AUTH_STORAGE_KEYS.tenantId);
   window.localStorage.removeItem(AUTH_STORAGE_KEYS.user);
+}
+
+async function syncSessionCookieWithServer(payload: SessionCookiePayload) {
+  if (!canSyncWithServer()) {
+    return;
+  }
+
+  const response = await window.fetch(AUTH_SESSION_SYNC_ROUTE, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "same-origin",
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error("Falha ao sincronizar sessao com o servidor.");
+  }
+}
+
+async function clearSessionCookieFromServer() {
+  if (!canSyncWithServer()) {
+    return;
+  }
+
+  try {
+    await window.fetch(AUTH_SESSION_SYNC_ROUTE, {
+      method: "DELETE",
+      credentials: "same-origin"
+    });
+  } catch {
+    // Melhor esforco: storage local ja foi limpo.
+  }
+}
+
+export async function saveAuthSession(session: AuthSession) {
+  writeSessionToStorage(session);
+
+  try {
+    await syncSessionCookieWithServer({
+      token: session.token,
+      expiresAt: session.expiresAt,
+      refreshToken: session.refreshToken,
+      refreshTokenExpiresAt: session.refreshTokenExpiresAt,
+      tenantId: session.tenantId
+    });
+  } catch (error) {
+    clearSessionFromStorage();
+    throw error;
+  }
+}
+
+export async function clearAuthSession() {
+  clearSessionFromStorage();
+  await clearSessionCookieFromServer();
 }
 
 export function getAuthToken(): string | null {
@@ -105,7 +167,7 @@ export function getAuthUser(): AuthUser | null {
   try {
     return JSON.parse(rawUser) as AuthUser;
   } catch {
-    clearAuthSession();
+    void clearAuthSession();
     return null;
   }
 }

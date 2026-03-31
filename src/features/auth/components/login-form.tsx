@@ -62,7 +62,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
         password: values.password
       });
 
-      saveAuthSession({
+      await saveAuthSession({
         token: response.token,
         expiresAt: response.expiresAt,
         refreshToken: response.refreshToken,

@@ -214,8 +214,8 @@ export function AdminShell({ children }: AdminShellProps) {
 
                         <button
                           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] text-sm font-semibold text-[var(--color-foreground)]"
-                          onClick={() => {
-                            clearAuthSession();
+                          onClick={async () => {
+                            await clearAuthSession();
                             setIsProfileMenuOpen(false);
                             router.replace("/login");
                           }}
