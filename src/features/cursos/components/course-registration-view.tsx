@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
+import { cn } from "@/lib/utils/cn";
 import {
   createCourse,
   deleteCourse,
@@ -42,6 +43,15 @@ const statusLabels: Record<string, string> = {
   CANCELLED: "Cancelado"
 };
 
+type CourseTabKey = "identification" | "schedule" | "capacity" | "status";
+
+const courseTabs: Array<{ key: CourseTabKey; label: string; description: string }> = [
+  { key: "identification", label: "Identificacao", description: "Campos obrigatorios e dados principais." },
+  { key: "schedule", label: "Programacao", description: "Datas e horario do curso." },
+  { key: "capacity", label: "Capacidade", description: "Vagas e carga horaria." },
+  { key: "status", label: "Status e observacoes", description: "Status operacional e anotacoes internas." }
+];
+
 function normalizeOptional(value?: string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
@@ -58,6 +68,7 @@ export function CourseRegistrationView() {
   const [isDeletingCourse, setIsDeletingCourse] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<CourseTabKey>("identification");
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [successRedirectPath, setSuccessRedirectPath] = useState("/cursos/pesquisa");
@@ -244,145 +255,177 @@ export function CourseRegistrationView() {
         </Card>
       ) : null}
 
-      <form className="space-y-6" id="course-form" onSubmit={handleSubmit(onSubmit)}>
-        {isLoadingCourse ? (
-          <Card>
-            <CardContent className="flex items-center gap-3 p-6 text-sm text-[var(--color-muted-foreground)]">
-              <Loader2 className="size-4 animate-spin" />
-              Carregando dados do curso...
-            </CardContent>
-          </Card>
-        ) : null}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Identificacao</CardTitle>
-            <CardDescription>Campos obrigatorios e informacoes principais do curso.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <Field className="md:col-span-2">
-              <FieldLabel htmlFor="course-name">Nome do curso</FieldLabel>
-              <Input id="course-name" maxLength={300} {...register("name")} />
-              {errors.name ? <FieldMessage className="text-red-600">{errors.name.message}</FieldMessage> : null}
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="course-code">Codigo</FieldLabel>
-              <Input id="course-code" placeholder="ex: ENG-A1-2025" {...register("code")} />
-              {errors.code ? <FieldMessage className="text-red-600">{errors.code.message}</FieldMessage> : null}
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="course-type">Tipo</FieldLabel>
-              <select
-                className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                id="course-type"
-                {...register("type")}
-              >
-                {COURSE_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {courseTypeLabels[type]}
-                  </option>
-                ))}
-              </select>
-              {errors.type ? <FieldMessage className="text-red-600">{errors.type.message}</FieldMessage> : null}
-            </Field>
-
-            <Field className="md:col-span-2">
-              <FieldLabel htmlFor="course-description">Descricao</FieldLabel>
-              <textarea
-                className="min-h-24 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                id="course-description"
-                {...register("description")}
-              />
-              {errors.description ? <FieldMessage className="text-red-600">{errors.description.message}</FieldMessage> : null}
-            </Field>
+      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <Card className="h-fit">
+          <CardContent className="p-3">
+            <div className="flex flex-col gap-2">
+              {courseTabs.map((tab) => (
+                <button
+                  className={cn(
+                    "rounded-[var(--radius-md)] border px-4 py-3 text-left transition",
+                    selectedTab === tab.key
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
+                      : "border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-surface-muted)]"
+                  )}
+                  key={tab.key}
+                  onClick={() => setSelectedTab(tab.key)}
+                  type="button"
+                >
+                  <p className="text-sm font-semibold">{tab.label}</p>
+                  <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{tab.description}</p>
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Programacao</CardTitle>
-            <CardDescription>Datas e horario do curso.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="course-start-date">Inicio</FieldLabel>
-              <Input id="course-start-date" type="date" {...register("startDate")} />
-              {errors.startDate ? <FieldMessage className="text-red-600">{errors.startDate.message}</FieldMessage> : null}
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="course-end-date">Fim</FieldLabel>
-              <Input id="course-end-date" type="date" {...register("endDate")} />
-              {errors.endDate ? <FieldMessage className="text-red-600">{errors.endDate.message}</FieldMessage> : null}
-            </Field>
-            <Field className="md:col-span-2">
-              <FieldLabel htmlFor="course-schedule-description">Horario</FieldLabel>
-              <Input
-                id="course-schedule-description"
-                placeholder="ex: Seg e Qua, 14h-16h"
-                {...register("scheduleDescription")}
-              />
-              {errors.scheduleDescription ? (
-                <FieldMessage className="text-red-600">{errors.scheduleDescription.message}</FieldMessage>
-              ) : null}
-            </Field>
-          </CardContent>
-        </Card>
+        <form className="space-y-6" id="course-form" onSubmit={handleSubmit(onSubmit)}>
+          {isLoadingCourse ? (
+            <Card>
+              <CardContent className="flex items-center gap-3 p-6 text-sm text-[var(--color-muted-foreground)]">
+                <Loader2 className="size-4 animate-spin" />
+                Carregando dados do curso...
+              </CardContent>
+            </Card>
+          ) : null}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Capacidade</CardTitle>
-            <CardDescription>Defina vagas e carga horaria.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="course-capacity">Vagas</FieldLabel>
-              <Input id="course-capacity" inputMode="numeric" {...register("capacity")} />
-              {errors.capacity ? <FieldMessage className="text-red-600">{errors.capacity.message}</FieldMessage> : null}
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="course-workload">Carga Horaria (horas)</FieldLabel>
-              <Input id="course-workload" inputMode="numeric" {...register("workload")} />
-              {errors.workload ? <FieldMessage className="text-red-600">{errors.workload.message}</FieldMessage> : null}
-            </Field>
-          </CardContent>
-        </Card>
+          {selectedTab === "identification" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Identificacao</CardTitle>
+                <CardDescription>Campos obrigatorios e informacoes principais do curso.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor="course-name">Nome do curso</FieldLabel>
+                  <Input id="course-name" maxLength={300} {...register("name")} />
+                  {errors.name ? <FieldMessage className="text-red-600">{errors.name.message}</FieldMessage> : null}
+                </Field>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Status e observacoes</CardTitle>
-            <CardDescription>Defina o status e mantenha anotacoes internas do curso.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Field>
-              <FieldLabel htmlFor="course-status">Status</FieldLabel>
-              <select
-                className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                id="course-status"
-                {...register("status")}
-              >
-                {COURSE_STATUS.map((courseStatus) => (
-                  <option key={courseStatus} value={courseStatus}>
-                    {statusLabels[courseStatus] ?? courseStatus}
-                  </option>
-                ))}
-              </select>
-              {errors.status ? <FieldMessage className="text-red-600">{errors.status.message}</FieldMessage> : null}
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="course-notes">Observacoes internas</FieldLabel>
-              <textarea
-                className="min-h-24 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                id="course-notes"
-                {...register("notes")}
-              />
-              {errors.notes ? <FieldMessage className="text-red-600">{errors.notes.message}</FieldMessage> : null}
-            </Field>
-          </CardContent>
-        </Card>
+                <Field>
+                  <FieldLabel htmlFor="course-code">Codigo</FieldLabel>
+                  <Input id="course-code" placeholder="ex: ENG-A1-2025" {...register("code")} />
+                  {errors.code ? <FieldMessage className="text-red-600">{errors.code.message}</FieldMessage> : null}
+                </Field>
 
-      </form>
+                <Field>
+                  <FieldLabel htmlFor="course-type">Tipo</FieldLabel>
+                  <select
+                    className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+                    id="course-type"
+                    {...register("type")}
+                  >
+                    {COURSE_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {courseTypeLabels[type]}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.type ? <FieldMessage className="text-red-600">{errors.type.message}</FieldMessage> : null}
+                </Field>
+
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor="course-description">Descricao</FieldLabel>
+                  <textarea
+                    className="min-h-24 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+                    id="course-description"
+                    {...register("description")}
+                  />
+                  {errors.description ? <FieldMessage className="text-red-600">{errors.description.message}</FieldMessage> : null}
+                </Field>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {selectedTab === "schedule" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Programacao</CardTitle>
+                <CardDescription>Datas e horario do curso.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="course-start-date">Inicio</FieldLabel>
+                  <Input id="course-start-date" type="date" {...register("startDate")} />
+                  {errors.startDate ? <FieldMessage className="text-red-600">{errors.startDate.message}</FieldMessage> : null}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="course-end-date">Fim</FieldLabel>
+                  <Input id="course-end-date" type="date" {...register("endDate")} />
+                  {errors.endDate ? <FieldMessage className="text-red-600">{errors.endDate.message}</FieldMessage> : null}
+                </Field>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor="course-schedule-description">Horario</FieldLabel>
+                  <Input
+                    id="course-schedule-description"
+                    placeholder="ex: Seg e Qua, 14h-16h"
+                    {...register("scheduleDescription")}
+                  />
+                  {errors.scheduleDescription ? (
+                    <FieldMessage className="text-red-600">{errors.scheduleDescription.message}</FieldMessage>
+                  ) : null}
+                </Field>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {selectedTab === "capacity" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Capacidade</CardTitle>
+                <CardDescription>Defina vagas e carga horaria.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="course-capacity">Vagas</FieldLabel>
+                  <Input id="course-capacity" inputMode="numeric" {...register("capacity")} />
+                  {errors.capacity ? <FieldMessage className="text-red-600">{errors.capacity.message}</FieldMessage> : null}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="course-workload">Carga Horaria (horas)</FieldLabel>
+                  <Input id="course-workload" inputMode="numeric" {...register("workload")} />
+                  {errors.workload ? <FieldMessage className="text-red-600">{errors.workload.message}</FieldMessage> : null}
+                </Field>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {selectedTab === "status" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Status e observacoes</CardTitle>
+                <CardDescription>Defina o status e mantenha anotacoes internas do curso.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Field>
+                  <FieldLabel htmlFor="course-status">Status</FieldLabel>
+                  <select
+                    className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+                    id="course-status"
+                    {...register("status")}
+                  >
+                    {COURSE_STATUS.map((courseStatus) => (
+                      <option key={courseStatus} value={courseStatus}>
+                        {statusLabels[courseStatus] ?? courseStatus}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.status ? <FieldMessage className="text-red-600">{errors.status.message}</FieldMessage> : null}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="course-notes">Observacoes internas</FieldLabel>
+                  <textarea
+                    className="min-h-24 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+                    id="course-notes"
+                    {...register("notes")}
+                  />
+                  {errors.notes ? <FieldMessage className="text-red-600">{errors.notes.message}</FieldMessage> : null}
+                </Field>
+              </CardContent>
+            </Card>
+          ) : null}
+        </form>
+      </div>
 
       {isDeleteConfirmOpen ? (
         <div

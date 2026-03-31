@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   getPeople,
   type GetPeopleVariables,
@@ -61,16 +62,6 @@ const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
   { key: "notEquals", label: "e diferente de" }
 ];
 
-const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
-  { label: "Nome", sortKey: "fullName" },
-  { label: "E-mail" },
-  { label: "Documento", sortKey: "documentNumber" },
-  { label: "Telefone", sortKey: "primaryPhone" },
-  { label: "Status", sortKey: "status" },
-  { label: "Criado em", sortKey: "createdAt" },
-  { label: "Acao" }
-];
-
 function normalize(value: string) {
   return value.trim().toLowerCase();
 }
@@ -114,6 +105,16 @@ function mapTextOperator(operator: TextOperator): "contains" | "eq" | "startsWit
 }
 
 type CursorMode = "forward" | "backward";
+type AdditionalFieldKey = "id" | "createdDate" | "createdTime";
+type PersonColumnId =
+  | "fullName"
+  | "email"
+  | "documentNumber"
+  | "primaryPhone"
+  | "status"
+  | "createdAt"
+  | "action"
+  | `extra:${AdditionalFieldKey}`;
 
 type PersonSearchViewProps = {
   basePath?: string;
@@ -124,6 +125,28 @@ type PersonSearchViewProps = {
   emptyText?: string;
   totalText?: (totalCount: number) => string;
 };
+
+type AdditionalFieldOption = {
+  key: AdditionalFieldKey;
+  label: string;
+  description: string;
+};
+
+const additionalFieldOptions: AdditionalFieldOption[] = [
+  { key: "id", label: "ID", description: "Identificador unico da pessoa." },
+  { key: "createdDate", label: "Data de criacao", description: "Somente a data do cadastro." },
+  { key: "createdTime", label: "Hora de criacao", description: "Somente o horario do cadastro." }
+];
+
+const DEFAULT_ORDERED_COLUMN_IDS: PersonColumnId[] = [
+  "fullName",
+  "email",
+  "documentNumber",
+  "primaryPhone",
+  "status",
+  "createdAt",
+  "action"
+];
 
 export function PersonSearchView({
   basePath = "/pessoas",
@@ -154,6 +177,10 @@ export function PersonSearchView({
   const [requestAfter, setRequestAfter] = useState<string | null>(null);
   const [requestBefore, setRequestBefore] = useState<string | null>(null);
   const [cursorMode, setCursorMode] = useState<CursorMode>("forward");
+  const [isFieldsPanelOpen, setIsFieldsPanelOpen] = useState(false);
+  const [fieldSearch, setFieldSearch] = useState("");
+  const [visibleAdditionalFields, setVisibleAdditionalFields] = useState<AdditionalFieldKey[]>([]);
+  const [orderedColumnIds, setOrderedColumnIds] = useState<PersonColumnId[]>(DEFAULT_ORDERED_COLUMN_IDS);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -193,6 +220,74 @@ export function PersonSearchView({
 
     return Object.keys(nextWhere).length ? nextWhere : null;
   }, [chips, freeQuery]);
+
+  const filteredAdditionalFieldOptions = useMemo(
+    () =>
+      additionalFieldOptions.filter((option) =>
+        option.label.toLowerCase().includes(fieldSearch.trim().toLowerCase())
+      ),
+    [fieldSearch]
+  );
+
+  const tableColumns = useMemo<Array<{ id?: string; label: ReactNode; sortKey?: SortableColumn; draggable?: boolean }>>(
+    () => [
+      ...orderedColumnIds.map((columnId) => {
+        if (columnId === "fullName") return { id: columnId, label: "Nome", sortKey: "fullName" as SortableColumn };
+        if (columnId === "email") return { id: columnId, label: "E-mail" };
+        if (columnId === "documentNumber") return { id: columnId, label: "Documento", sortKey: "documentNumber" as SortableColumn };
+        if (columnId === "primaryPhone") return { id: columnId, label: "Telefone", sortKey: "primaryPhone" as SortableColumn };
+        if (columnId === "status") return { id: columnId, label: "Status", sortKey: "status" as SortableColumn };
+        if (columnId === "createdAt") return { id: columnId, label: "Criado em", sortKey: "createdAt" as SortableColumn };
+        if (columnId === "action") return { id: columnId, label: "Acao" };
+
+        const additionalFieldKey = columnId.replace("extra:", "") as AdditionalFieldKey;
+        return {
+          id: columnId,
+          label: additionalFieldOptions.find((option) => option.key === additionalFieldKey)?.label ?? additionalFieldKey
+        };
+      }),
+      {
+        id: "add-column-control",
+        draggable: false,
+        label: (
+          <div className="flex justify-center">
+            <button
+              aria-label="Abrir painel para adicionar campos"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--color-border-strong)] text-base font-semibold leading-none text-[var(--color-foreground)] transition hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-45"
+              onClick={() => setIsFieldsPanelOpen(true)}
+              type="button"
+            >
+              +
+            </button>
+          </div>
+        )
+      }
+    ],
+    [orderedColumnIds]
+  );
+
+  useEffect(() => {
+    const extraIds = visibleAdditionalFields.map((field) => `extra:${field}` as PersonColumnId);
+
+    setOrderedColumnIds((current) => {
+      const withoutRemovedExtras = current.filter(
+        (columnId) => !columnId.startsWith("extra:") || extraIds.includes(columnId as PersonColumnId)
+      );
+      const missingExtras = extraIds.filter((extraId) => !withoutRemovedExtras.includes(extraId));
+      if (!missingExtras.length && withoutRemovedExtras.length === current.length) {
+        return current;
+      }
+
+      const actionIndex = withoutRemovedExtras.indexOf("action");
+      if (actionIndex < 0) {
+        return [...withoutRemovedExtras, ...missingExtras];
+      }
+
+      const head = withoutRemovedExtras.slice(0, actionIndex);
+      const tail = withoutRemovedExtras.slice(actionIndex);
+      return [...head, ...missingExtras, ...tail];
+    });
+  }, [visibleAdditionalFields]);
 
   useEffect(() => {
     let isMounted = true;
@@ -353,8 +448,80 @@ export function PersonSearchView({
     router.push(`${basePath}/cadastro?${params.toString()}`);
   }
 
+  function toDateOnly(value?: string | null) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("pt-BR");
+  }
+
+  function toTimeOnly(value?: string | null) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleTimeString("pt-BR");
+  }
+
+  function addAdditionalField(field: AdditionalFieldKey) {
+    setVisibleAdditionalFields((current) => (current.includes(field) ? current : [...current, field]));
+  }
+
+  function renderAdditionalFieldValue(person: PersonNode, field: AdditionalFieldKey) {
+    if (field === "id") return person.id;
+    if (field === "createdDate") return toDateOnly(person.createdAt);
+    return toTimeOnly(person.createdAt);
+  }
+
+  function renderColumnCell(person: PersonNode, columnId: PersonColumnId, cellKey: string) {
+    if (columnId === "fullName") return <td className="px-3 py-2.5" key={cellKey}>{person.fullName}</td>;
+    if (columnId === "email") return <td className="px-3 py-2.5" key={cellKey}>{person.email ?? "-"}</td>;
+    if (columnId === "documentNumber") return <td className="px-3 py-2.5" key={cellKey}>{person.documentNumber ?? "-"}</td>;
+    if (columnId === "primaryPhone") return <td className="px-3 py-2.5" key={cellKey}>{person.primaryPhone ?? "-"}</td>;
+    if (columnId === "status") {
+      return (
+        <td className="px-3 py-2.5" key={cellKey}>
+          <Badge variant={person.status === "ACTIVE" ? "success" : "attention"}>{toStatusLabel(person.status)}</Badge>
+        </td>
+      );
+    }
+    if (columnId === "createdAt") return <td className="px-3 py-2.5" key={cellKey}>{toDateTime(person.createdAt)}</td>;
+    if (columnId === "action") {
+      return (
+        <td className="px-3 py-2.5" key={cellKey}>
+          <Button onClick={() => openEditPerson(person)} size="sm" variant="outline">
+            Editar
+          </Button>
+        </td>
+      );
+    }
+
+    const additionalFieldKey = columnId.replace("extra:", "") as AdditionalFieldKey;
+    return (
+      <td className={additionalFieldKey === "id" ? "px-3 py-2.5 font-mono text-xs" : "px-3 py-2.5"} key={cellKey}>
+        {renderAdditionalFieldValue(person, additionalFieldKey)}
+      </td>
+    );
+  }
+
+  function handleReorderColumns(sourceColumnId: string, targetColumnId: string) {
+    const source = sourceColumnId as PersonColumnId;
+    const target = targetColumnId as PersonColumnId;
+
+    setOrderedColumnIds((current) => {
+      const sourceIndex = current.indexOf(source);
+      const targetIndex = current.indexOf(target);
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return current;
+
+      const next = [...current];
+      const [moved] = next.splice(sourceIndex, 1);
+      const adjustedTargetIndex = next.indexOf(target);
+      next.splice(adjustedTargetIndex, 0, moved);
+      return next;
+    });
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6 overflow-hidden">
       <section className="space-y-2">
         <span className="sr-only">{sectionLabel}</span>
         <FeatureViewHeader
@@ -409,6 +576,7 @@ export function PersonSearchView({
           canGoNext={!isLoading && hasNextPage && Boolean(pageEndCursor)}
           canGoPrevious={!isLoading && hasPreviousPage && Boolean(pageStartCursor)}
           columns={tableColumns}
+          compact
           emptyText={emptyText}
           isLoading={isLoading}
           loadingText={loadingText}
@@ -417,6 +585,7 @@ export function PersonSearchView({
             setRequestBefore(null);
             setRequestAfter(pageEndCursor);
           }}
+          onReorderColumns={handleReorderColumns}
           onPreviousPage={() => {
             setCursorMode("backward");
             setRequestAfter(null);
@@ -428,21 +597,8 @@ export function PersonSearchView({
               className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
               key={person.id}
             >
-              <td className="px-4 py-3">{person.fullName}</td>
-              <td className="px-4 py-3">{person.email ?? "-"}</td>
-              <td className="px-4 py-3">{person.documentNumber ?? "-"}</td>
-              <td className="px-4 py-3">{person.primaryPhone ?? "-"}</td>
-              <td className="px-4 py-3">
-                <Badge variant={person.status === "ACTIVE" ? "success" : "attention"}>
-                  {toStatusLabel(person.status)}
-                </Badge>
-              </td>
-              <td className="px-4 py-3">{toDateTime(person.createdAt)}</td>
-              <td className="px-4 py-3">
-                <Button onClick={() => openEditPerson(person)} size="sm" variant="outline">
-                  Editar
-                </Button>
-              </td>
+              {orderedColumnIds.map((columnId) => renderColumnCell(person, columnId, `${person.id}-${columnId}`))}
+              <td className="px-3 py-2.5" />
             </tr>
           )}
           renderSortIcon={renderSortIcon}
@@ -451,6 +607,77 @@ export function PersonSearchView({
           totalText={totalText(totalCount)}
         />
       </section>
+
+      <button
+        aria-label="Fechar painel de campos"
+        className={`fixed inset-0 z-40 bg-slate-950/38 transition-opacity duration-300 ${
+          isFieldsPanelOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setIsFieldsPanelOpen(false)}
+        type="button"
+      />
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 w-full max-w-md border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl transition-transform duration-300 ease-[var(--ease-standard)] ${
+          isFieldsPanelOpen ? "translate-x-0" : "pointer-events-none translate-x-full"
+        }`}
+      >
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
+            <div>
+              <h3 className="text-lg font-semibold text-[var(--color-foreground)]">Campos</h3>
+              <p className="text-sm text-[var(--color-muted-foreground)]">Adicione mais campos na visualizacao.</p>
+            </div>
+            <button
+              aria-label="Fechar painel"
+              className="inline-flex size-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-foreground)]"
+              onClick={() => setIsFieldsPanelOpen(false)}
+              type="button"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
+          <div className="border-b border-[var(--color-border)] px-5 py-4">
+            <Input
+              onChange={(event) => setFieldSearch(event.target.value)}
+              placeholder="Pesquise campos novos ou existentes"
+              value={fieldSearch}
+            />
+          </div>
+
+          <div className="flex-1 space-y-2 overflow-auto px-3 py-3">
+            {filteredAdditionalFieldOptions.length ? (
+              filteredAdditionalFieldOptions.map((option) => {
+                const isAdded = visibleAdditionalFields.includes(option.key);
+
+                return (
+                  <div
+                    className="flex items-center justify-between rounded-[var(--radius-md)] border border-transparent px-3 py-3 transition hover:border-[var(--color-border)] hover:bg-[var(--color-surface-muted)]"
+                    key={option.key}
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-[var(--color-foreground)]">{option.label}</p>
+                      <p className="text-xs text-[var(--color-muted-foreground)]">{option.description}</p>
+                    </div>
+                    <Button
+                      disabled={isAdded}
+                      onClick={() => addAdditionalField(option.key)}
+                      size="sm"
+                      variant={isAdded ? "outline" : "secondary"}
+                    >
+                      {isAdded ? "Adicionado" : "Adicionar"}
+                    </Button>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="px-2 py-4 text-sm text-[var(--color-muted-foreground)]">
+                Nenhum campo encontrado para esse filtro.
+              </p>
+            )}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

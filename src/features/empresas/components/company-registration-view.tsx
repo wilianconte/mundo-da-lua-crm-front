@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, Loader2, Save, Trash2, X } from "lucide-react";
+import { Building2, Eraser, Loader2, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import {
   createCompany,
   deleteCompany,
@@ -24,6 +25,16 @@ import {
   companyRegistrationSchema,
   type CompanyRegistrationSchema
 } from "@/features/empresas/schema/company-registration-schema";
+import { cn } from "@/lib/utils/cn";
+
+type CompanyTabKey = "main" | "contact" | "address" | "additional";
+
+const companyTabs: Array<{ key: CompanyTabKey; label: string; description: string }> = [
+  { key: "main", label: "Dados principais", description: "Identificacao fiscal e canais principais." },
+  { key: "contact", label: "Contato responsavel", description: "Pessoa principal para relacionamento comercial." },
+  { key: "address", label: "Endereco", description: "Dados de localizacao para setCompanyAddress." },
+  { key: "additional", label: "Informacoes adicionais", description: "Imagem de perfil e observacoes gerais." }
+];
 
 const COMPANY_TYPE_OPTIONS = [
   { value: "SUPPLIER", label: "Fornecedor" },
@@ -76,6 +87,7 @@ export function CompanyRegistrationView() {
   const [isLoadingCompany, setIsLoadingCompany] = useState(false);
   const [isDeletingCompany, setIsDeletingCompany] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<CompanyTabKey>("main");
   const [formError, setFormError] = useState<string | null>(null);
 
   const initialValues = useMemo<CompanyRegistrationSchema>(
@@ -301,37 +313,58 @@ export function CompanyRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">
-              <span className="font-mono text-base font-medium uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                Empresas
-              </span>{" "}
-              <span aria-hidden="true" className="text-[var(--color-muted-foreground)]">
-                |
-              </span>{" "}
-              <span className="text-xl">{isEditMode ? "Edicao de empresa" : "Cadastro de empresa"}</span>
-            </h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              {isEditMode
-                ? "Atualize dados cadastrais, contato principal e endereco da empresa."
-                : "Preencha os dados essenciais para criar uma nova empresa no CRM."}
-            </p>
-          </div>
-          {isEditMode ? (
+      <FeatureViewHeader
+        actions={
+          <>
             <Button
-              className="min-w-40"
               disabled={isSubmitting || isLoadingCompany || isDeletingCompany || isSuccessModalOpen || isDeleteConfirmOpen}
-              leadingIcon={isDeletingCompany ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-              onClick={() => setIsDeleteConfirmOpen(true)}
-              variant="danger-outline"
+              leadingIcon={<Eraser className="size-4" />}
+              onClick={handleClear}
+              type="button"
+              variant="outline"
             >
-              {isDeletingCompany ? "Excluindo..." : "Excluir"}
+              Limpar
             </Button>
-          ) : null}
-        </div>
-      </section>
+            <Button
+              disabled={isSubmitting || isLoadingCompany || isDeletingCompany || isSuccessModalOpen || isDeleteConfirmOpen}
+              leadingIcon={<X className="size-4" />}
+              onClick={() => router.push("/empresas/pesquisa")}
+              type="button"
+              variant="outline"
+            >
+              Cancelar
+            </Button>
+            {isEditMode ? (
+              <Button
+                disabled={
+                  isSubmitting || isLoadingCompany || isDeletingCompany || isSuccessModalOpen || isDeleteConfirmOpen
+                }
+                leadingIcon={isDeletingCompany ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={() => setIsDeleteConfirmOpen(true)}
+                variant="danger-outline"
+              >
+                {isDeletingCompany ? "Excluindo..." : "Excluir"}
+              </Button>
+            ) : null}
+            <Button
+              disabled={isSubmitting || isLoadingCompany || isDeletingCompany || isSuccessModalOpen || isDeleteConfirmOpen}
+              form="company-form"
+              leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              type="submit"
+            >
+              {isSubmitting ? "Salvando..." : "Salvar"}
+            </Button>
+          </>
+        }
+        backAriaLabel="Voltar para pesquisa de empresas"
+        backHref="/empresas/pesquisa"
+        description={
+          isEditMode
+            ? "Atualize dados cadastrais, contato principal e endereco da empresa."
+            : "Preencha os dados essenciais para criar uma nova empresa no CRM."
+        }
+        title={<span className="text-xl">{isEditMode ? "Edicao de empresa" : "Cadastro de empresa"}</span>}
+      />
 
       {formError ? (
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm font-medium text-[var(--color-danger-strong)]">
@@ -339,40 +372,60 @@ export function CompanyRegistrationView() {
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <CardTitle>{isEditMode ? "Editar cadastro" : "Nova empresa"}</CardTitle>
-              <CardDescription>
-                Use a razao social como identificador principal. O endereco e salvo em uma operacao separada apos o cadastro principal.
-              </CardDescription>
+      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <Card className="h-fit">
+          <CardContent className="p-3">
+            <div className="flex flex-col gap-2">
+              {companyTabs.map((tab) => (
+                <button
+                  className={cn(
+                    "rounded-[var(--radius-md)] border px-4 py-3 text-left transition",
+                    selectedTab === tab.key
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
+                      : "border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-surface-muted)]"
+                  )}
+                  key={tab.key}
+                  onClick={() => setSelectedTab(tab.key)}
+                  type="button"
+                >
+                  <p className="text-sm font-semibold">{tab.label}</p>
+                  <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{tab.description}</p>
+                </button>
+              ))}
             </div>
-            <Badge variant="attention">Razao social obrigatoria</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-8" onSubmit={handleSubmit(onSubmit)}>
-            {isLoadingCompany ? (
-              <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] px-4 py-6 text-sm text-[var(--color-muted-foreground)]">
+          </CardContent>
+        </Card>
+
+        <form className="space-y-6" id="company-form" onSubmit={handleSubmit(onSubmit)}>
+          {isLoadingCompany ? (
+            <Card>
+              <CardContent className="flex items-center gap-3 p-6 text-sm text-[var(--color-muted-foreground)]">
                 <Loader2 className="size-4 animate-spin" />
                 Carregando dados da empresa...
-              </div>
-            ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
 
-            <section className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-[var(--color-surface-muted)] p-2 text-[var(--color-primary)]">
-                  <Building2 className="size-4" />
+          {selectedTab === "main" ? (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-full bg-[var(--color-surface-muted)] p-2 text-[var(--color-primary)]">
+                        <Building2 className="size-4" />
+                      </div>
+                      <CardTitle>{isEditMode ? "Editar cadastro" : "Nova empresa"}</CardTitle>
+                    </div>
+                    <CardDescription>
+                      Use a razao social como identificador principal e preencha os dados fiscais e canais de contato.
+                    </CardDescription>
+                  </div>
+                  <Badge variant="attention">Razao social obrigatoria</Badge>
                 </div>
-                <div>
-                  <h3 className="font-semibold">Dados principais</h3>
-                  <p className="text-sm text-[var(--color-muted-foreground)]">Identificacao fiscal e canais principais da empresa.</p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <Field className="xl:col-span-2">
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <Field className="md:col-span-2">
                   <FieldLabel htmlFor="legalName">Razao social</FieldLabel>
                   <Input id="legalName" placeholder="Empresa Exemplo Ltda" {...register("legalName")} />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.legalName?.message}</FieldMessage>
@@ -405,7 +458,11 @@ export function CompanyRegistrationView() {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="companyType">Tipo da empresa</FieldLabel>
-                  <select className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm" id="companyType" {...register("companyType")}>
+                  <select
+                    className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm"
+                    id="companyType"
+                    {...register("companyType")}
+                  >
                     <option value="">Selecione</option>
                     {COMPANY_TYPE_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -432,28 +489,44 @@ export function CompanyRegistrationView() {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="primaryPhone">Telefone principal</FieldLabel>
-                  <Input id="primaryPhone" {...register("primaryPhone")} onChange={(event) => setValue("primaryPhone", maskPhone(event.target.value))} />
+                  <Input
+                    id="primaryPhone"
+                    {...register("primaryPhone")}
+                    onChange={(event) => setValue("primaryPhone", maskPhone(event.target.value))}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.primaryPhone?.message}</FieldMessage>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="secondaryPhone">Telefone secundario</FieldLabel>
-                  <Input id="secondaryPhone" {...register("secondaryPhone")} onChange={(event) => setValue("secondaryPhone", maskPhone(event.target.value))} />
+                  <Input
+                    id="secondaryPhone"
+                    {...register("secondaryPhone")}
+                    onChange={(event) => setValue("secondaryPhone", maskPhone(event.target.value))}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.secondaryPhone?.message}</FieldMessage>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="whatsAppNumber">WhatsApp</FieldLabel>
-                  <Input id="whatsAppNumber" {...register("whatsAppNumber")} onChange={(event) => setValue("whatsAppNumber", maskPhone(event.target.value))} />
+                  <Input
+                    id="whatsAppNumber"
+                    {...register("whatsAppNumber")}
+                    onChange={(event) => setValue("whatsAppNumber", maskPhone(event.target.value))}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.whatsAppNumber?.message}</FieldMessage>
                 </Field>
-              </div>
-            </section>
+              </CardContent>
+            </Card>
+          ) : null}
 
-            <section className="space-y-4">
-              <div>
-                <h3 className="font-semibold">Contato responsavel</h3>
-                <p className="text-sm text-[var(--color-muted-foreground)]">Dados da pessoa principal para relacionamento comercial.</p>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {selectedTab === "contact" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Contato responsavel</CardTitle>
+                <CardDescription>
+                  Dados da pessoa principal para relacionamento comercial.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="contactPersonName">Nome do contato</FieldLabel>
                   <Input id="contactPersonName" {...register("contactPersonName")} />
@@ -466,19 +539,27 @@ export function CompanyRegistrationView() {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="contactPersonPhone">Telefone do contato</FieldLabel>
-                  <Input id="contactPersonPhone" {...register("contactPersonPhone")} onChange={(event) => setValue("contactPersonPhone", maskPhone(event.target.value))} />
+                  <Input
+                    id="contactPersonPhone"
+                    {...register("contactPersonPhone")}
+                    onChange={(event) => setValue("contactPersonPhone", maskPhone(event.target.value))}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.contactPersonPhone?.message}</FieldMessage>
                 </Field>
-              </div>
-            </section>
+              </CardContent>
+            </Card>
+          ) : null}
 
-            <section className="space-y-4">
-              <div>
-                <h3 className="font-semibold">Endereco</h3>
-                <p className="text-sm text-[var(--color-muted-foreground)]">Se preenchido, o endereco sera enviado via setCompanyAddress apos salvar a empresa.</p>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Field className="xl:col-span-2">
+          {selectedTab === "address" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Endereco</CardTitle>
+                <CardDescription>
+                  Se preenchido, o endereco sera enviado via setCompanyAddress apos salvar a empresa.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <Field>
                   <FieldLabel htmlFor="street">Rua</FieldLabel>
                   <Input id="street" {...register("street")} />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.street?.message}</FieldMessage>
@@ -505,62 +586,73 @@ export function CompanyRegistrationView() {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="state">UF</FieldLabel>
-                  <Input id="state" maxLength={2} {...register("state")} onChange={(event) => setValue("state", event.target.value.toUpperCase())} />
+                  <Input
+                    id="state"
+                    maxLength={2}
+                    {...register("state")}
+                    onChange={(event) => setValue("state", event.target.value.toUpperCase())}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.state?.message}</FieldMessage>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="zipCode">CEP</FieldLabel>
-                  <Input id="zipCode" inputMode="numeric" {...register("zipCode")} onChange={(event) => setValue("zipCode", maskZipCode(event.target.value))} />
+                  <Input
+                    id="zipCode"
+                    inputMode="numeric"
+                    {...register("zipCode")}
+                    onChange={(event) => setValue("zipCode", maskZipCode(event.target.value))}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.zipCode?.message}</FieldMessage>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="country">Pais</FieldLabel>
-                  <Input id="country" maxLength={2} {...register("country")} onChange={(event) => setValue("country", event.target.value.toUpperCase())} />
+                  <Input
+                    id="country"
+                    maxLength={2}
+                    {...register("country")}
+                    onChange={(event) => setValue("country", event.target.value.toUpperCase())}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.country?.message}</FieldMessage>
                 </Field>
-              </div>
-            </section>
+              </CardContent>
+            </Card>
+          ) : null}
 
-            <section className="space-y-4">
-              <div>
-                <h3 className="font-semibold">Informacoes adicionais</h3>
-                <p className="text-sm text-[var(--color-muted-foreground)]">Imagem de perfil, observacoes e referencias complementares.</p>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="profileImageUrl">URL da imagem</FieldLabel>
-                  <Input id="profileImageUrl" placeholder="https://cdn.../logo.png" {...register("profileImageUrl")} />
-                  <FieldMessage className="text-[var(--color-danger-strong)]">{errors.profileImageUrl?.message}</FieldMessage>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="notes">Observacoes</FieldLabel>
-                  <textarea className="min-h-32 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm outline-none focus:border-[var(--color-primary)]" id="notes" {...register("notes")} />
-                  <FieldMessage className="text-[var(--color-danger-strong)]">{errors.notes?.message}</FieldMessage>
-                </Field>
-              </div>
-              {profileImageUrl ? (
-                <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
-                  Preview de imagem configurado para: {profileImageUrl}
+          {selectedTab === "additional" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Informacoes adicionais</CardTitle>
+                <CardDescription>
+                  Imagem de perfil, observacoes e referencias complementares.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="profileImageUrl">URL da imagem</FieldLabel>
+                    <Input id="profileImageUrl" placeholder="https://cdn.../logo.png" {...register("profileImageUrl")} />
+                    <FieldMessage className="text-[var(--color-danger-strong)]">{errors.profileImageUrl?.message}</FieldMessage>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="notes">Observacoes</FieldLabel>
+                    <textarea
+                      className="min-h-32 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm outline-none focus:border-[var(--color-primary)]"
+                      id="notes"
+                      {...register("notes")}
+                    />
+                    <FieldMessage className="text-[var(--color-danger-strong)]">{errors.notes?.message}</FieldMessage>
+                  </Field>
                 </div>
-              ) : null}
-            </section>
-
-            <div className="flex flex-wrap items-center gap-3 border-t border-[var(--color-border)] pt-6">
-              <Button className="min-w-40" disabled={isSubmitting || isLoadingCompany || isDeletingCompany} onClick={handleClear} type="button" variant="ghost">
-                Limpar
-              </Button>
-              <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
-                <Button className="min-w-40" disabled={isSubmitting || isLoadingCompany || isDeletingCompany} leadingIcon={<X className="size-4" />} onClick={() => router.push("/empresas/pesquisa")} type="button" variant="outline">
-                  Cancelar
-                </Button>
-                <Button className="min-w-40" disabled={isSubmitting || isLoadingCompany || isDeletingCompany} leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} type="submit">
-                  {isSubmitting ? "Salvando..." : isEditMode ? "Salvar alteracoes" : "Salvar empresa"}
-                </Button>
-              </div>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                {profileImageUrl ? (
+                  <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
+                    Preview de imagem configurado para: {profileImageUrl}
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+        </form>
+      </div>
 
       {isDeleteConfirmOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

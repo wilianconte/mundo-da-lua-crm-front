@@ -307,6 +307,17 @@ export function PersonRegistrationView() {
             <Button
               className="min-w-40"
               disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
+              leadingIcon={<UserPlus className="size-4" />}
+              onClick={handleClear}
+              size="lg"
+              type="button"
+              variant="outline"
+            >
+              Limpar
+            </Button>
+            <Button
+              className="min-w-40"
+              disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
               form="person-form"
               leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               size="lg"
@@ -514,19 +525,6 @@ export function PersonRegistrationView() {
               </Field>
             </div>
 
-            <div className="flex flex-wrap justify-end gap-3">
-              <Button
-                className="min-w-40"
-                disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
-                leadingIcon={<UserPlus className="size-4" />}
-                onClick={handleClear}
-                size="lg"
-                type="button"
-                variant="outline"
-              >
-                Limpar formulario
-              </Button>
-            </div>
           </form>
         </CardContent>
       </Card>
