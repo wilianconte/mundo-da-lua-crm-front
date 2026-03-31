@@ -126,16 +126,23 @@ type PersonSearchViewProps = {
   totalText?: (totalCount: number) => string;
 };
 
-type AdditionalFieldOption = {
-  key: AdditionalFieldKey;
+type PanelFieldOption = {
+  key: PersonColumnId;
   label: string;
   description: string;
 };
 
-const additionalFieldOptions: AdditionalFieldOption[] = [
-  { key: "id", label: "ID", description: "Identificador unico da pessoa." },
-  { key: "createdDate", label: "Data de criacao", description: "Somente a data do cadastro." },
-  { key: "createdTime", label: "Hora de criacao", description: "Somente o horario do cadastro." }
+const panelFieldOptions: PanelFieldOption[] = [
+  { key: "fullName", label: "Nome", description: "Nome completo da pessoa." },
+  { key: "email", label: "E-mail", description: "Email principal da pessoa." },
+  { key: "documentNumber", label: "Documento", description: "CPF/CNPJ cadastrado." },
+  { key: "primaryPhone", label: "Telefone", description: "Telefone principal da pessoa." },
+  { key: "status", label: "Status", description: "Situacao atual da pessoa." },
+  { key: "createdAt", label: "Criado em", description: "Data e hora de criacao." },
+  { key: "action", label: "Acao", description: "Coluna de acao para editar registro." },
+  { key: "extra:id", label: "ID", description: "Identificador unico da pessoa." },
+  { key: "extra:createdDate", label: "Data de criacao", description: "Somente a data do cadastro." },
+  { key: "extra:createdTime", label: "Hora de criacao", description: "Somente o horario do cadastro." }
 ];
 
 const DEFAULT_ORDERED_COLUMN_IDS: PersonColumnId[] = [
@@ -179,7 +186,6 @@ export function PersonSearchView({
   const [cursorMode, setCursorMode] = useState<CursorMode>("forward");
   const [isFieldsPanelOpen, setIsFieldsPanelOpen] = useState(false);
   const [fieldSearch, setFieldSearch] = useState("");
-  const [visibleAdditionalFields, setVisibleAdditionalFields] = useState<AdditionalFieldKey[]>([]);
   const [orderedColumnIds, setOrderedColumnIds] = useState<PersonColumnId[]>(DEFAULT_ORDERED_COLUMN_IDS);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -221,15 +227,16 @@ export function PersonSearchView({
     return Object.keys(nextWhere).length ? nextWhere : null;
   }, [chips, freeQuery]);
 
-  const filteredAdditionalFieldOptions = useMemo(
+  const filteredPanelFieldOptions = useMemo(
     () =>
-      additionalFieldOptions.filter((option) =>
+      panelFieldOptions.filter((option) =>
+        !orderedColumnIds.includes(option.key) &&
         option.label.toLowerCase().includes(fieldSearch.trim().toLowerCase())
       ),
-    [fieldSearch]
+    [fieldSearch, orderedColumnIds]
   );
 
-  const tableColumns = useMemo<Array<{ id?: string; label: ReactNode; sortKey?: SortableColumn; draggable?: boolean }>>(
+  const tableColumns = useMemo<Array<{ id?: string; label: ReactNode; sortKey?: SortableColumn; draggable?: boolean; hideable?: boolean }>>(
     () => [
       ...orderedColumnIds.map((columnId) => {
         if (columnId === "fullName") return { id: columnId, label: "Nome", sortKey: "fullName" as SortableColumn };
@@ -243,12 +250,13 @@ export function PersonSearchView({
         const additionalFieldKey = columnId.replace("extra:", "") as AdditionalFieldKey;
         return {
           id: columnId,
-          label: additionalFieldOptions.find((option) => option.key === additionalFieldKey)?.label ?? additionalFieldKey
+          label: panelFieldOptions.find((option) => option.key === columnId)?.label ?? additionalFieldKey
         };
       }),
       {
         id: "add-column-control",
         draggable: false,
+        hideable: false,
         label: (
           <div className="flex justify-center">
             <button
@@ -265,29 +273,6 @@ export function PersonSearchView({
     ],
     [orderedColumnIds]
   );
-
-  useEffect(() => {
-    const extraIds = visibleAdditionalFields.map((field) => `extra:${field}` as PersonColumnId);
-
-    setOrderedColumnIds((current) => {
-      const withoutRemovedExtras = current.filter(
-        (columnId) => !columnId.startsWith("extra:") || extraIds.includes(columnId as PersonColumnId)
-      );
-      const missingExtras = extraIds.filter((extraId) => !withoutRemovedExtras.includes(extraId));
-      if (!missingExtras.length && withoutRemovedExtras.length === current.length) {
-        return current;
-      }
-
-      const actionIndex = withoutRemovedExtras.indexOf("action");
-      if (actionIndex < 0) {
-        return [...withoutRemovedExtras, ...missingExtras];
-      }
-
-      const head = withoutRemovedExtras.slice(0, actionIndex);
-      const tail = withoutRemovedExtras.slice(actionIndex);
-      return [...head, ...missingExtras, ...tail];
-    });
-  }, [visibleAdditionalFields]);
 
   useEffect(() => {
     let isMounted = true;
@@ -462,8 +447,15 @@ export function PersonSearchView({
     return date.toLocaleTimeString("pt-BR");
   }
 
-  function addAdditionalField(field: AdditionalFieldKey) {
-    setVisibleAdditionalFields((current) => (current.includes(field) ? current : [...current, field]));
+  function addColumnToView(columnId: PersonColumnId) {
+    setOrderedColumnIds((current) => {
+      if (current.includes(columnId)) return current;
+      const actionIndex = current.indexOf("action");
+      if (actionIndex < 0) return [...current, columnId];
+      const next = [...current];
+      next.splice(actionIndex, 0, columnId);
+      return next;
+    });
   }
 
   function renderAdditionalFieldValue(person: PersonNode, field: AdditionalFieldKey) {
@@ -518,6 +510,13 @@ export function PersonSearchView({
       next.splice(adjustedTargetIndex, 0, moved);
       return next;
     });
+  }
+
+  function handleHideColumn(columnId: string) {
+    if (columnId === "add-column-control") return;
+    if (orderedColumnIds.length <= 1) return;
+
+    setOrderedColumnIds((current) => current.filter((id) => id !== columnId));
   }
 
   return (
@@ -585,6 +584,7 @@ export function PersonSearchView({
             setRequestBefore(null);
             setRequestAfter(pageEndCursor);
           }}
+          onHideColumn={handleHideColumn}
           onReorderColumns={handleReorderColumns}
           onPreviousPage={() => {
             setCursorMode("backward");
@@ -646,9 +646,9 @@ export function PersonSearchView({
           </div>
 
           <div className="flex-1 space-y-2 overflow-auto px-3 py-3">
-            {filteredAdditionalFieldOptions.length ? (
-              filteredAdditionalFieldOptions.map((option) => {
-                const isAdded = visibleAdditionalFields.includes(option.key);
+            {filteredPanelFieldOptions.length ? (
+              filteredPanelFieldOptions.map((option) => {
+                const isAdded = orderedColumnIds.includes(option.key);
 
                 return (
                   <div
@@ -661,7 +661,7 @@ export function PersonSearchView({
                     </div>
                     <Button
                       disabled={isAdded}
-                      onClick={() => addAdditionalField(option.key)}
+                      onClick={() => addColumnToView(option.key)}
                       size="sm"
                       variant={isAdded ? "outline" : "secondary"}
                     >

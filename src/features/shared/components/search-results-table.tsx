@@ -36,6 +36,7 @@ type ResultsTableColumn<TSortKey extends string> = {
   label: ReactNode;
   sortKey?: TSortKey;
   draggable?: boolean;
+  hideable?: boolean;
 };
 
 type SearchResultsTableProps<TRow, TSortKey extends string> = {
@@ -56,6 +57,7 @@ type SearchResultsTableProps<TRow, TSortKey extends string> = {
   onNextPage: () => void;
   compact?: boolean;
   onReorderColumns?: (sourceColumnId: string, targetColumnId: string) => void;
+  onHideColumn?: (columnId: string) => void;
 };
 
 type SortableHeaderCellProps<TSortKey extends string> = {
@@ -140,7 +142,8 @@ export function SearchResultsTable<TRow, TSortKey extends string>({
   onPreviousPage,
   onNextPage,
   compact = false,
-  onReorderColumns
+  onReorderColumns,
+  onHideColumn
 }: SearchResultsTableProps<TRow, TSortKey>) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [menuState, setMenuState] = useState<{
@@ -149,19 +152,21 @@ export function SearchResultsTable<TRow, TSortKey extends string>({
     right: number;
     align: "left" | "right";
     columnLabel: string;
+    columnId: string | null;
+    hideable: boolean;
   } | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
 
   const contextMenuItems = useMemo(
     () => [
-      { label: "Classificar", icon: ArrowDownUp, highlighted: true },
-      { label: "Ordenar coluna inteira", icon: ListOrdered },
-      { label: "Remover ordenacao", icon: Ban },
-      { label: "Grupo", icon: FolderTree, separatorBefore: true },
-      { label: "Mover para o inicio", icon: ArrowLeftToLine, separatorBefore: true },
-      { label: "Mover para o final", icon: ArrowRightToLine },
-      { label: "Ocultar coluna", icon: EyeOff },
-      { label: "Configurar preenchimento com IA", icon: Sparkles, separatorBefore: true }
+      { key: "sort", label: "Classificar", icon: ArrowDownUp, highlighted: true },
+      { key: "sort-all", label: "Ordenar coluna inteira", icon: ListOrdered },
+      { key: "clear-sort", label: "Remover ordenacao", icon: Ban },
+      { key: "group", label: "Grupo", icon: FolderTree, separatorBefore: true },
+      { key: "move-first", label: "Mover para o inicio", icon: ArrowLeftToLine, separatorBefore: true },
+      { key: "move-last", label: "Mover para o final", icon: ArrowRightToLine },
+      { key: "hide-column", label: "Ocultar coluna", icon: EyeOff },
+      { key: "ai-fill", label: "Configurar preenchimento com IA", icon: Sparkles, separatorBefore: true }
     ],
     []
   );
@@ -220,16 +225,19 @@ export function SearchResultsTable<TRow, TSortKey extends string>({
     onReorderColumns(String(active.id), String(over.id));
   }
 
-  function openContextMenu(event: React.MouseEvent<HTMLTableCellElement>, index: number, label: ReactNode) {
+  function openContextMenu(event: ReactMouseEvent<HTMLTableCellElement>, index: number, label: ReactNode) {
     event.preventDefault();
     const rect = event.currentTarget.getBoundingClientRect();
     const isLastColumn = index === columns.length - 1;
+    const selectedColumn = columns[index];
     setMenuState({
       top: rect.bottom + 4,
       left: rect.left,
       right: window.innerWidth - rect.right,
       align: isLastColumn ? "right" : "left",
-      columnLabel: typeof label === "string" ? label : "Coluna"
+      columnLabel: typeof label === "string" ? label : "Coluna",
+      columnId: selectedColumn?.id ?? null,
+      hideable: selectedColumn?.hideable !== false
     });
   }
 
@@ -345,13 +353,25 @@ export function SearchResultsTable<TRow, TSortKey extends string>({
           </p>
           {contextMenuItems.map((item) => {
             const Icon = item.icon;
+            const isHideItem = item.key === "hide-column";
+            const isHideDisabled = isHideItem && (!menuState.columnId || !menuState.hideable || !onHideColumn);
 
             return (
-              <div key={item.label}>
+              <div key={item.key}>
                 {item.separatorBefore ? <div className="my-1 h-px bg-[var(--color-border)]" /> : null}
                 <button
-                  className="flex w-full items-center justify-between rounded-[var(--radius-sm)] px-2 py-2 text-left text-sm text-[var(--color-foreground)] transition hover:bg-[var(--color-surface-muted)]"
-                  onClick={() => setMenuState(null)}
+                  className={`flex w-full items-center justify-between rounded-[var(--radius-sm)] px-2 py-2 text-left text-sm transition ${
+                    isHideDisabled
+                      ? "cursor-not-allowed text-[var(--color-muted-foreground)] opacity-60"
+                      : "text-[var(--color-foreground)] hover:bg-[var(--color-surface-muted)]"
+                  }`}
+                  disabled={isHideDisabled}
+                  onClick={() => {
+                    if (isHideItem && menuState.columnId && onHideColumn) {
+                      onHideColumn(menuState.columnId);
+                    }
+                    setMenuState(null);
+                  }}
                   type="button"
                 >
                   <span className="inline-flex items-center gap-2">
