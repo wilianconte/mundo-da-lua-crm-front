@@ -178,16 +178,19 @@ export function GroupRegistrationView() {
   }, []);
 
   useEffect(() => {
-    if (!isEditMode || !roleId) return;
+    const currentRoleId = roleId;
+    if (!isEditMode || !currentRoleId) return;
 
     let isMounted = true;
 
     async function loadRole() {
+      if (!currentRoleId) return;
+
       try {
         setIsLoadingRole(true);
         setFormError(null);
 
-        const role = await getRoleById(roleId);
+        const role = await getRoleById(currentRoleId);
         if (!isMounted) return;
 
         if (!role) {
@@ -272,11 +275,13 @@ export function GroupRegistrationView() {
   }
 
   async function onSubmit(values: GroupRegistrationSchema) {
+    const currentRoleId = roleId;
+
     try {
       setFormError(null);
 
-      if (isEditMode && roleId) {
-        const updatedRole = await updateRole(roleId, {
+      if (isEditMode && currentRoleId) {
+        const updatedRole = await updateRole(currentRoleId, {
           name: values.name,
           description: normalizeOptional(values.description),
           isActive: values.isActive
@@ -305,14 +310,15 @@ export function GroupRegistrationView() {
   }
 
   async function confirmDeleteRole() {
-    if (!roleId || !isEditMode) return;
+    const currentRoleId = roleId;
+    if (!currentRoleId || !isEditMode) return;
 
     try {
       setFormError(null);
       setIsDeletingRole(true);
       setIsDeleteConfirmOpen(false);
 
-      const deleted = await deleteRole(roleId);
+      const deleted = await deleteRole(currentRoleId);
       if (!deleted) {
         setFormError("Nao foi possivel excluir o grupo.");
         return;

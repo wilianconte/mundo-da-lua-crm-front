@@ -97,7 +97,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
       registrationNumber: "",
       companyEmail: "",
       companyPhone: "",
-      companyType: "",
+      companyType: undefined,
       password: "",
       confirmPassword: ""
     }

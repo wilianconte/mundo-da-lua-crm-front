@@ -29,55 +29,55 @@ function isUnimplementedMenuItem(href?: string) {
 }
 
 function filterChildrenByPermissions(items: NavChildItem[], permissions: string[], isAdmin: boolean): NavChildItem[] {
-  return items
-    .map((item) => {
+  return items.reduce<NavChildItem[]>((accumulator, item) => {
       const nextChildren = item.children?.length
         ? filterChildrenByPermissions(item.children, permissions, isAdmin)
         : undefined;
 
       if (isUnimplementedMenuItem(item.href) && !isAdmin) {
-        return null;
+        return accumulator;
       }
 
       const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : false;
       const hasVisibleChildren = Boolean(nextChildren?.length);
       if (!hasHrefAccess && !hasVisibleChildren) {
-        return null;
+        return accumulator;
       }
 
-      return {
+      accumulator.push({
         ...item,
         children: nextChildren
-      };
-    })
-    .filter((item): item is NavChildItem => Boolean(item));
+      });
+
+      return accumulator;
+    }, []);
 }
 
 function filterNavigationByPermissions(items: NavItem[], permissions: string[]): NavItem[] {
   const isAdmin = isAdminUser(permissions);
 
-  return items
-    .map((item) => {
+  return items.reduce<NavItem[]>((accumulator, item) => {
       const nextChildren = item.children?.length
         ? filterChildrenByPermissions(item.children, permissions, isAdmin)
         : undefined;
 
       if (isUnimplementedMenuItem(item.href) && !isAdmin) {
-        return null;
+        return accumulator;
       }
 
       const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : false;
       const hasVisibleChildren = Boolean(nextChildren?.length);
       if (!hasHrefAccess && !hasVisibleChildren) {
-        return null;
+        return accumulator;
       }
 
-      return {
+      accumulator.push({
         ...item,
         children: nextChildren
-      };
-    })
-    .filter((item): item is NavItem => Boolean(item));
+      });
+
+      return accumulator;
+    }, []);
 }
 
 function getFirstHref(items?: NavChildItem[]): string | undefined {

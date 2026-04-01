@@ -2,6 +2,19 @@
 
 Data da auditoria: 2026-03-31
 
+## Atualizacao de resolucao
+
+Data da resolucao: 2026-03-31
+
+- Achado critico **"Build e typecheck do projeto estao quebrados"**: **RESOLVIDO**.
+- Correcoes aplicadas:
+  - `src/components/layout/sidebar-nav.tsx`: removido retorno com `null` nos filtros, usando acumulacao tipada (`reduce`) compativel com `NavItem[]` e `NavChildItem[]`.
+  - `src/features/auth/components/sign-up-form.tsx`: `defaultValues.companyType` alinhado para `undefined` (tipo transformado do schema).
+  - `src/features/grupos/components/group-registration-view.tsx`: estreitamento explicito de `roleId` antes de `getRoleById`, `updateRole` e `deleteRole`.
+- Validacoes apos ajuste:
+  - `node node_modules/typescript/bin/tsc --noEmit`: **sucesso**.
+  - `next build`: **sucesso**.
+
 ## Resumo executivo
 
 O front evoluiu desde o levantamento anterior. Tres achados antigos nao se sustentam mais no codigo atual:
