@@ -1,4 +1,5 @@
 import { AUTH_COOKIE_KEYS, AUTH_STORAGE_KEYS } from "@/lib/auth/session-keys";
+import { normalizePermissions } from "@/lib/auth/permissions";
 
 export { AUTH_COOKIE_KEYS, AUTH_STORAGE_KEYS };
 
@@ -38,12 +39,17 @@ function writeSessionToStorage(session: AuthSession) {
     return;
   }
 
+  const normalizedUser: AuthUser = {
+    ...session.user,
+    permissions: normalizePermissions(session.user.permissions ?? [])
+  };
+
   window.localStorage.setItem(AUTH_STORAGE_KEYS.token, session.token);
   window.localStorage.setItem(AUTH_STORAGE_KEYS.expiresAt, session.expiresAt);
   window.localStorage.setItem(AUTH_STORAGE_KEYS.refreshToken, session.refreshToken);
   window.localStorage.setItem(AUTH_STORAGE_KEYS.refreshTokenExpiresAt, session.refreshTokenExpiresAt);
   window.localStorage.setItem(AUTH_STORAGE_KEYS.tenantId, session.tenantId);
-  window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(session.user));
+  window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(normalizedUser));
 }
 
 function clearSessionFromStorage() {
@@ -175,9 +181,11 @@ export function getAuthUser(): AuthUser | null {
       userId: parsed.userId,
       name: parsed.name,
       email: parsed.email,
-      permissions: Array.isArray(parsed.permissions)
-        ? parsed.permissions.filter((permission): permission is string => typeof permission === "string")
-        : []
+      permissions: normalizePermissions(
+        Array.isArray(parsed.permissions)
+          ? parsed.permissions.filter((permission): permission is string => typeof permission === "string")
+          : []
+      )
     };
   } catch {
     void clearAuthSession();
@@ -190,7 +198,13 @@ export function updateAuthUser(user: AuthUser) {
     return;
   }
 
-  window.localStorage.setItem(AUTH_STORAGE_KEYS.user, JSON.stringify(user));
+  window.localStorage.setItem(
+    AUTH_STORAGE_KEYS.user,
+    JSON.stringify({
+      ...user,
+      permissions: normalizePermissions(user.permissions ?? [])
+    } satisfies AuthUser)
+  );
 }
 
 function isDateExpired(rawDate: string | null, referenceDate = new Date()) {

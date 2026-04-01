@@ -101,8 +101,26 @@ function normalizePath(pathname: string) {
   return pathname.split("?")[0].split("#")[0];
 }
 
+export function normalizePermission(permission: string) {
+  return permission.trim().toLowerCase();
+}
+
+export function normalizePermissions(permissions: string[]) {
+  const normalized = permissions
+    .filter((permission) => typeof permission === "string")
+    .map((permission) => normalizePermission(permission))
+    .filter((permission) => permission.length > 0);
+
+  return Array.from(new Set(normalized));
+}
+
 export function hasPermission(permissions: string[], permission: string) {
-  return permissions.includes(permission);
+  const requiredPermission = normalizePermission(permission);
+  if (!requiredPermission) {
+    return false;
+  }
+
+  return permissions.some((currentPermission) => normalizePermission(currentPermission) === requiredPermission);
 }
 
 export function canAccessPath(pathname: string, permissions: string[]) {

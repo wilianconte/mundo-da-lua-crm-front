@@ -1,4 +1,5 @@
 import { GraphQLRequestError, gqlRequest } from "@/lib/graphql/client";
+import { normalizePermissions } from "@/lib/auth/permissions";
 
 const GET_MY_PERMISSIONS_QUERY = `
   query GetMyPermissions {
@@ -19,7 +20,7 @@ type GraphQLErrorItem = {
 
 export async function getMyPermissions() {
   const data = await gqlRequest<GetMyPermissionsResponse>(GET_MY_PERMISSIONS_QUERY);
-  return data.myPermissions ?? [];
+  return normalizePermissions(data.myPermissions ?? []);
 }
 
 export async function getMyPermissionsWithToken(token: string) {
@@ -51,5 +52,5 @@ export async function getMyPermissionsWithToken(token: string) {
     );
   }
 
-  return payload.data?.myPermissions ?? [];
+  return normalizePermissions(payload.data?.myPermissions ?? []);
 }
