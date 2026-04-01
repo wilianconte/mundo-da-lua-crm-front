@@ -487,8 +487,6 @@ const UPDATE_STUDENT_MUTATION = `
         personId
         unitId
         notes
-        updatedAt
-        updatedBy
       }
     }
   }
@@ -782,7 +780,7 @@ export function mapStudentApiError(error: unknown): string {
     }
 
     if (error.code === "VALIDATION_ERROR") {
-      return "Dados invalidos. Revise os campos informados.";
+      return error.message || "Dados invalidos. Revise os campos informados.";
     }
 
     if (error.code === "AUTH_NOT_AUTHORIZED") {
@@ -822,13 +820,8 @@ function toDateOnly(value?: string | null) {
 
 function buildUpdateStudentInput(current: StudentRecord, payload: StudentFormPayload) {
   const input: {
-    personId?: string;
     notes?: string;
   } = {};
-
-  if (current.personId !== payload.personId) {
-    input.personId = payload.personId;
-  }
 
   if ((current.notes ?? "") !== (payload.notes ?? "")) {
     input.notes = normalizeOptional(payload.notes);
@@ -1181,6 +1174,20 @@ export async function saveStudent(studentId: string | null, payload: StudentForm
   const currentStudent = await getStudentById(studentId);
   if (!currentStudent) {
     throw new GraphQLRequestError("Aluno nao encontrado.", "STUDENT_NOT_FOUND");
+  }
+
+  if (currentStudent.personId !== payload.personId && currentStudent.guardians.length > 0) {
+    throw new GraphQLRequestError(
+      "A pessoa vinculada ao aluno nao pode ser alterada quando ha responsaveis vinculados.",
+      "VALIDATION_ERROR"
+    );
+  }
+
+  if (currentStudent.personId !== payload.personId) {
+    throw new GraphQLRequestError(
+      "Nao foi possivel alterar a pessoa do aluno porque o contrato atual do backend nao permite essa atualizacao.",
+      "VALIDATION_ERROR"
+    );
   }
 
   const updateStudentInput = buildUpdateStudentInput(currentStudent, payload);

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Eye, Loader2, Plus, Save, Trash2, X } from "lucide-react";
+import { AlertCircle, Eye, Loader2, Plus, Save, Trash2, User, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -82,6 +82,7 @@ export function StudentRegistrationView() {
   const [courseEndDate, setCourseEndDate] = useState("");
   const [isPersonModalOpen, setIsPersonModalOpen] = useState(false);
   const [isPersonDetailsModalOpen, setIsPersonDetailsModalOpen] = useState(false);
+  const [isPersonLockInfoModalOpen, setIsPersonLockInfoModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [isCourseDetailsModalOpen, setIsCourseDetailsModalOpen] = useState(false);
   const [isLoadingStudent, setIsLoadingStudent] = useState(isEditMode && Boolean(studentId));
@@ -94,6 +95,8 @@ export function StudentRegistrationView() {
   const [isSuccessModalLoading, setIsSuccessModalLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("Cadastro realizado com sucesso.");
   const [successRedirectPath, setSuccessRedirectPath] = useState("/alunos/pesquisa");
+  const hasLinkedGuardians = guardians.length > 0;
+  const isStudentPersonLocked = isEditMode && hasLinkedGuardians;
 
   const {
     register,
@@ -581,10 +584,21 @@ export function StudentRegistrationView() {
                       onClick={() => setIsPersonDetailsModalOpen(true)}
                       type="button"
                     >
-                      <Eye className="size-4" />
+                      <User className="size-4" />
                     </button>
+                    {isStudentPersonLocked ? (
+                      <button
+                        aria-label="Ver observacao de bloqueio da pessoa do aluno"
+                        className="inline-flex items-center justify-center text-[var(--color-muted-foreground)] transition hover:text-[var(--color-foreground)]"
+                        onClick={() => setIsPersonLockInfoModalOpen(true)}
+                        type="button"
+                      >
+                        <AlertCircle className="size-4" />
+                      </button>
+                    ) : null}
                   </div>
                   <PersonAutocomplete
+                    disabled={isStudentPersonLocked}
                     label="Pessoa"
                     onCreateNew={handleCreateStudentPerson}
                     onOpenModal={() => setIsPersonModalOpen(true)}
@@ -866,6 +880,30 @@ export function StudentRegistrationView() {
                   <p className="mt-1 text-sm text-[var(--color-foreground)]">{selectedPerson.email}</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+      {isPersonLockInfoModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <Card className="w-full max-w-xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--color-foreground)]">Observacao</h3>
+              </div>
+              <button
+                aria-label="Fechar modal de observacao"
+                className="inline-flex size-10 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-foreground)]"
+                onClick={() => setIsPersonLockInfoModalOpen(false)}
+                type="button"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <CardContent className="space-y-4 p-6">
+              <p className="text-sm text-[var(--color-foreground)]">
+                A pessoa vinculada ao aluno não pode ser alterada após a criação
+              </p>
             </CardContent>
           </Card>
         </div>

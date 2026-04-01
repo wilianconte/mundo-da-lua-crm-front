@@ -20,6 +20,7 @@ type EntityAutocompleteProps<T> = {
   onSelect: (item: T) => void;
   placeholder?: string;
   search: (input: { query: string }) => Promise<T[]>;
+  disabled?: boolean;
   value: T | null;
 };
 
@@ -36,6 +37,7 @@ export function EntityAutocomplete<T>({
   onSelect,
   placeholder = "Pesquisar",
   search,
+  disabled = false,
   value
 }: EntityAutocompleteProps<T>) {
   const [query, setQuery] = useState("");
@@ -61,6 +63,13 @@ export function EntityAutocomplete<T>({
 
   useEffect(() => {
     let active = true;
+
+    if (disabled) {
+      setIsLoading(false);
+      setIsOpen(false);
+      setErrorMessage(null);
+      return;
+    }
 
     if (!query.trim()) {
       setIsLoading(false);
@@ -104,7 +113,7 @@ export function EntityAutocomplete<T>({
       window.clearTimeout(loadingId);
       window.clearTimeout(timeoutId);
     };
-  }, [query, excludedIdSet, value, getId, getLabel, onSearchErrorMessage, search]);
+  }, [disabled, query, excludedIdSet, value, getId, getLabel, onSearchErrorMessage, search]);
 
   useEffect(() => {
     if (!value) {
@@ -116,6 +125,7 @@ export function EntityAutocomplete<T>({
   }, [getLabel, value]);
 
   function commitSelection(item: T) {
+    if (disabled) return;
     onSelect(item);
     setQuery(getLabel(item));
     setIsOpen(false);
@@ -123,12 +133,14 @@ export function EntityAutocomplete<T>({
 
   function handleCreateNew() {
     const nextQuery = query.trim();
-    if (!nextQuery || !onCreateNew) return;
+    if (disabled || !nextQuery || !onCreateNew) return;
     setIsOpen(false);
     onCreateNew(nextQuery);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (disabled) return;
+
     if (!isOpen || !results.length) {
       if (event.key === "ArrowDown") setIsOpen(true);
       return;
@@ -159,10 +171,19 @@ export function EntityAutocomplete<T>({
   }
 
   return (
-    <div className="space-y-2" ref={rootRef}>
+    <div
+      aria-disabled={disabled}
+      className={cn("space-y-2", disabled && "opacity-90")}
+      ref={rootRef}
+    >
       <div className="flex gap-3">
         <div className="relative flex-1">
           <Input
+            className={cn(
+              disabled &&
+                "cursor-not-allowed border-[var(--color-border)] bg-[var(--color-surface-muted)] text-[var(--color-muted-foreground)]"
+            )}
+            disabled={disabled}
             onChange={(event) => {
               const nextQuery = event.target.value;
               setQuery(nextQuery);
@@ -173,12 +194,17 @@ export function EntityAutocomplete<T>({
                 setErrorMessage(null);
               }
             }}
-            onFocus={() => query && setIsOpen(true)}
+            onFocus={() => !disabled && query && setIsOpen(true)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             value={query}
           />
-          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]">
+          <div
+            className={cn(
+              "pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]",
+              disabled && "text-[var(--color-border-strong)]"
+            )}
+          >
             {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
           </div>
 
@@ -218,9 +244,11 @@ export function EntityAutocomplete<T>({
             </div>
           ) : null}
         </div>
-        <Button onClick={onOpenModal} variant="outline">
-          Busca avancada
-        </Button>
+        {!disabled ? (
+          <Button onClick={onOpenModal} variant="outline">
+            Busca avancada
+          </Button>
+        ) : null}
       </div>
     </div>
   );

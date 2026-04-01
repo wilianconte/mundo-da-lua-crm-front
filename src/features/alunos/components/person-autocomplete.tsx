@@ -11,6 +11,7 @@ type PersonAutocompleteProps = {
   onOpenModal: () => void;
   onSelect: (person: MockPerson) => void;
   placeholder?: string;
+  disabled?: boolean;
   value: MockPerson | null;
 };
 
@@ -36,11 +37,13 @@ export function PersonAutocomplete({
   onOpenModal,
   onSelect,
   placeholder = "Pesquisar por nome, documento ou telefone",
+  disabled = false,
   value
 }: PersonAutocompleteProps) {
   return (
     <EntityAutocomplete<MockPerson>
       createNewLabel="Cadastrar nova pessoa"
+      disabled={disabled}
       emptyMessage="Nenhum resultado encontrado."
       excludedIds={excludedPersonIds}
       getDescription={mapPersonDescription}
