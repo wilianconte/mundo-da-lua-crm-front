@@ -822,8 +822,13 @@ function toDateOnly(value?: string | null) {
 
 function buildUpdateStudentInput(current: StudentRecord, payload: StudentFormPayload) {
   const input: {
+    personId?: string;
     notes?: string;
   } = {};
+
+  if (current.personId !== payload.personId) {
+    input.personId = payload.personId;
+  }
 
   if ((current.notes ?? "") !== (payload.notes ?? "")) {
     input.notes = normalizeOptional(payload.notes);

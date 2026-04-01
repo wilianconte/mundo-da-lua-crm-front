@@ -88,6 +88,7 @@ export function PersonRegistrationView() {
   const personId = searchParams.get("id");
   const returnTo = searchParams.get("returnTo");
   const prefillName = searchParams.get("prefillName");
+  const createdPersonTarget = searchParams.get("createdPersonTarget");
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("Cadastro realizado com sucesso.");
   const [successRedirectPath, setSuccessRedirectPath] = useState("/pessoas/pesquisa");
@@ -237,6 +238,9 @@ export function PersonRegistrationView() {
         if (returnTo) {
           const nextParams = new URLSearchParams(returnTo.includes("?") ? returnTo.split("?")[1] : "");
           nextParams.set("createdPersonId", createdPerson.id);
+          if (createdPersonTarget) {
+            nextParams.set("createdPersonTarget", createdPersonTarget);
+          }
           const basePath = returnTo.split("?")[0] || "/pessoas/pesquisa";
           setSuccessRedirectPath(nextParams.toString() ? `${basePath}?${nextParams.toString()}` : basePath);
         } else {

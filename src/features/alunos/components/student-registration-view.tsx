@@ -35,6 +35,7 @@ import { studentFormSchema, type StudentFormSchema } from "@/features/alunos/sch
 import { cn } from "@/lib/utils/cn";
 
 type StudentTabKey = "general" | "courses" | "guardians" | "health" | "authorizations" | "history";
+type CreatedPersonTarget = "student" | "guardian";
 
 const tabs: Array<{ key: StudentTabKey; label: string; description: string }> = [
   { key: "general", label: "Dados gerais", description: "Cadastro principal do aluno e pessoa vinculada." },
@@ -69,6 +70,7 @@ export function StudentRegistrationView() {
   const studentId = searchParams.get("id");
   const restoreStateKey = searchParams.get("restoreState");
   const createdPersonId = searchParams.get("createdPersonId");
+  const createdPersonTarget = searchParams.get("createdPersonTarget");
   const createdCourseId = searchParams.get("createdCourseId");
   const hasRestoredStateRef = useRef(false);
   const [selectedTab, setSelectedTab] = useState<StudentTabKey>("general");
@@ -203,16 +205,21 @@ export function StudentRegistrationView() {
     }
 
     if (createdPersonId) {
-      getStudentPersonById(createdPersonId)
-        .then((person) => {
-          if (!person) return;
-          setSelectedPerson(person);
-          setValue("personId", person.id, { shouldValidate: true, shouldDirty: true });
-          setFormError(null);
-        })
-        .catch(() => {
-          setFormError("Pessoa recem-cadastrada nao encontrada para vincular ao aluno.");
-        });
+      const target: CreatedPersonTarget =
+        createdPersonTarget === "guardian" ? "guardian" : "student";
+
+      if (target === "student") {
+        getStudentPersonById(createdPersonId)
+          .then((person) => {
+            if (!person) return;
+            setSelectedPerson(person);
+            setValue("personId", person.id, { shouldValidate: true, shouldDirty: true });
+            setFormError(null);
+          })
+          .catch(() => {
+            setFormError("Pessoa recem-cadastrada nao encontrada para vincular ao aluno.");
+          });
+      }
     }
 
     if (createdCourseId) {
@@ -230,10 +237,11 @@ export function StudentRegistrationView() {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("restoreState");
     nextParams.delete("createdPersonId");
+    nextParams.delete("createdPersonTarget");
     nextParams.delete("createdCourseId");
     const nextUrl = nextParams.toString() ? `/alunos/cadastro?${nextParams.toString()}` : "/alunos/cadastro";
     router.replace(nextUrl);
-  }, [createdCourseId, createdPersonId, restoreStateKey, reset, router, searchParams, setValue]);
+  }, [createdCourseId, createdPersonId, createdPersonTarget, restoreStateKey, reset, router, searchParams, setValue]);
 
   function handlePersonSelected(person: MockPerson) {
     setSelectedPerson(person);
@@ -241,7 +249,7 @@ export function StudentRegistrationView() {
     setFormError(null);
   }
 
-  function handleCreatePersonFromStudent(query: string) {
+  function handleCreatePersonFromStudent(query: string, target: CreatedPersonTarget) {
     if (typeof window === "undefined") {
       router.push("/pessoas/cadastro");
       return;
@@ -264,6 +272,7 @@ export function StudentRegistrationView() {
     const returnParams = new URLSearchParams(searchParams.toString());
     returnParams.delete("restoreState");
     returnParams.delete("createdPersonId");
+    returnParams.delete("createdPersonTarget");
     returnParams.delete("createdCourseId");
     returnParams.set("restoreState", stateKey);
     const returnTo = `/alunos/cadastro${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
@@ -271,7 +280,16 @@ export function StudentRegistrationView() {
     const personParams = new URLSearchParams();
     personParams.set("returnTo", returnTo);
     personParams.set("prefillName", query.trim());
+    personParams.set("createdPersonTarget", target);
     router.push(`/pessoas/cadastro?${personParams.toString()}`);
+  }
+
+  function handleCreateStudentPerson(query: string) {
+    handleCreatePersonFromStudent(query, "student");
+  }
+
+  function handleCreateGuardianPerson(query: string) {
+    handleCreatePersonFromStudent(query, "guardian");
   }
 
   function handleCreateCourseFromStudent(query: string) {
@@ -568,7 +586,7 @@ export function StudentRegistrationView() {
                   </div>
                   <PersonAutocomplete
                     label="Pessoa"
-                    onCreateNew={handleCreatePersonFromStudent}
+                    onCreateNew={handleCreateStudentPerson}
                     onOpenModal={() => setIsPersonModalOpen(true)}
                     onSelect={handlePersonSelected}
                     value={selectedPerson}
@@ -724,7 +742,7 @@ export function StudentRegistrationView() {
             <GuardiansEditor
               guardians={guardians}
               onChange={setGuardians}
-              onCreateGuardianPerson={handleCreatePersonFromStudent}
+              onCreateGuardianPerson={handleCreateGuardianPerson}
               onRemoveGuardian={handleRemoveGuardian}
             />
           ) : null}

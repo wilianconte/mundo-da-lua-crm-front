@@ -4,368 +4,408 @@ Data da auditoria: 2026-03-31
 
 ## Resumo executivo
 
-O projeto tem uma base arquitetural promissora: `Next.js` com `App Router`, uma camada oficial de GraphQL (`src/lib/graphql/client.ts` + `app/api/graphql/route.ts`), tokens centrais em `app/globals.css` e alguns composites reutilizaveis ja consolidados, como `FeatureViewHeader`, `TokenizedSearchFilters`, `SearchResultsTable` e `EntityAutocomplete`.
+O front evoluiu desde o levantamento anterior. Tres achados antigos nao se sustentam mais no codigo atual:
 
-O principal problema hoje nao e a ausencia de padrao, e sim a coexistencia de tres estados de maturidade no mesmo front:
+- `proxy.ts` agora existe e faz gate server-side de sessao.
+- `npm run lint` nao esta mais quebrado por script invalido; ele falha por um warning real.
+- `usuarios` ja implementa create, update e delete com GraphQL.
 
-- fluxos integrados e relativamente maduros, como `pessoas`
-- fluxos parcialmente integrados, como `usuarios`, `alunos`, `cursos` e `empresas`
-- fluxos claramente demonstrativos ou placeholder convivendo no produto, como `clientes`, `/components` e varios itens de navegacao
+Mesmo assim, o projeto ainda tem riscos relevantes em quatro frentes:
 
-Os riscos mais relevantes para atuacao futura sao:
+1. a esteira local de qualidade esta quebrada: `lint`, `tsc` e `build` falham;
+2. autorizacao continua dependente do cliente e falha aberta quando permissoes nao carregam;
+3. alguns CRUDs persistem dados em varias mutacoes sem rollback, abrindo espaco para estado parcial;
+4. `alunos` ainda mistura naming de mock, compatibilidades temporarias, N+1 e reuso compartilhado no dominio errado.
 
-- protecao da area autenticada ainda dependente de cliente
-- CRUD de usuarios exposto com comportamento incompleto
-- acoplamento excessivo e nomenclatura enganosa no modulo de `alunos`
-- pipeline de validacao quebrado
-- duplicacao de modais, lookups e shells de CRUD sem uma consolidacao controlada
+Em paralelo, seguem ativos problemas de padrao e consolidacao: modais repetidos, token semantico de erro ausente, fluxo publico de `criar-conta`/`esqueci-senha` apenas simulado, `clientes` ainda demonstrativo dentro da arvore principal e documentacao bootstrap desalinhada com a arquitetura atual.
 
 ## Visao geral da arquitetura atual
 
-- `app/` esta sendo usado corretamente como camada de rotas e layouts.
-- `src/features/` concentra comportamento por dominio, mas ainda existem vazamentos entre dominios.
-- `src/components/ui/` tem primitives simples e consistentes.
-- `src/features/shared/components/` ja concentra parte do reuso real de busca, tabela e autocomplete.
-- `pessoas` e a referencia mais consistente de CRUD integrado.
-- `usuarios` e `alunos` ainda misturam partes de producao com adaptacoes temporarias e componentes emprestados.
-- Nao existe `middleware.ts`; a area privada depende de `DashboardAuthGuard`.
-- Nao ha `tests/`, `stories/` ou scripts ativos de teste automatizado no repositorio.
+- `app/` esta bem usado como camada de rotas finas; as `page.tsx` apenas compoem as views da feature.
+- O caminho oficial de dados esta correto: browser -> `app/api/graphql/route.ts` -> backend GraphQL, com `src/lib/graphql/client.ts` centralizando auth, refresh token e tratamento de erro.
+- A sessao segue o padrao novo do projeto: `localStorage`, sincronizacao de cookies `httpOnly` via `app/api/auth/session/route.ts` e assinatura em `src/lib/auth/server-session-signature.ts`.
+- `proxy.ts` ja protege a area privada por sessao valida, mas ainda nao aplica autorizacao por permissao no request.
+- `src/features/pessoas`, `src/features/cursos`, `src/features/empresas`, `src/features/usuarios` e `src/features/grupos` ja estao integrados por GraphQL.
+- `src/features/alunos` ainda esta em estado hibrido: usa GraphQL real, mas mantem naming, tipos e trechos de compatibilidade herdados de uma fase mock.
+- `src/features/shared/components` ja consolidou reuso real para busca (`TokenizedSearchFilters`, `SearchResultsTable`, `EntityAutocomplete`), mas `clientes` e parte de `alunos` ainda seguem patterns paralelos.
+- A maior parte das telas operacionais continua client-first: as rotas App Router sao wrappers server-side de views `"use client"` que carregam dados em `useEffect`.
 
 ## Achados por severidade
 
+### Critico
+
+#### 1. Build e typecheck do projeto estao quebrados
+
+- Severidade: `critico`
+- Categoria: `bug`
+- Titulo curto: Build bloqueado por erros de tipagem em navegacao, auth publica e grupos
+- Descricao objetiva: o repositorio nao passa em `npx tsc --noEmit` nem em `npm run build`. O erro principal esta em `sidebar-nav`, mas ha tambem erro de tipagem no `sign-up-form` e em `group-registration-view`.
+- Evidencia:
+  - `src/components/layout/sidebar-nav.tsx:31-53`
+  - `src/components/layout/sidebar-nav.tsx:59-80`
+  - `src/features/auth/components/sign-up-form.tsx:79-110`
+  - `src/features/grupos/components/group-registration-view.tsx:180-190`
+  - Validacao local: `npx tsc --noEmit`
+  - Validacao local: `npm run build`
+- Impacto tecnico e/ou funcional:
+  - o build de producao nao conclui;
+  - qualquer deploy fica bloqueado;
+  - erros de tipagem basicos deixam de ser uma rede minima de seguranca.
+- Recomendacao pratica:
+  - corrigir primeiro `sidebar-nav` para remover `null` do retorno inferido e ajustar os predicates;
+  - alinhar o `defaultValues.companyType` do `sign-up-form` com o tipo transformado do schema;
+  - estreitar `roleId` antes do `getRoleById` no `group-registration-view`.
+- Sugestao de generalizacao/reuso:
+  - adicionar `typecheck` explicito em `package.json` e usa-lo como validacao obrigatoria antes de merge.
+
 ### Alto
 
-#### 1. Protecao da area autenticada depende de guard client-side
+#### 2. Autorizacao de rota continua client-side e falha aberta quando permissoes nao carregam
 
 - Severidade: `alto`
 - Categoria: `arquitetura`
-- Titulo: Protecao de rota privada ocorre apenas no cliente
-- Descricao: o layout autenticado envolve todo o dashboard com `DashboardAuthGuard`, que valida sessao apenas via `localStorage` em `useEffect`.
+- Titulo curto: Gate server-side valida sessao, mas nao autorizacao
+- Descricao objetiva: `proxy.ts` so valida sessao. A autorizacao por permissao acontece no cliente em `DashboardAuthGuard`, e quando a carga de permissoes falha ou volta vazia o componente simplesmente mantem a rota aberta.
 - Evidencia:
-  - `app/(dashboard)/layout.tsx:1-12`
-  - `src/features/auth/components/dashboard-auth-guard.tsx:12-36`
-  - nenhum `middleware.ts` encontrado no repositorio
-- Impacto:
-  - a protecao nao acontece na borda nem no servidor
-  - a UX inicial depende de hidratacao e pode gerar tela vazia antes do redirect
-  - qualquer futura pagina server-first dentro do dashboard fica sem uma barreira real de acesso no request
-- Recomendacao:
-  - introduzir protecao de rota em `middleware.ts` ou outra camada server-side oficial
-  - manter o guard client-side apenas como reforco de UX, nao como mecanismo primario
+  - `proxy.ts:85-98`
+  - `src/features/auth/components/dashboard-auth-guard.tsx:34-63`
+  - `src/components/layout/sidebar-nav.tsx:299-310`
+- Impacto tecnico e/ou funcional:
+  - a rota privada ja chega a ser renderizada antes do redirect por permissao;
+  - se `myPermissions` falhar, o guard nao bloqueia a rota;
+  - a navegacao inicialmente cai em `navigationItems` completos antes do filtro por permissao.
+- Recomendacao pratica:
+  - mover o gate de permissao para uma camada server-side confiavel, ou propagar claims/permissoes assinadas para o request;
+  - no cliente, falhar fechado enquanto permissoes nao estiverem resolvidas;
+  - evitar renderizar o menu completo antes da permissao estar carregada.
 - Sugestao de generalizacao/reuso:
-  - criar uma estrategia unica de auth gate para App Router, em vez de cada rota depender de checagem local
+  - consolidar um unico auth/permission gate para App Router, em vez de separar sessao no servidor e autorizacao no cliente.
 
-#### 2. CRUD de usuarios esta exposto com comportamento incompleto e perda funcional de dados
+#### 3. Endereco de empresa ficou obrigatorio por acidente, contrariando a UX da propria tela
 
 - Severidade: `alto`
 - Categoria: `bug`
-- Titulo: tela de usuarios promete create/edit/delete/grupos, mas implementa apenas create parcial
-- Descricao: a UI de `usuarios` exibe abas, estado ativo, grupos e fluxo de edicao, mas o submit so cria usuario, nao envia `groups`, nao envia `isActive`, nao atualiza e nao exclui.
+- Titulo curto: `country: "BR"` transforma endereco opcional em obrigatorio
+- Descricao objetiva: o formulario de empresa inicia `country` com `"BR"`. Como o schema considera qualquer valor de endereco como sinal de que o bloco foi preenchido, isso torna rua, bairro, cidade, UF e CEP obrigatorios mesmo quando a tela descreve o endereco como opcional.
 - Evidencia:
-  - `src/features/usuarios/components/user-registration-view.tsx:195-205`
-  - `src/features/usuarios/components/user-registration-view.tsx:212-219`
-  - `src/features/usuarios/components/user-registration-view.tsx:377-410`
-  - `src/features/usuarios/api/user-upsert.ts:31-45`
-  - `src/features/usuarios/schema/user-registration-schema.ts:11-23`
-  - `src/features/usuarios/api/get-user-by-id.ts:3-15`
-- Impacto:
-  - a tela induz o usuario a configurar grupos e estado ativo que nao sao persistidos
-  - a rota de edicao existe, mas retorna mensagem de indisponibilidade
-  - a acao de exclusao existe na UI, mas nao executa nada
-- Recomendacao:
-  - reduzir a superficie da tela para o que o backend suporta hoje, ou completar o contrato do CRUD de usuarios
-  - remover da UI os campos/abas nao persistidos ate haver suporte real
+  - `src/features/empresas/components/company-registration-view.tsx:93-120`
+  - `src/features/empresas/components/company-registration-view.tsx:221-235`
+  - `src/features/empresas/components/company-registration-view.tsx:553-559`
+  - `src/features/empresas/schema/company-registration-schema.ts:53-86`
+- Impacto tecnico e/ou funcional:
+  - a UX real contradiz a descricao da aba;
+  - o cadastro de empresa pode falhar sem que o usuario espere que endereco seja obrigatorio;
+  - o contrato de persistencia fica ambiguo entre schema e `persistAddress`.
+- Recomendacao pratica:
+  - definir `country` vazio por padrao e preencher `BR` apenas quando o usuario iniciar o bloco;
+  - ou tornar o endereco realmente obrigatorio na copia e no comportamento da tela, se essa for a regra de negocio desejada.
 - Sugestao de generalizacao/reuso:
-  - aplicar o mesmo shell de CRUD usado em `pessoas` apenas quando create/edit/delete estiverem realmente disponiveis
+  - criar um helper compartilhado para blocos de endereco opcionais, evitando repetir refinements e defaults inconsistentes.
 
-#### 3. `student-mock-service.ts` mistura mock, compatibilidade e producao na mesma unidade
+#### 4. Empresas, grupos e alunos persistem dados em varias mutacoes sem rollback
+
+- Severidade: `alto`
+- Categoria: `bug`
+- Titulo curto: Fluxos multi-etapa deixam estado parcial no backend em caso de falha intermediaria
+- Descricao objetiva: alguns cadastros criam/atualizam a entidade principal e depois executam mutacoes adicionais para endereco, permissoes, cursos e responsaveis. Se a segunda etapa falhar, o front deixa o registro parcialmente salvo.
+- Evidencia:
+  - `src/features/empresas/components/company-registration-view.tsx:221-279`
+  - `src/features/grupos/components/group-registration-view.tsx:274-295`
+  - `src/features/alunos/api/student-mock-service.ts:1111-1162`
+  - `src/features/alunos/api/student-mock-service.ts:1189-1254`
+- Impacto tecnico e/ou funcional:
+  - empresa pode ser criada/atualizada sem endereco;
+  - grupo pode ser salvo sem o conjunto final de permissoes;
+  - aluno pode ficar com parte das matriculas/responsaveis aplicada e parte nao.
+- Recomendacao pratica:
+  - preferir uma mutacao orquestradora unica por dominio quando o backend suportar;
+  - se isso ainda nao existir, implementar compensacao explicita ou UX de erro que informe o estado parcial e permita reconciliacao segura.
+- Sugestao de generalizacao/reuso:
+  - padronizar um pequeno orquestrador por feature para fluxos multi-etapa, com retorno padronizado de erro parcial.
+
+#### 5. `alunos` ainda mistura mock, GraphQL real, compatibilidade e N+1 na mesma camada
 
 - Severidade: `alto`
 - Categoria: `arquitetura`
-- Titulo: modulo de alunos tem fronteira de dominio confusa e nome enganoso
-- Descricao: `src/features/alunos/api/student-mock-service.ts` concentra tipos `Mock*`, arrays mock, mapeamentos temporarios, fallbacks de compatibilidade e chamadas GraphQL reais para leitura/escrita.
+- Titulo curto: Dominio de alunos segue hibrido e caro de manter
+- Descricao objetiva: `student-mock-service.ts` continua nomeado e tipado como mock, mas executa queries/mutations reais, mantem arrays mock locais, compatibilidades temporarias e ainda faz composicao de dados com multiplas chamadas adicionais por registro.
 - Evidencia:
-  - `src/features/alunos/api/student-mock-service.ts:1-5`
-  - `src/features/alunos/api/student-mock-service.ts:19-60`
+  - `src/features/alunos/api/student-mock-service.ts:19-32`
   - `src/features/alunos/api/student-mock-service.ts:119-139`
-  - `src/features/alunos/api/student-mock-service.ts:798-1260`
-  - `src/features/alunos/components/student-search-view.tsx:9-20`
-- Impacto:
-  - aumenta custo de manutencao e teste
-  - mascara o que e fluxo real vs. temporario
-  - facilita vazamento de tipos e componentes de `alunos` para outras features
-- Recomendacao:
-  - separar `types`, `queries`, `mutations`, `mappers` e eventuais `fallbacks` em arquivos distintos
-  - renomear a camada para refletir o estado real da integracao quando a reorganizacao acontecer
+  - `src/features/alunos/api/student-mock-service.ts:258-305`
+  - `src/features/alunos/api/student-mock-service.ts:866-903`
+  - `src/features/alunos/api/student-mock-service.ts:1038-1099`
+  - `src/features/alunos/components/student-registration-view.tsx:13-25`
+  - `src/features/alunos/components/student-registration-view.tsx:39-45`
+  - `src/features/alunos/components/student-registration-view.tsx:441-462`
+- Impacto tecnico e/ou funcional:
+  - aumenta risco de regressao ao misturar contratos temporarios e definitivos;
+  - encarece manutencao, leitura e teste;
+  - `getStudentById` faz N+1 para pessoas e cursos vinculados;
+  - o naming engana sobre o estado real da integracao.
+- Recomendacao pratica:
+  - quebrar a feature em `types`, `queries`, `mutations`, `mappers` e `compat`;
+  - remover arrays e naming `Mock*` da camada produtiva;
+  - reduzir N+1 puxando dados relacionados em consultas mais adequadas ou batch.
 - Sugestao de generalizacao/reuso:
-  - reaproveitar apenas os tipos/view-models realmente compartilhaveis; mocks nao devem ser a linguagem comum do produto
+  - extrair view-models neutros de selecao e leitura detalhada para `shared` ou para os dominios corretos (`pessoas` e `cursos`), nao para `alunos`.
 
 ### Medio
 
-#### 4. Pipeline de validacao local esta quebrado e o repositorio esta sem trilha automatizada minima
-
-- Severidade: `medio`
-- Categoria: `teste`
-- Titulo: `npm run lint` nao funciona e nao ha base de testes/catalogo prometida pela arquitetura
-- Descricao: o script de lint configurado no projeto nao executa no ambiente atual, e o repositorio nao possui `tests/` nem `stories/`.
-- Evidencia:
-  - `package.json:10`
-  - `README.md:24-33`
-  - execucao local: `npm run lint` retornou `Invalid project directory provided ... front\\lint`
-  - `Test-Path tests` => `False`
-  - `Test-Path stories` => `False`
-- Impacto:
-  - o principal comando de validacao documentado falha
-  - regressao arquitetural e de UX passa sem rede minima de seguranca
-- Recomendacao:
-  - corrigir o script oficial de lint
-  - definir uma esteira minima com lint funcional e ao menos testes para utilitarios, schemas e fluxos criticos
-- Sugestao de generalizacao/reuso:
-  - usar uma base unica de validacao para todos os dominios, em vez de depender de checagem manual por feature
-
-#### 5. Modais e dialogs foram duplicados em varias features sem primitive acessivel comum
-
-- Severidade: `medio`
-- Categoria: `acessibilidade`
-- Titulo: dialogs ad hoc repetidos sem foco, `aria-modal` e comportamento consistente
-- Descricao: confirmacoes, sucesso e buscas avancadas foram implementados manualmente em varias telas, com markup semelhante e sem primitive central.
-- Evidencia:
-  - `src/features/pessoas/components/person-registration-view.tsx:532-589`
-  - `src/features/cursos/components/course-registration-view.tsx:430-487`
-  - `src/features/empresas/components/company-registration-view.tsx:657-680`
-  - `src/features/alunos/components/person-search-modal.tsx:165-274`
-  - `src/features/alunos/components/student-registration-view.tsx:856-944`
-- Impacto:
-  - comportamento inconsistente entre modulos
-  - risco de falhas de teclado, foco e leitores de tela
-  - custo alto de manutencao para ajustes visuais/comportamentais
-- Recomendacao:
-  - extrair um primitive de `Dialog/Modal` em `src/components/ui` ou `src/components/feedback`
-  - padronizar `aria-modal`, titulo associado, gerenciamento de foco, Escape e overlay
-- Sugestao de generalizacao/reuso:
-  - esse e o melhor ponto de consolidacao imediata no front hoje
-
-#### 6. `SearchResultsTable` exibe um menu contextual com acoes fantasmas
-
-- Severidade: `medio`
-- Categoria: `bug`
-- Titulo: menu contextual sugere capacidades que nao existem
-- Descricao: o menu da tabela mostra acoes como classificar, agrupar, mover coluna e IA, mas o click efetivamente so executa `hide-column` quando disponivel; o restante apenas fecha o menu.
-- Evidencia:
-  - `src/features/shared/components/search-results-table.tsx:160-169`
-  - `src/features/shared/components/search-results-table.tsx:369-374`
-- Impacto:
-  - cria falsa expectativa para o usuario
-  - aumenta a sensacao de produto incompleto
-  - dificulta confiar no comportamento do componente compartilhado
-- Recomendacao:
-  - remover itens nao implementados ou implementar o comportamento real
-  - expor no componente apenas capacidades que cada tela de fato suporta
-- Sugestao de generalizacao/reuso:
-  - transformar o menu em extensivel por props, para cada feature registrar apenas as acoes reais
-
-#### 7. Token de erro usado pelo front nao existe no tema
+#### 6. Fluxos publicos de `criar-conta` e `esqueci-senha` seguem simulados e fora do padrao oficial
 
 - Severidade: `medio`
 - Categoria: `padrao`
-- Titulo: `--color-danger-strong` e usado em varias telas, mas nao e definido em `globals.css`
-- Descricao: o design system usa uma cor sem token correspondente, o que quebra a previsibilidade dos estados de erro.
+- Titulo curto: Auth publica secundaria ainda nao conversa com GraphQL
+- Descricao objetiva: `sign-up` e `forgot-password` apenas simulam sucesso local com `setTimeout`. Alem disso, `sign-up` e o botao de Google no login expoem copy de placeholder em rotas publicas reais.
 - Evidencia:
-  - `app/globals.css:3-35`
-  - `src/components/ui/button.tsx:23-25`
-  - `src/features/pessoas/components/person-search-view.tsx:571`
-  - `src/features/empresas/components/company-registration-view.tsx:370`
-  - `src/features/usuarios/components/user-search-view.tsx:409`
-- Impacto:
-  - erros podem herdar cor inesperada ou renderizar com fallback inconsistente
-  - o design system deixa de ser fonte confiavel para estados semanticos
-- Recomendacao:
-  - definir os tokens faltantes de erro/alerta/info no tema
-  - evitar referencias a variaveis sem declaracao central
+  - `src/features/auth/components/sign-up-form.tsx:109-118`
+  - `src/features/auth/components/sign-up-form.tsx:492-505`
+  - `src/features/auth/components/forgot-password-form.tsx:31-37`
+  - `src/features/auth/components/login-form.tsx:88-90`
+- Impacto tecnico e/ou funcional:
+  - o usuario acessa rotas que parecem prontas, mas nao executam fluxo real;
+  - o frontend foge do padrao oficial de comunicacao exclusiva por GraphQL;
+  - o warning de `watch()` em `sign-up-form` hoje derruba o `lint`.
+- Recomendacao pratica:
+  - esconder ou marcar explicitamente essas rotas como indisponiveis ate existir contrato real;
+  - quando o backend estiver pronto, integrar pelo caminho oficial de GraphQL.
 - Sugestao de generalizacao/reuso:
-  - consolidar um conjunto completo de feedback tokens antes de extrair mais componentes
+  - padronizar um status de feature alpha/placeholder para rotas publicas ainda nao integradas.
 
-#### 8. Shared components centrais ja falham no ESLint por `setState` dentro de effect e dependencia faltante
+#### 7. App Router esta sendo usado com paginas server-thin e carregamento majoritariamente client-side
 
 - Severidade: `medio`
 - Categoria: `performance`
-- Titulo: efeitos em componentes compartilhados estao causando warnings/erros estruturais
-- Descricao: `admin-shell`, `entity-autocomplete` e modais de busca fazem `setState` sincrono em `useEffect`, o que ja quebra a validacao atual de React Hooks.
+- Titulo curto: CRUDs principais continuam client-first
+- Descricao objetiva: as rotas do dashboard sao server components finos, mas as views operacionais sao quase todas `"use client"` e fazem a primeira busca em `useEffect`, inclusive listagens e telas de edicao.
 - Evidencia:
-  - `src/components/layout/admin-shell.tsx:56-69`
-  - `src/features/shared/components/entity-autocomplete.tsx:65-107`
-  - `src/features/alunos/components/person-search-modal.tsx:68-100`
-  - `src/features/alunos/components/course-search-modal.tsx:78-106`
-  - `npx eslint app src --ext .ts,.tsx` retornou 17 problemas, incluindo `react-hooks/set-state-in-effect` e `react-hooks/exhaustive-deps`
-- Impacto:
-  - piora de renderizacao e hidradacao
-  - mais dificuldade para endurecer a esteira de lint
-  - propagacao do problema para qualquer tela que consuma esses componentes
-- Recomendacao:
-  - recalcular estado inicial fora de effects quando possivel
-  - migrar para callbacks/eventos assincronos e revisar dependencias reais dos hooks
+  - `app/(dashboard)/pessoas/pesquisa/page.tsx:1-4`
+  - `src/features/pessoas/components/person-search-view.tsx:1`
+  - `src/features/pessoas/components/person-search-view.tsx:280-331`
+  - `app/(dashboard)/usuarios/pesquisa/page.tsx:1-4`
+  - `src/features/usuarios/components/user-search-view.tsx:1`
+  - `src/features/usuarios/components/user-search-view.tsx:204-256`
+  - `src/features/empresas/components/company-search-view.tsx:155-273`
+  - `src/features/cursos/components/course-search-view.tsx:165-257`
+  - `src/features/grupos/components/group-search-view.tsx:103-217`
+- Impacto tecnico e/ou funcional:
+  - mais JS hidratado do que o necessario;
+  - primeira carga depende do cliente para dados que poderiam ser resolvidos antes;
+  - o projeto fica menos alinhado ao padrao server-first definido localmente.
+- Recomendacao pratica:
+  - migrar a carga inicial das listagens e dos detalhes de edicao para server components gradualmente;
+  - deixar no cliente apenas filtros, interacoes densas e formulacao local.
 - Sugestao de generalizacao/reuso:
-  - corrigir primeiro os componentes compartilhados; varias telas melhoram em cascata
+  - criar um baseline de page server-first para listagem e edicao, reaproveitavel nos CRUDs integrados.
 
-#### 9. `clientes` continua como modulo demonstrativo, mas segue no mesmo padrao de pastas do produto real
-
-- Severidade: `medio`
-- Categoria: `manutenibilidade`
-- Titulo: `clientes` duplica patterns antigos e reforca um baseline incorreto
-- Descricao: o dominio `clientes` usa dataset hardcoded, filtro local e submit demonstrativo, sem a camada oficial de GraphQL nem os composites compartilhados.
-- Evidencia:
-  - `README.md:75-81`
-  - `src/features/clientes/components/client-search-view.tsx:59-158`
-  - `src/features/clientes/components/client-registration-view.tsx:40-43`
-  - `src/features/clientes/components/client-registration-view.tsx:62-66`
-- Impacto:
-  - aumenta custo cognitivo para novos contributors
-  - mantem uma implementacao paralela dentro da mesma estrutura de features
-  - incentiva copia de um baseline que a propria skill ja marca como demonstrativo
-- Recomendacao:
-  - isolar melhor o dominio demonstrativo, ou evolui-lo para o padrao oficial, ou retirar sua aparencia de modulo pronto
-- Sugestao de generalizacao/reuso:
-  - nao extrair nada de `clientes` antes de alinhamento com `pessoas`
-
-#### 10. Lookup de pessoa reutilizavel esta enterrado em `alunos` e vazando para `usuarios`
+#### 8. Reuso real de pessoas ficou enterrado em `alunos` e vazou para `usuarios`
 
 - Severidade: `medio`
 - Categoria: `reuso`
-- Titulo: reuso real existe, mas foi centralizado no dominio errado
-- Descricao: `usuarios` consome `PersonAutocomplete`, `PersonSearchModal`, `getStudentPersonById` e `MockPerson` a partir de `alunos`, embora o dado de origem seja `pessoas`.
+- Titulo curto: Lookup compartilhado esta no dominio errado
+- Descricao objetiva: `usuarios` depende de `PersonAutocomplete`, `PersonSearchModal`, `getStudentPersonById` e `MockPerson` vindos de `alunos`, embora o dado de origem seja `pessoas`.
 - Evidencia:
   - `src/features/usuarios/components/user-registration-view.tsx:13-16`
+  - `src/features/usuarios/components/user-registration-view.tsx:42-43`
+  - `src/features/usuarios/components/user-registration-view.tsx:217-221`
+  - `src/features/alunos/api/search-student-people.ts:1-2`
+  - `src/features/alunos/api/search-student-people.ts:89-123`
   - `src/features/alunos/components/person-autocomplete.tsx:3-5`
-  - `src/features/alunos/components/person-search-modal.tsx:8-10`
-  - `src/features/alunos/api/search-student-people.ts:1-7`
-- Impacto:
-  - cria dependencia errada entre dominos
-  - torna `alunos` um pseudo modulo shared
-  - dificulta evolucao independente de `usuarios` e `pessoas`
-- Recomendacao:
-  - mover o lookup de pessoa para `src/features/shared` ou `src/features/pessoas`
-  - trocar `MockPerson` por um view-model neutro de selecao
+- Impacto tecnico e/ou funcional:
+  - cria dependencia errada entre dominios;
+  - transforma `alunos` em pseudo-shared;
+  - dificulta evolucao independente de `usuarios` e `pessoas`.
+- Recomendacao pratica:
+  - mover o lookup de pessoa para `src/features/shared` ou `src/features/pessoas`;
+  - trocar `MockPerson` por um view-model neutro de selecao.
 - Sugestao de generalizacao/reuso:
-  - este e um candidato claro para extracao compartilhada imediata
+  - o mesmo vale para o lookup de cursos, que hoje tambem esta encapsulado sob `alunos`.
+
+#### 9. `SearchResultsTable` continua exibindo menu contextual com acoes fantasmas
+
+- Severidade: `medio`
+- Categoria: `bug`
+- Titulo curto: Menu sugere capacidades que nao existem
+- Descricao objetiva: o contexto da tabela lista acoes como classificar coluna inteira, agrupar e IA, mas o click real so trata `hide-column` quando disponivel. O restante apenas fecha o menu.
+- Evidencia:
+  - `src/features/shared/components/search-results-table.tsx:160-170`
+  - `src/features/shared/components/search-results-table.tsx:354-374`
+- Impacto tecnico e/ou funcional:
+  - cria expectativa falsa de funcionalidade pronta;
+  - diminui confianca no componente compartilhado;
+  - eleva ruido de manutencao em todas as listagens que o reutilizam.
+- Recomendacao pratica:
+  - remover itens nao implementados ou implementar comportamento real;
+  - deixar o menu extensivel por props para cada listagem registrar apenas acoes suportadas.
+- Sugestao de generalizacao/reuso:
+  - transformar o contexto de coluna em API configuravel, nao em lista fixa de placeholders.
+
+#### 10. O tema nao define `--color-danger-strong`, mas o token e usado em varios fluxos
+
+- Severidade: `medio`
+- Categoria: `padrao`
+- Titulo curto: Token semantico de erro esta ausente da base visual
+- Descricao objetiva: o design system referencia `--color-danger-strong` em botoes, erros de formulario e mensagens de busca, mas `app/globals.css` nao define esse token.
+- Evidencia:
+  - `app/globals.css:3-35`
+  - `src/components/ui/button.tsx:24`
+  - `src/features/pessoas/components/person-search-view.tsx:571`
+  - `src/features/empresas/components/company-registration-view.tsx:370-643`
+- Impacto tecnico e/ou funcional:
+  - a cor de erro passa a depender de fallback do browser ou de combinacoes acidentais;
+  - o sistema de tokens perde previsibilidade para estados semanticos.
+- Recomendacao pratica:
+  - definir ao menos `danger/destructive` completo no tema base;
+  - alinhar naming dos variants e tokens semanticos.
+- Sugestao de generalizacao/reuso:
+  - fechar um conjunto minimo de feedback tokens antes de extrair mais components.
+
+#### 11. Dialogs estao duplicados e com semantica acessivel inconsistente
+
+- Severidade: `medio`
+- Categoria: `acessibilidade`
+- Titulo curto: Modais repetidos sem primitive comum e com diferencas de a11y
+- Descricao objetiva: varias features montam modais manualmente. Algumas usam `role="dialog"` e `aria-live`; outras nem isso possuem, e nenhuma centraliza foco, Escape ou `aria-modal`.
+- Evidencia:
+  - `src/features/pessoas/components/person-registration-view.tsx:532-589`
+  - `src/features/cursos/components/course-registration-view.tsx:430-487`
+  - `src/features/usuarios/components/user-registration-view.tsx:516-570`
+  - `src/features/grupos/components/group-registration-view.tsx:583-634`
+  - `src/features/alunos/components/guardians-editor.tsx:313-346`
+  - `src/features/alunos/components/student-registration-view.tsx:775-853`
+  - `src/features/empresas/components/company-registration-view.tsx:657-679`
+- Impacto tecnico e/ou funcional:
+  - comportamento desigual de teclado e leitores de tela;
+  - correcoes de estilo/comportamento precisam ser repetidas em varios pontos;
+  - regressao visual e de acessibilidade fica mais provavel.
+- Recomendacao pratica:
+  - extrair um `Dialog` base em `src/components/ui` ou `src/components/feedback`;
+  - padronizar `role`, `aria-modal`, titulo associado, foco inicial e fechamento por teclado.
+- Sugestao de generalizacao/reuso:
+  - este e o melhor candidato atual de consolidacao imediata no front.
+
+#### 12. `clientes` segue como CRUD paralelo demonstrativo dentro da estrutura produtiva
+
+- Severidade: `medio`
+- Categoria: `manutenibilidade`
+- Titulo curto: Modulo demonstrativo ainda parece baseline de produto
+- Descricao objetiva: `clientes` permanece com dataset local, filtro local, submit demonstrativo e `console.log`, mas vive na mesma estrutura de dominio dos CRUDs reais.
+- Evidencia:
+  - `README.md:80`
+  - `src/features/clientes/components/client-search-view.tsx:59-92`
+  - `src/features/clientes/components/client-search-view.tsx:130-158`
+  - `src/features/clientes/components/client-search-view.tsx:232-460`
+  - `src/features/clientes/components/client-registration-view.tsx:40-43`
+  - `src/features/clientes/components/client-registration-view.tsx:62-67`
+- Impacto tecnico e/ou funcional:
+  - aumenta custo cognitivo para onboarding;
+  - reforca um baseline errado para novos CRUDs;
+  - mantem codigo demonstrativo dentro da superficie operacional do produto.
+- Recomendacao pratica:
+  - isolar visualmente/estruturalmente `clientes` como demonstrativo;
+  - ou evoluir o modulo para o padrao oficial antes de mantelo na mesma arvore de features.
+- Sugestao de generalizacao/reuso:
+  - antes de qualquer extracao, migrar `clientes` para `TokenizedSearchFilters` e `SearchResultsTable` ou assumir explicitamente que ele nao e baseline.
+
+#### 13. Documentacao e textos de bootstrap ainda contradizem a arquitetura vigente
+
+- Severidade: `medio`
+- Categoria: `padrao`
+- Titulo curto: README e dashboard ainda falam de uma arquitetura que ja mudou
+- Descricao objetiva: o README ainda afirma ausencia de refresh token e lista apenas tres chaves de sessao. A home do dashboard ainda manda definir cookie seguro e escolher entre Apollo e urql, apesar de o projeto ja ter decisoes oficiais implementadas.
+- Evidencia:
+  - `README.md:41-47`
+  - `src/lib/auth/session.ts:47-52`
+  - `src/lib/graphql/client.ts:99-151`
+  - `proxy.ts:85-98`
+  - `src/features/dashboard/components/home-overview.tsx:161-174`
+- Impacto tecnico e/ou funcional:
+  - onboarding recebe instrucoes conflitantes;
+  - aumenta risco de reintroduzir uma segunda camada de GraphQL ou um fluxo paralelo de auth.
+- Recomendacao pratica:
+  - alinhar README e textos de bootstrap ao estado atual do projeto;
+  - remover mensagens de decisao ja encerrada.
+- Sugestao de generalizacao/reuso:
+  - manter `AGENTS.md` e skills como fonte de verdade e referenciar isso explicitamente na documentacao do repo.
 
 ### Baixo
 
-#### 11. Login ainda contem acoes mortas e credenciais demo expostas
+#### 14. A esteira de qualidade minima ainda e curta para o porte do front
 
 - Severidade: `baixo`
-- Categoria: `bug`
-- Titulo: formulario de login mistura UX real com artificios de demonstracao
-- Descricao: a tela preenche credenciais padrao, exibe o login demo em texto, mostra checkbox "Manter conectado" sem efeito e um link "Recuperar acesso" que aponta para a propria `/login`.
+- Categoria: `teste`
+- Titulo curto: Nao ha script explicito de typecheck/teste nem footprint de `tests/` ou `stories/`
+- Descricao objetiva: `package.json` expoe apenas `dev`, `build`, `start` e `lint`. O repositorio tambem nao possui `tests/` nem `stories/`, embora a arquitetura local cite Storybook e uma base de testes.
 - Evidencia:
-  - `src/features/auth/components/login-form.tsx:29-35`
-  - `src/features/auth/components/login-form.tsx:145-149`
-  - `src/features/auth/components/login-form.tsx:166`
-- Impacto:
-  - reduz credibilidade do fluxo de auth
-  - confunde comportamento esperado em producao
-- Recomendacao:
-  - remover artificios demo do fluxo principal ou esconda-los explicitamente por ambiente
-
-#### 12. Navegacao ainda aponta muitos modulos reais para a showcase `/components`
-
-- Severidade: `baixo`
-- Categoria: `responsividade`
-- Titulo: mapa de navegacao mistura arquitetura do produto com placeholder de design system
-- Descricao: dezenas de entradas de menu levam para a mesma rota de showcase, incluindo modulos operacionais importantes.
-- Evidencia:
-  - `src/config/navigation.ts:50-71`
-  - `src/config/navigation.ts:79-185`
-  - `app/(dashboard)/components/page.tsx:1-13`
-- Impacto:
-  - IA do produto fica enganosa
-  - leitura do escopo real do CRM fica distorcida
-- Recomendacao:
-  - diferenciar visualmente modulos planejados de modulos implementados
-  - evitar usar a mesma rota de components como placeholder de dominio
-
-#### 13. Documentacao interna esta desalinhada com o estado real do front
-
-- Severidade: `baixo`
-- Categoria: `padrao`
-- Titulo: README e telas bootstrap contradizem as decisoes atuais de auth e data layer
-- Descricao: a documentacao ainda afirma que nao ha refresh token e a home do dashboard fala em escolher entre Apollo e urql, apesar do projeto ja ter uma camada oficial definida.
-- Evidencia:
-  - `README.md:41-47`
-  - `src/features/dashboard/components/home-overview.tsx:167-172`
-  - `AGENTS.md:26-28`
-  - `src/lib/graphql/client.ts:105-155`
-- Impacto:
-  - novos contribuidores recebem instrucoes conflitantes
-  - aumenta risco de introduzir uma segunda camada de estado remoto
-- Recomendacao:
-  - alinhar README e textos de bootstrap com a arquitetura oficialmente vigente
-
-#### 14. Ha residuos de codigo nao utilizado ou com higiene baixa
-
-- Severidade: `baixo`
-- Categoria: `manutenibilidade`
-- Titulo: codigo morto e pequenos residuos de qualidade seguem no repositorio
-- Descricao: `user-mock-service.ts` nao e consumido por nenhuma feature ativa, `course-autocomplete.tsx` tem varias linhas em branco no final e a vitrine de system design quebra lint por aspas nao escapadas.
-- Evidencia:
-  - `src/features/usuarios/api/user-mock-service.ts:123`
-  - nenhuma referencia encontrada para `getMockUsers`
-  - `src/features/alunos/components/course-autocomplete.tsx:58-80`
-  - `src/features/system-design/components/system-design-components-showcase.tsx:172`
-- Impacto:
-  - ruido para manutencao
-  - piora do sinal da esteira de qualidade
-- Recomendacao:
-  - remover codigo morto e limpar residuos pequenos antes que virem baseline
+  - `package.json:5-10`
+  - `README.md:22-33`
+  - verificacao local: `Test-Path tests` => `False`
+  - verificacao local: `Test-Path stories` => `False`
+- Impacto tecnico e/ou funcional:
+  - gaps de regressao ficam mais dependentes de revisao manual;
+  - o build quebrado demorou a aparecer apenas na hora de rodar `tsc/build`.
+- Recomendacao pratica:
+  - adicionar `typecheck` em `package.json`;
+  - definir ao menos uma base minima para testes de schema/utilitarios e fluxos criticos.
+- Sugestao de generalizacao/reuso:
+  - consolidar uma esteira basica unica para todos os dominios integrados.
 
 ## Tabela de duplicacoes e oportunidades de generalizacao de componentes
 
 | Tema | Evidencias | Oportunidade | Prioridade |
 |---|---|---|---|
-| Primitive de modal/dialog | `person-registration`, `course-registration`, `company-registration`, `student-registration`, `person-search-modal`, `course-search-modal` | Extrair `Dialog`, `DialogHeader`, `DialogFooter` e regras de acessibilidade | Alta |
-| Lookup reutilizavel de pessoas | `user-registration`, `student-registration`, `guardians-editor`, `person-autocomplete`, `person-search-modal` | Mover para `shared` ou `pessoas`, com tipo neutro de selecao | Alta |
-| Shell de CRUD com abas laterais + header + feedback | `company-registration`, `course-registration`, `student-registration`, `user-registration` | Criar um composite de formulario tabulado apenas apos estabilizar comportamento | Media |
-| Confirmacao de exclusao + sucesso com redirect | `pessoas`, `cursos`, `empresas`, `alunos` | Extrair hooks/composites para reduzir repeticao e inconsistencias | Media |
-| Mascaras e normalizacao | `person-registration`, `company-registration` | Centralizar utilitarios de telefone, CPF/CNPJ, CEP e `normalizeOptional` | Media |
-| Search scaffold | `pessoas`, `empresas`, `cursos`, `usuarios`, `alunos` | Preservar `TokenizedSearchFilters` e `SearchResultsTable`, mas avaliar um wrapper de pagina de pesquisa | Media |
+| Primitive de dialog/modal | `person-registration`, `course-registration`, `company-registration`, `user-registration`, `group-registration`, `student-registration`, `guardians-editor` | Extrair `Dialog`, `DialogHeader`, `DialogBody`, `DialogFooter` e regras de foco/teclado | Alta |
+| Lookup compartilhado de pessoas | `user-registration`, `guardians-editor`, `student-registration`, `search-student-people`, `person-autocomplete` | Mover para `shared` ou `pessoas` com tipo neutro de selecao | Alta |
+| Lookup compartilhado de cursos | `student-registration`, `course-autocomplete`, `search-student-courses` | Criar modulo neutro de selecao de cursos fora de `alunos` | Media |
+| Shell de CRUD tabulado | `company-registration`, `course-registration`, `user-registration`, `group-registration`, `student-registration` | Extrair composicao de header + tabs laterais + feedback apos estabilizar comportamento | Media |
+| Mascaras e normalizacao | `person-registration`, `company-registration`, `sign-up-form` | Centralizar `maskPhone`, `maskCpf`, `maskCnpj`, `maskZipCode` e `normalizeOptional` | Media |
+| Scaffold de busca | `pessoas`, `empresas`, `cursos`, `usuarios`, `grupos`, `alunos` ja usam shared; `clientes` continua fora | Migrar `clientes` para `TokenizedSearchFilters` e `SearchResultsTable` ou isolalo como demonstrativo | Media |
 
 ## Quick wins
 
-- Corrigir o script `lint` oficial e restaurar um comando de validacao confiavel.
-- Definir os tokens faltantes de feedback em `app/globals.css`, principalmente erro/destructive.
-- Remover do `SearchResultsTable` as opcoes de menu ainda nao implementadas.
-- Tirar do login o link circular de recuperacao e o checkbox sem comportamento.
-- Marcar visualmente ou esconder itens de navegacao que hoje levam apenas para `/components`.
-- Remover `user-mock-service.ts` e outros residuos nao utilizados.
-
-## Melhorias estruturais de medio prazo
-
-- Introduzir protecao server-side para a area autenticada.
-- Reorganizar `alunos` em arquivos menores e remover o papel de pseudo-shared de `student-mock-service.ts`.
-- Consolidar um primitive de modal/dialog acessivel.
-- Extrair o lookup de pessoa para um modulo compartilhado neutro.
-- Definir um padrao unico para CRUDs tabulados com tabs laterais, sucesso e exclusao.
-- Completar `usuarios` ou reduzir sua UI ao que o backend suporta hoje.
-
-## Riscos, dependencias e pontos que exigem validacao posterior
-
-- A correcao da protecao de rota depende da estrategia oficial de sessao que o projeto quiser adotar para App Router.
-- `usuarios` provavelmente precisa de alinhamento com backend para update/delete/grupos.
-- `alunos` ja contem compatibilidades para schemas legados; qualquer refactor precisa preservar os contratos hoje em uso.
-- O front possui divergencia entre documentos locais; antes de novas features, vale consolidar uma unica fonte de verdade entre `AGENTS.md`, `README.md` e skills.
+- Corrigir os 6 erros de `tsc` para destravar `build`.
+- Fazer o guard de permissao falhar fechado quando `myPermissions` nao carregar.
+- Remover o default `country: "BR"` do estado inicial de empresa ou assumir endereco como obrigatorio de ponta a ponta.
+- Trocar `watch()` por `useWatch()` em `sign-up-form` para restaurar `npm run lint`.
+- Definir `--color-danger-strong` em `app/globals.css`.
+- Remover ou desabilitar itens nao implementados do menu contextual de `SearchResultsTable`.
+- Extrair um primitive de modal/dialog e migrar primeiro `empresas`, `alunos` e `usuarios`.
+- Tirar `clientes` da superficie de referencia do produto enquanto ele seguir local/demonstrativo.
+- Atualizar `README.md` e os cards de bootstrap da home.
 
 ## Validacoes executadas
 
-- Leitura de `AGENTS.md` e das referencias locais de arquitetura, auth GraphQL e CRUD.
-- Inspecao manual de `app/`, `src/`, `package.json`, `README.md`, rotas, features, shared components, auth e GraphQL.
-- Execucao de `npm run lint`.
-  - Resultado: falhou com `Invalid project directory provided ... front\\lint`.
-- Execucao de `npx eslint app src --ext .ts,.tsx`.
-  - Resultado: 17 problemas.
-  - Principais grupos:
-    - `react-hooks/set-state-in-effect` em `admin-shell`, `entity-autocomplete`, `person-search-modal`, `course-search-modal`
-    - `react-hooks/exhaustive-deps` em `entity-autocomplete`
-    - `react/no-unescaped-entities` em `system-design-components-showcase`
-- Verificacao de artefatos estruturais:
-  - `middleware.ts`: ausente
+- Leitura de `AGENTS.md` e das referencias locais:
+  - `.codex/skills/front-architecture/references/dev-admin.md`
+  - `.codex/skills/auth-graphql/references/auth-graphql.md`
+  - `.codex/skills/crud-front/references/crud-front.md`
+- Inspecao manual de:
+  - `app/`
+  - `src/`
+  - `package.json`
+  - `README.md`
+  - `proxy.ts`
+  - `src/lib/auth/*`
+  - `src/lib/graphql/client.ts`
+  - features `pessoas`, `clientes`, `empresas`, `usuarios`, `alunos`, `cursos`, `grupos`, `auth`, `shared`
+- Execucao de `npm run lint`
+  - Resultado: falhou por 1 warning tratado como erro.
+  - Evidencia principal:
+    - `src/features/auth/components/sign-up-form.tsx:109`
+    - regra `react-hooks/incompatible-library`
+- Execucao de `npx tsc --noEmit`
+  - Resultado: falhou com 6 erros.
+  - Principais arquivos:
+    - `src/components/layout/sidebar-nav.tsx`
+    - `src/features/auth/components/sign-up-form.tsx`
+    - `src/features/grupos/components/group-registration-view.tsx`
+- Execucao de `npm run build`
+  - Resultado: compilacao Turbopack passou, mas o build falhou na etapa de typecheck pelos mesmos erros do `tsc`.
+  - Observacao adicional:
+    - `next.config.ts` tambem gerou warning deprecado do Sentry para `disableLogger`.
+- Verificacoes estruturais:
   - `tests/`: ausente
   - `stories/`: ausente
+  - `proxy.ts`: presente
+  - `middleware.ts`: ausente, o que esta correto para o padrao atual do projeto
