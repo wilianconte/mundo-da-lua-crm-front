@@ -24,7 +24,8 @@ export async function getMyPermissions() {
 }
 
 export async function getMyPermissionsWithToken(token: string) {
-  const response = await fetch("/api/graphql", {
+  const endpoint = process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT ?? "/graphql";
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -16,27 +16,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Extrair metadados da imagem
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/mundo-da-lua-crm-front
-          tags: |
-            type=raw,value=dev
-            type=raw,value=dev-{{sha}}
 
       - name: Build da imagem
         uses: docker/build-push-action@v6
         with:
           context: .
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: mundo-da-lua-crm-front:build
+          build-args: |
+            NEXT_PUBLIC_GRAPHQL_ENDPOINT=${{ secrets.NEXT_PUBLIC_GRAPHQL_ENDPOINT_DEV }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -62,9 +54,6 @@ jobs:
           name: docker-image
           path: /tmp
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Login no Docker Hub
         uses: docker/login-action@v3
         with:
@@ -78,12 +67,15 @@ jobs:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/mundo-da-lua-crm-front
           tags: |
             type=raw,value=dev
-            type=raw,value=dev-{{sha}}
+            type=sha,format=short,prefix=dev-
 
-      - name: Load e push da imagem
+      - name: Load, tag e push da imagem
         run: |
           docker load --input /tmp/image.tar
-          echo "${{ steps.meta.outputs.tags }}" | xargs -I {} docker push {}
+          while IFS= read -r tag; do
+            docker tag mundo-da-lua-crm-front:build "$tag"
+            docker push "$tag"
+          done <<< "${{ steps.meta.outputs.tags }}"
 
   rollout:
     name: Rollout
@@ -98,4 +90,5 @@ jobs:
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
           kubectl rollout restart deployment/mundo-da-lua-crm-front -n mundo-da-lua-crm

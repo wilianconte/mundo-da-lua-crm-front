@@ -1,8 +1,14 @@
+import path from "path";
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true
+  reactStrictMode: true,
+  turbopack: {
+    resolveAlias: {
+      "@/*": ["./src/*"]
+    }
+  }
 };
 
 export default withSentryConfig(nextConfig, {

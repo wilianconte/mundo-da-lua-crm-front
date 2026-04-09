@@ -9,7 +9,7 @@ import {
   saveAuthSession
 } from "@/lib/auth/session";
 
-const GRAPHQL_ENDPOINT = "/api/graphql";
+const GRAPHQL_ENDPOINT = process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT ?? "/graphql";
 
 type GraphQLError = {
   message: string;
