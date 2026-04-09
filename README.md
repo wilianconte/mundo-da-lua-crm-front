@@ -31,10 +31,13 @@ Hoje, o modulo de `pessoas` e a principal referencia real de CRUD integrado via 
 - `npm run build`: gera o build de producao
 - `npm run start`: sobe o build gerado
 - `npm run lint`: roda o lint do projeto
+- `npm run graphql:contract:check`: valida as operacoes GraphQL do front contra o contrato publicado pelo backend
 
 ## Autenticacao e GraphQL
 
 O backend oficial e exposto em `https://mundo-da-lua-crm-core.onrender.com/graphql/`.
+
+O contrato de schema GraphQL para validacao de compatibilidade entre front e backend e consumido por `npm run graphql:contract:check` a partir de `https://crm-core.dev.espacomundodalua.com/contracts/schema.graphql` (ou da variavel `GRAPHQL_CONTRACT_URL`).
 
 No front, o browser fala com o proxy `app/api/graphql/route.ts`, e a camada oficial de acesso a dados e `src/lib/graphql/client.ts`.
 

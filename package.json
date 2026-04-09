@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true })\"",
+    "predev": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true })\" && npm run graphql:contract:check",
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run graphql:contract:check && next build",
     "start": "next start",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "graphql:contract:check": "node scripts/validate-graphql-contract.mjs",
+    "graphql:contract:update": "node scripts/update-graphql-contract.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

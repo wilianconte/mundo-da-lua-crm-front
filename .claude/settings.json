@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(node -e \"const {execSync}=require\\('child_process'\\); console.log\\(execSync\\(\\\\\"git ls-files 'src/**/*.ts' 'src/**/*.tsx'\\\\\", {encoding:'utf-8'}\\).split\\('\\\\n'\\).filter\\(Boolean\\).length + ' files'\\)\")",
+      "Bash(curl -s https://crm-core.dev.espacomundodalua.com/contracts/schema.graphql)"
+    ]
+  }
+}
