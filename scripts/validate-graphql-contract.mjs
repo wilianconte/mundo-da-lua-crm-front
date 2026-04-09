@@ -1,15 +1,16 @@
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import process from "node:process";
 
-const DEFAULT_CONTRACT_URL = "https://crm-core.dev.espacomundodalua.com/contracts/schema.graphql";
+const LOCAL_SCHEMA_PATH = resolve(process.cwd(), "contracts/schema.graphql");
 
 function listSourceFiles() {
-  const output = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'", { encoding: "utf-8" });
+  const output = execSync("git ls-files src/", { encoding: "utf-8" });
   return output
     .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean);
+    .filter((line) => line.endsWith(".ts") || line.endsWith(".tsx"));
 }
 
 function extractOperations(content) {
@@ -30,19 +31,14 @@ function extractOperations(content) {
   return operations;
 }
 
-async function loadSchemaSDL() {
-  const contractUrl = process.env.GRAPHQL_CONTRACT_URL ?? DEFAULT_CONTRACT_URL;
-  const response = await fetch(contractUrl, {
-    headers: {
-      Accept: "text/plain"
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Nao foi possivel baixar o contrato GraphQL (${response.status} ${response.statusText}) em ${contractUrl}`);
+function loadSchemaSDL() {
+  if (!existsSync(LOCAL_SCHEMA_PATH)) {
+    throw new Error(
+      `Contrato GraphQL nao encontrado em ${LOCAL_SCHEMA_PATH}.\nExecute "npm run graphql:contract:update" para baixar o contrato.`
+    );
   }
 
-  return response.text();
+  return readFileSync(LOCAL_SCHEMA_PATH, "utf-8");
 }
 
 function extractTypeFields(schemaSDL, typeName) {
@@ -181,7 +177,7 @@ async function main() {
     return;
   }
 
-  const schemaSDL = await loadSchemaSDL();
+  const schemaSDL = loadSchemaSDL();
   const errors = validateOperations(schemaSDL, operationsByFile);
 
   if (errors.length > 0) {
@@ -193,7 +189,9 @@ async function main() {
   console.log(`Contrato GraphQL validado com sucesso para ${operationsByFile.size} arquivo(s).`);
 }
 
-main().catch((error) => {
+try {
+  main();
+} catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
-});
+}

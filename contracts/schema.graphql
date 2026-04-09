@@ -1,0 +1,1941 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Address {
+  street: String!
+  number: String
+  complement: String
+  neighborhood: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  country: String!
+}
+
+type AddressDto {
+  street: String!
+  number: String
+  complement: String
+  neighborhood: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  country: String!
+}
+
+"A connection to a list of items."
+type CompaniesConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [CompaniesEdge!]
+  "A flattened list of the nodes."
+  nodes: [Company!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type CompaniesEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Company!
+}
+
+type Company {
+  legalName: String!
+  tradeName: String
+  registrationNumber: String
+  stateRegistration: String
+  municipalRegistration: String
+  email: String
+  primaryPhone: String
+  secondaryPhone: String
+  whatsAppNumber: String
+  website: String
+  contactPersonName: String
+  contactPersonEmail: String
+  contactPersonPhone: String
+  companyType: CompanyType
+  industry: String
+  profileImageUrl: String
+  address: Address
+  status: CompanyStatus!
+  notes: String
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type CompanyDto {
+  id: UUID!
+  tenantId: UUID!
+  legalName: String!
+  tradeName: String
+  registrationNumber: String
+  stateRegistration: String
+  municipalRegistration: String
+  email: String
+  primaryPhone: String
+  secondaryPhone: String
+  whatsAppNumber: String
+  website: String
+  contactPersonName: String
+  contactPersonEmail: String
+  contactPersonPhone: String
+  companyType: CompanyType
+  industry: String
+  profileImageUrl: String
+  address: AddressDto
+  status: CompanyStatus!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type Course {
+  name: String!
+  code: String
+  type: CourseType!
+  description: String
+  startDate: LocalDate
+  endDate: LocalDate
+  scheduleDescription: String
+  capacity: Int
+  workload: Int
+  unitId: UUID
+  status: CourseStatus!
+  isActive: Boolean!
+  notes: String
+  enrollments: [StudentCourse!]!
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type CourseDto {
+  id: UUID!
+  tenantId: UUID!
+  name: String!
+  code: String
+  type: CourseType!
+  description: String
+  startDate: LocalDate
+  endDate: LocalDate
+  scheduleDescription: String
+  capacity: Int
+  workload: Int
+  unitId: UUID
+  status: CourseStatus!
+  isActive: Boolean!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type CoursePayload {
+  course: CourseDto!
+}
+
+"A connection to a list of items."
+type CoursesConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [CoursesEdge!]
+  "A flattened list of the nodes."
+  nodes: [Course!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type CoursesEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Course!
+}
+
+type Customer {
+  id: UUID!
+  name: String!
+  email: String!
+  phone: String
+  document: String
+  type: CustomerType!
+  status: CustomerStatus!
+  address: Address
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type CustomerDto {
+  id: UUID!
+  tenantId: UUID!
+  name: String!
+  email: String!
+  phone: String
+  document: String
+  type: CustomerType!
+  status: CustomerStatus!
+  address: AddressDto
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+"A connection to a list of items."
+type CustomersConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [CustomersEdge!]
+  "A flattened list of the nodes."
+  nodes: [Customer!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type CustomersEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Customer!
+}
+
+type Employee {
+  personId: UUID!
+  person: Person
+  employeeCode: String
+  hireDate: LocalDate
+  terminationDate: LocalDate
+  position: String
+  department: String
+  contractType: String
+  workSchedule: String
+  workloadHours: Decimal
+  payrollNumber: String
+  managerEmployeeId: UUID
+  manager: Employee
+  unitId: UUID
+  costCenter: String
+  status: EmployeeStatus!
+  isActive: Boolean!
+  notes: String
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type EmployeeDto {
+  id: UUID!
+  tenantId: UUID!
+  personId: UUID!
+  employeeCode: String
+  hireDate: LocalDate
+  terminationDate: LocalDate
+  position: String
+  department: String
+  contractType: String
+  workSchedule: String
+  workloadHours: Decimal
+  payrollNumber: String
+  managerEmployeeId: UUID
+  unitId: UUID
+  costCenter: String
+  status: EmployeeStatus!
+  isActive: Boolean!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type EmployeePayload {
+  employee: EmployeeDto!
+}
+
+"A connection to a list of items."
+type EmployeesConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [EmployeesEdge!]
+  "A flattened list of the nodes."
+  nodes: [Employee!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type EmployeesEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Employee!
+}
+
+type LoginDto {
+  token: String!
+  expiresAt: DateTime!
+  userId: UUID!
+  name: String!
+  email: String!
+  refreshToken: String!
+  refreshTokenExpiresAt: DateTime!
+}
+
+type Mutation {
+  createCustomer(input: CreateCustomerInput!): CustomerDto! @authorize(policy: "customers:create") @cost(weight: "10")
+  updateCustomer(input: UpdateCustomerInput!): CustomerDto! @authorize(policy: "customers:update") @cost(weight: "10")
+  setCustomerAddress(input: SetCustomerAddressInput!): CustomerDto! @authorize(policy: "customers:update") @cost(weight: "10")
+  activateCustomer(id: UUID!): Boolean! @authorize(policy: "customers:update") @cost(weight: "10")
+  deactivateCustomer(id: UUID!): Boolean! @authorize(policy: "customers:update") @cost(weight: "10")
+  deleteCustomer(id: UUID!): Boolean! @authorize(policy: "customers:delete") @cost(weight: "10")
+  createPerson(input: CreatePersonInput!): PersonDto! @authorize(policy: "people:create") @cost(weight: "10")
+  updatePerson(id: UUID! input: UpdatePersonInput!): PersonDto! @authorize(policy: "people:update") @cost(weight: "10")
+  deletePerson(id: UUID!): Boolean! @authorize(policy: "people:delete") @cost(weight: "10")
+  createCompany(input: CreateCompanyInput!): CompanyDto! @authorize(policy: "companies:create") @cost(weight: "10")
+  updateCompany(id: UUID! input: UpdateCompanyInput!): CompanyDto! @authorize(policy: "companies:update") @cost(weight: "10")
+  setCompanyAddress(input: SetCompanyAddressInput!): CompanyDto! @authorize(policy: "companies:update") @cost(weight: "10")
+  deleteCompany(id: UUID!): Boolean! @authorize(policy: "companies:delete") @cost(weight: "10")
+  createUser(input: CreateUserInput!): UserDto! @authorize(policy: "users:manage") @cost(weight: "10")
+  updateUser(id: UUID! input: UpdateUserInput!): UserDto! @authorize(policy: "users:manage") @cost(weight: "10")
+  deleteUser(id: UUID!): Boolean! @authorize(policy: "users:manage") @cost(weight: "10")
+  login(input: LoginInput!): LoginDto! @allowAnonymous @cost(weight: "10")
+  refreshToken(input: RefreshTokenInput!): LoginDto! @allowAnonymous @cost(weight: "10")
+  createRole(input: CreateRoleInput!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
+  updateRole(id: UUID! input: UpdateRoleInput!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
+  deleteRole(id: UUID!): Boolean! @authorize(policy: "roles:manage") @cost(weight: "10")
+  updateRolePermissions(roleId: UUID! permissionIds: [UUID!]!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
+  createStudent(input: CreateStudentInput!): StudentPayload! @authorize(policy: "students:create") @cost(weight: "10")
+  updateStudent(id: UUID! input: UpdateStudentInput!): StudentPayload! @authorize(policy: "students:update") @cost(weight: "10")
+  deleteStudent(id: UUID!): Boolean! @authorize(policy: "students:delete") @cost(weight: "10")
+  createStudentGuardian(input: CreateStudentGuardianInput!): StudentGuardianPayload! @authorize(policy: "student_guardians:create") @cost(weight: "10")
+  updateStudentGuardian(id: UUID! input: UpdateStudentGuardianInput!): StudentGuardianPayload! @authorize(policy: "student_guardians:update") @cost(weight: "10")
+  deleteStudentGuardian(id: UUID!): Boolean! @authorize(policy: "student_guardians:delete") @cost(weight: "10")
+  createCourse(input: CreateCourseInput!): CoursePayload! @authorize(policy: "courses:create") @cost(weight: "10")
+  updateCourse(id: UUID! input: UpdateCourseInput!): CoursePayload! @authorize(policy: "courses:update") @cost(weight: "10")
+  deleteCourse(id: UUID!): Boolean! @authorize(policy: "courses:delete") @cost(weight: "10")
+  createStudentCourse(input: CreateStudentCourseInput!): StudentCoursePayload! @authorize(policy: "student_courses:create") @cost(weight: "10")
+  updateStudentCourse(id: UUID! input: UpdateStudentCourseInput!): StudentCoursePayload! @authorize(policy: "student_courses:update") @cost(weight: "10")
+  deleteStudentCourse(id: UUID!): Boolean! @authorize(policy: "student_courses:delete") @cost(weight: "10")
+  createEmployee(input: CreateEmployeeInput!): EmployeePayload! @authorize(policy: "employees:create") @cost(weight: "10")
+  updateEmployee(id: UUID! input: UpdateEmployeeInput!): EmployeePayload! @authorize(policy: "employees:update") @cost(weight: "10")
+  deleteEmployee(id: UUID!): Boolean! @authorize(policy: "employees:delete") @cost(weight: "10")
+  registerTenant(input: RegisterTenantInput!): TenantPayload! @allowAnonymous @cost(weight: "10")
+}
+
+"Information about pagination in a connection."
+type PageInfo {
+  "Indicates whether more edges exist following the set defined by the clients arguments."
+  hasNextPage: Boolean!
+  "Indicates whether more edges exist prior the set defined by the clients arguments."
+  hasPreviousPage: Boolean!
+  "When paginating backwards, the cursor to continue."
+  startCursor: String
+  "When paginating forwards, the cursor to continue."
+  endCursor: String
+}
+
+"A connection to a list of items."
+type PeopleConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [PeopleEdge!]
+  "A flattened list of the nodes."
+  nodes: [Person!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type PeopleEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Person!
+}
+
+type Permission {
+  name: String!
+  description: String
+  group: String!
+  isActive: Boolean!
+  rolePermissions: [RolePermission!]!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type PermissionDto {
+  id: UUID!
+  name: String!
+  group: String!
+  description: String
+  isActive: Boolean!
+}
+
+type Person {
+  fullName: String!
+  preferredName: String
+  documentNumber: String
+  birthDate: LocalDate
+  gender: Gender
+  maritalStatus: MaritalStatus
+  nationality: String
+  occupation: String
+  email: String
+  primaryPhone: String
+  secondaryPhone: String
+  whatsAppNumber: String
+  profileImageUrl: String
+  status: PersonStatus!
+  notes: String
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type PersonDto {
+  id: UUID!
+  tenantId: UUID!
+  fullName: String!
+  preferredName: String
+  documentNumber: String
+  birthDate: LocalDate
+  gender: Gender
+  maritalStatus: MaritalStatus
+  nationality: String
+  occupation: String
+  email: String
+  primaryPhone: String
+  secondaryPhone: String
+  whatsAppNumber: String
+  profileImageUrl: String
+  status: PersonStatus!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type Query {
+  customers("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: CustomerFilterInput @cost(weight: "10") order: [CustomerSortInput!] @cost(weight: "10")): CustomersConnection @authorize(policy: "customers:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  customerById(id: UUID!): Customer @authorize(policy: "customers:read") @cost(weight: "10")
+  people("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: PersonFilterInput @cost(weight: "10") order: [PersonSortInput!] @cost(weight: "10")): PeopleConnection @authorize(policy: "people:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  personById(id: UUID!): Person @authorize(policy: "people:read") @cost(weight: "10")
+  companies("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: CompanyFilterInput @cost(weight: "10") order: [CompanySortInput!] @cost(weight: "10")): CompaniesConnection @authorize(policy: "companies:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  companyById(id: UUID!): Company @authorize(policy: "companies:read") @cost(weight: "10")
+  users("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: UserFilterInput @cost(weight: "10") order: [UserSortInput!] @cost(weight: "10")): UsersConnection @authorize(policy: "users:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  userById(id: UUID!): User @authorize(policy: "users:manage") @cost(weight: "10")
+  roles("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: RoleFilterInput @cost(weight: "10") order: [RoleSortInput!] @cost(weight: "10")): RolesConnection @authorize(policy: "roles:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  roleById(id: UUID!): Role @authorize(policy: "roles:manage") @cost(weight: "10")
+  myPermissions: [String!]! @authorize @cost(weight: "10")
+  permissions: [PermissionDto!]! @authorize(policy: "roles:manage") @cost(weight: "10")
+  students(enrollmentStatus: StudentEnrollmentStatus "Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: StudentFilterInput @cost(weight: "10") order: [StudentSortInput!] @cost(weight: "10")): StudentsConnection @authorize(policy: "students:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  studentById(id: UUID!): Student @authorize(policy: "students:read") @cost(weight: "10")
+  studentGuardians("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: StudentGuardianFilterInput @cost(weight: "10") order: [StudentGuardianSortInput!] @cost(weight: "10")): StudentGuardiansConnection @authorize(policy: "student_guardians:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  studentGuardianById(id: UUID!): StudentGuardian @authorize(policy: "student_guardians:read") @cost(weight: "10")
+  courses("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: CourseFilterInput @cost(weight: "10") order: [CourseSortInput!] @cost(weight: "10")): CoursesConnection @authorize(policy: "courses:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  courseById(id: UUID!): Course @authorize(policy: "courses:read") @cost(weight: "10")
+  studentCourses("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: StudentCourseFilterInput @cost(weight: "10") order: [StudentCourseSortInput!] @cost(weight: "10")): StudentCoursesConnection @authorize(policy: "student_courses:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  studentCourseById(id: UUID!): StudentCourse @authorize(policy: "student_courses:read") @cost(weight: "10")
+  employees("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: EmployeeFilterInput @cost(weight: "10") order: [EmployeeSortInput!] @cost(weight: "10")): EmployeesConnection @authorize(policy: "employees:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  employeeById(id: UUID!): Employee @authorize(policy: "employees:read") @cost(weight: "10")
+}
+
+type Role {
+  id: UUID!
+  name: String!
+  description: String
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+  permissions: [PermissionDto!]! @cost(weight: "10")
+  rolePermissions: [RolePermission!]!
+}
+
+type RoleDto {
+  id: UUID!
+  tenantId: UUID!
+  name: String!
+  description: String
+  isActive: Boolean!
+  permissions: [PermissionDto!]!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type RolePermission {
+  roleId: UUID!
+  permissionId: UUID!
+  role: Role!
+  permission: Permission!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+"A connection to a list of items."
+type RolesConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [RolesEdge!]
+  "A flattened list of the nodes."
+  nodes: [Role!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type RolesEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Role!
+}
+
+type Student {
+  personId: UUID!
+  person: Person
+  unitId: UUID
+  notes: String
+  guardians: [StudentGuardian!]!
+  courses: [StudentCourse!]!
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+  enrollmentStatus: StudentEnrollmentStatus!
+}
+
+type StudentCourse {
+  studentId: UUID!
+  student: Student
+  courseId: UUID!
+  course: Course
+  enrollmentDate: LocalDate
+  startDate: LocalDate
+  endDate: LocalDate
+  cancellationDate: LocalDate
+  completionDate: LocalDate
+  status: StudentCourseStatus!
+  classGroup: String
+  shift: String
+  scheduleDescription: String
+  unitId: UUID
+  notes: String
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type StudentCourseDto {
+  id: UUID!
+  tenantId: UUID!
+  studentId: UUID!
+  courseId: UUID!
+  enrollmentDate: LocalDate
+  startDate: LocalDate
+  endDate: LocalDate
+  cancellationDate: LocalDate
+  completionDate: LocalDate
+  status: StudentCourseStatus!
+  classGroup: String
+  shift: String
+  scheduleDescription: String
+  unitId: UUID
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type StudentCoursePayload {
+  studentCourse: StudentCourseDto!
+}
+
+"A connection to a list of items."
+type StudentCoursesConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [StudentCoursesEdge!]
+  "A flattened list of the nodes."
+  nodes: [StudentCourse!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type StudentCoursesEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: StudentCourse!
+}
+
+type StudentDto {
+  id: UUID!
+  tenantId: UUID!
+  personId: UUID!
+  unitId: UUID
+  enrollmentStatus: StudentEnrollmentStatus!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type StudentGuardian {
+  studentId: UUID!
+  student: Student
+  guardianPersonId: UUID!
+  guardianPerson: Person
+  relationshipType: GuardianRelationshipType!
+  isPrimaryGuardian: Boolean!
+  isFinancialResponsible: Boolean!
+  receivesNotifications: Boolean!
+  canPickupChild: Boolean!
+  notes: String
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type StudentGuardianDto {
+  id: UUID!
+  tenantId: UUID!
+  studentId: UUID!
+  guardianPersonId: UUID!
+  relationshipType: GuardianRelationshipType!
+  isPrimaryGuardian: Boolean!
+  isFinancialResponsible: Boolean!
+  receivesNotifications: Boolean!
+  canPickupChild: Boolean!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type StudentGuardianPayload {
+  studentGuardian: StudentGuardianDto!
+}
+
+"A connection to a list of items."
+type StudentGuardiansConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [StudentGuardiansEdge!]
+  "A flattened list of the nodes."
+  nodes: [StudentGuardian!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type StudentGuardiansEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: StudentGuardian!
+}
+
+type StudentPayload {
+  student: StudentDto!
+}
+
+"A connection to a list of items."
+type StudentsConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [StudentsEdge!]
+  "A flattened list of the nodes."
+  nodes: [Student!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type StudentsEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Student!
+}
+
+type TenantDto {
+  id: UUID!
+  name: String!
+  companyId: UUID!
+  ownerPersonId: UUID
+  status: TenantStatus!
+  plan: TenantPlan!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type TenantPayload {
+  tenant: TenantDto!
+}
+
+type User {
+  id: UUID!
+  name: String!
+  email: String!
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+  personId: UUID
+  roles: [Role!]! @cost(weight: "10")
+}
+
+type UserDto {
+  id: UUID!
+  tenantId: UUID!
+  name: String!
+  email: String!
+  isActive: Boolean!
+  personId: UUID
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+"A connection to a list of items."
+type UsersConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [UsersEdge!]
+  "A flattened list of the nodes."
+  nodes: [User!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type UsersEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: User!
+}
+
+input AddressFilterInput {
+  and: [AddressFilterInput!]
+  or: [AddressFilterInput!]
+  street: StringOperationFilterInput
+  number: StringOperationFilterInput
+  complement: StringOperationFilterInput
+  neighborhood: StringOperationFilterInput
+  city: StringOperationFilterInput
+  state: StringOperationFilterInput
+  zipCode: StringOperationFilterInput
+  country: StringOperationFilterInput
+}
+
+input AddressSortInput {
+  street: SortEnumType @cost(weight: "10")
+  number: SortEnumType @cost(weight: "10")
+  complement: SortEnumType @cost(weight: "10")
+  neighborhood: SortEnumType @cost(weight: "10")
+  city: SortEnumType @cost(weight: "10")
+  state: SortEnumType @cost(weight: "10")
+  zipCode: SortEnumType @cost(weight: "10")
+  country: SortEnumType @cost(weight: "10")
+}
+
+input BooleanOperationFilterInput {
+  eq: Boolean @cost(weight: "10")
+  neq: Boolean @cost(weight: "10")
+}
+
+input CompanyFilterInput {
+  and: [CompanyFilterInput!]
+  or: [CompanyFilterInput!]
+  legalName: StringOperationFilterInput
+  tradeName: StringOperationFilterInput
+  registrationNumber: StringOperationFilterInput
+  stateRegistration: StringOperationFilterInput
+  municipalRegistration: StringOperationFilterInput
+  email: StringOperationFilterInput
+  primaryPhone: StringOperationFilterInput
+  secondaryPhone: StringOperationFilterInput
+  whatsAppNumber: StringOperationFilterInput
+  website: StringOperationFilterInput
+  contactPersonName: StringOperationFilterInput
+  contactPersonEmail: StringOperationFilterInput
+  contactPersonPhone: StringOperationFilterInput
+  companyType: NullableOfCompanyTypeOperationFilterInput
+  industry: StringOperationFilterInput
+  profileImageUrl: StringOperationFilterInput
+  address: AddressFilterInput
+  status: CompanyStatusOperationFilterInput
+  notes: StringOperationFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input CompanySortInput {
+  legalName: SortEnumType @cost(weight: "10")
+  tradeName: SortEnumType @cost(weight: "10")
+  registrationNumber: SortEnumType @cost(weight: "10")
+  stateRegistration: SortEnumType @cost(weight: "10")
+  municipalRegistration: SortEnumType @cost(weight: "10")
+  email: SortEnumType @cost(weight: "10")
+  primaryPhone: SortEnumType @cost(weight: "10")
+  secondaryPhone: SortEnumType @cost(weight: "10")
+  whatsAppNumber: SortEnumType @cost(weight: "10")
+  website: SortEnumType @cost(weight: "10")
+  contactPersonName: SortEnumType @cost(weight: "10")
+  contactPersonEmail: SortEnumType @cost(weight: "10")
+  contactPersonPhone: SortEnumType @cost(weight: "10")
+  companyType: SortEnumType @cost(weight: "10")
+  industry: SortEnumType @cost(weight: "10")
+  profileImageUrl: SortEnumType @cost(weight: "10")
+  address: AddressSortInput @cost(weight: "10")
+  status: SortEnumType @cost(weight: "10")
+  notes: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input CompanyStatusOperationFilterInput {
+  eq: CompanyStatus @cost(weight: "10")
+  neq: CompanyStatus @cost(weight: "10")
+  in: [CompanyStatus!] @cost(weight: "10")
+  nin: [CompanyStatus!] @cost(weight: "10")
+}
+
+input CourseFilterInput {
+  and: [CourseFilterInput!]
+  or: [CourseFilterInput!]
+  name: StringOperationFilterInput
+  code: StringOperationFilterInput
+  type: CourseTypeOperationFilterInput
+  description: StringOperationFilterInput
+  startDate: LocalDateOperationFilterInput
+  endDate: LocalDateOperationFilterInput
+  scheduleDescription: StringOperationFilterInput
+  capacity: IntOperationFilterInput
+  workload: IntOperationFilterInput
+  unitId: UuidOperationFilterInput
+  status: CourseStatusOperationFilterInput
+  isActive: BooleanOperationFilterInput
+  notes: StringOperationFilterInput
+  enrollments: ListFilterInputTypeOfStudentCourseFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input CourseSortInput {
+  name: SortEnumType @cost(weight: "10")
+  code: SortEnumType @cost(weight: "10")
+  type: SortEnumType @cost(weight: "10")
+  description: SortEnumType @cost(weight: "10")
+  startDate: SortEnumType @cost(weight: "10")
+  endDate: SortEnumType @cost(weight: "10")
+  scheduleDescription: SortEnumType @cost(weight: "10")
+  capacity: SortEnumType @cost(weight: "10")
+  workload: SortEnumType @cost(weight: "10")
+  unitId: SortEnumType @cost(weight: "10")
+  status: SortEnumType @cost(weight: "10")
+  isActive: SortEnumType @cost(weight: "10")
+  notes: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input CourseStatusOperationFilterInput {
+  eq: CourseStatus @cost(weight: "10")
+  neq: CourseStatus @cost(weight: "10")
+  in: [CourseStatus!] @cost(weight: "10")
+  nin: [CourseStatus!] @cost(weight: "10")
+}
+
+input CourseTypeOperationFilterInput {
+  eq: CourseType @cost(weight: "10")
+  neq: CourseType @cost(weight: "10")
+  in: [CourseType!] @cost(weight: "10")
+  nin: [CourseType!] @cost(weight: "10")
+}
+
+input CreateCompanyInput {
+  legalName: String!
+  tradeName: String
+  registrationNumber: String
+  stateRegistration: String
+  municipalRegistration: String
+  email: String
+  primaryPhone: String
+  secondaryPhone: String
+  whatsAppNumber: String
+  website: String
+  contactPersonName: String
+  contactPersonEmail: String
+  contactPersonPhone: String
+  companyType: CompanyType
+  industry: String
+  profileImageUrl: String
+  notes: String
+}
+
+input CreateCourseInput {
+  name: String!
+  type: CourseType!
+  code: String
+  description: String
+  startDate: LocalDate
+  endDate: LocalDate
+  scheduleDescription: String
+  capacity: Int
+  workload: Int
+  unitId: UUID
+  notes: String
+  status: CourseStatus! = DRAFT
+}
+
+input CreateCustomerInput {
+  name: String!
+  email: String!
+  type: CustomerType!
+  phone: String
+  document: String
+}
+
+input CreateEmployeeInput {
+  personId: UUID!
+  employeeCode: String
+  hireDate: LocalDate
+  position: String
+  department: String
+  contractType: String
+  workSchedule: String
+  workloadHours: Decimal
+  payrollNumber: String
+  managerEmployeeId: UUID
+  unitId: UUID
+  costCenter: String
+  notes: String
+}
+
+input CreatePersonInput {
+  fullName: String!
+  preferredName: String
+  documentNumber: String
+  birthDate: LocalDate
+  gender: Gender
+  maritalStatus: MaritalStatus
+  nationality: String
+  occupation: String
+  email: String
+  primaryPhone: String
+  secondaryPhone: String
+  whatsAppNumber: String
+  profileImageUrl: String
+  notes: String
+}
+
+input CreateRoleInput {
+  name: String!
+  description: String
+}
+
+input CreateStudentCourseInput {
+  studentId: UUID!
+  courseId: UUID!
+  enrollmentDate: LocalDate
+  startDate: LocalDate
+  endDate: LocalDate
+  classGroup: String
+  shift: String
+  scheduleDescription: String
+  unitId: UUID
+  notes: String
+}
+
+input CreateStudentGuardianInput {
+  studentId: UUID!
+  guardianPersonId: UUID!
+  relationshipType: GuardianRelationshipType!
+  isPrimaryGuardian: Boolean!
+  isFinancialResponsible: Boolean!
+  receivesNotifications: Boolean!
+  canPickupChild: Boolean!
+  notes: String
+}
+
+input CreateStudentInput {
+  personId: UUID!
+  unitId: UUID
+  notes: String
+}
+
+input CreateUserInput {
+  name: String!
+  email: String!
+  password: String!
+  personId: UUID
+  roleIds: [UUID!]
+}
+
+input CustomerFilterInput {
+  and: [CustomerFilterInput!]
+  or: [CustomerFilterInput!]
+  name: StringOperationFilterInput
+  email: StringOperationFilterInput
+  phone: StringOperationFilterInput
+  document: StringOperationFilterInput
+  type: CustomerTypeOperationFilterInput
+  status: CustomerStatusOperationFilterInput
+  address: AddressFilterInput
+  notes: StringOperationFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input CustomerSortInput {
+  name: SortEnumType @cost(weight: "10")
+  email: SortEnumType @cost(weight: "10")
+  phone: SortEnumType @cost(weight: "10")
+  document: SortEnumType @cost(weight: "10")
+  type: SortEnumType @cost(weight: "10")
+  status: SortEnumType @cost(weight: "10")
+  address: AddressSortInput @cost(weight: "10")
+  notes: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input CustomerStatusOperationFilterInput {
+  eq: CustomerStatus @cost(weight: "10")
+  neq: CustomerStatus @cost(weight: "10")
+  in: [CustomerStatus!] @cost(weight: "10")
+  nin: [CustomerStatus!] @cost(weight: "10")
+}
+
+input CustomerTypeOperationFilterInput {
+  eq: CustomerType @cost(weight: "10")
+  neq: CustomerType @cost(weight: "10")
+  in: [CustomerType!] @cost(weight: "10")
+  nin: [CustomerType!] @cost(weight: "10")
+}
+
+input DateTimeOperationFilterInput {
+  eq: DateTime @cost(weight: "10")
+  neq: DateTime @cost(weight: "10")
+  in: [DateTime] @cost(weight: "10")
+  nin: [DateTime] @cost(weight: "10")
+  gt: DateTime @cost(weight: "10")
+  ngt: DateTime @cost(weight: "10")
+  gte: DateTime @cost(weight: "10")
+  ngte: DateTime @cost(weight: "10")
+  lt: DateTime @cost(weight: "10")
+  nlt: DateTime @cost(weight: "10")
+  lte: DateTime @cost(weight: "10")
+  nlte: DateTime @cost(weight: "10")
+}
+
+input DecimalOperationFilterInput {
+  eq: Decimal @cost(weight: "10")
+  neq: Decimal @cost(weight: "10")
+  in: [Decimal] @cost(weight: "10")
+  nin: [Decimal] @cost(weight: "10")
+  gt: Decimal @cost(weight: "10")
+  ngt: Decimal @cost(weight: "10")
+  gte: Decimal @cost(weight: "10")
+  ngte: Decimal @cost(weight: "10")
+  lt: Decimal @cost(weight: "10")
+  nlt: Decimal @cost(weight: "10")
+  lte: Decimal @cost(weight: "10")
+  nlte: Decimal @cost(weight: "10")
+}
+
+input EmployeeFilterInput {
+  and: [EmployeeFilterInput!]
+  or: [EmployeeFilterInput!]
+  personId: UuidOperationFilterInput
+  person: PersonFilterInput
+  employeeCode: StringOperationFilterInput
+  hireDate: LocalDateOperationFilterInput
+  terminationDate: LocalDateOperationFilterInput
+  position: StringOperationFilterInput
+  department: StringOperationFilterInput
+  contractType: StringOperationFilterInput
+  workSchedule: StringOperationFilterInput
+  workloadHours: DecimalOperationFilterInput
+  payrollNumber: StringOperationFilterInput
+  managerEmployeeId: UuidOperationFilterInput
+  manager: EmployeeFilterInput
+  unitId: UuidOperationFilterInput
+  costCenter: StringOperationFilterInput
+  status: EmployeeStatusOperationFilterInput
+  isActive: BooleanOperationFilterInput
+  notes: StringOperationFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input EmployeeSortInput {
+  personId: SortEnumType @cost(weight: "10")
+  person: PersonSortInput @cost(weight: "10")
+  employeeCode: SortEnumType @cost(weight: "10")
+  hireDate: SortEnumType @cost(weight: "10")
+  terminationDate: SortEnumType @cost(weight: "10")
+  position: SortEnumType @cost(weight: "10")
+  department: SortEnumType @cost(weight: "10")
+  contractType: SortEnumType @cost(weight: "10")
+  workSchedule: SortEnumType @cost(weight: "10")
+  workloadHours: SortEnumType @cost(weight: "10")
+  payrollNumber: SortEnumType @cost(weight: "10")
+  managerEmployeeId: SortEnumType @cost(weight: "10")
+  manager: EmployeeSortInput @cost(weight: "10")
+  unitId: SortEnumType @cost(weight: "10")
+  costCenter: SortEnumType @cost(weight: "10")
+  status: SortEnumType @cost(weight: "10")
+  isActive: SortEnumType @cost(weight: "10")
+  notes: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input EmployeeStatusOperationFilterInput {
+  eq: EmployeeStatus @cost(weight: "10")
+  neq: EmployeeStatus @cost(weight: "10")
+  in: [EmployeeStatus!] @cost(weight: "10")
+  nin: [EmployeeStatus!] @cost(weight: "10")
+}
+
+input GuardianRelationshipTypeOperationFilterInput {
+  eq: GuardianRelationshipType @cost(weight: "10")
+  neq: GuardianRelationshipType @cost(weight: "10")
+  in: [GuardianRelationshipType!] @cost(weight: "10")
+  nin: [GuardianRelationshipType!] @cost(weight: "10")
+}
+
+input IntOperationFilterInput {
+  eq: Int @cost(weight: "10")
+  neq: Int @cost(weight: "10")
+  in: [Int] @cost(weight: "10")
+  nin: [Int] @cost(weight: "10")
+  gt: Int @cost(weight: "10")
+  ngt: Int @cost(weight: "10")
+  gte: Int @cost(weight: "10")
+  ngte: Int @cost(weight: "10")
+  lt: Int @cost(weight: "10")
+  nlt: Int @cost(weight: "10")
+  lte: Int @cost(weight: "10")
+  nlte: Int @cost(weight: "10")
+}
+
+input ListFilterInputTypeOfRolePermissionFilterInput {
+  all: RolePermissionFilterInput @cost(weight: "10")
+  none: RolePermissionFilterInput @cost(weight: "10")
+  some: RolePermissionFilterInput @cost(weight: "10")
+  any: Boolean @cost(weight: "10")
+}
+
+input ListFilterInputTypeOfStudentCourseFilterInput {
+  all: StudentCourseFilterInput @cost(weight: "10")
+  none: StudentCourseFilterInput @cost(weight: "10")
+  some: StudentCourseFilterInput @cost(weight: "10")
+  any: Boolean @cost(weight: "10")
+}
+
+input ListFilterInputTypeOfUserRoleFilterInput {
+  all: UserRoleFilterInput @cost(weight: "10")
+  none: UserRoleFilterInput @cost(weight: "10")
+  some: UserRoleFilterInput @cost(weight: "10")
+  any: Boolean @cost(weight: "10")
+}
+
+input LocalDateOperationFilterInput {
+  eq: LocalDate @cost(weight: "10")
+  neq: LocalDate @cost(weight: "10")
+  in: [LocalDate] @cost(weight: "10")
+  nin: [LocalDate] @cost(weight: "10")
+  gt: LocalDate @cost(weight: "10")
+  ngt: LocalDate @cost(weight: "10")
+  gte: LocalDate @cost(weight: "10")
+  ngte: LocalDate @cost(weight: "10")
+  lt: LocalDate @cost(weight: "10")
+  nlt: LocalDate @cost(weight: "10")
+  lte: LocalDate @cost(weight: "10")
+  nlte: LocalDate @cost(weight: "10")
+}
+
+input LoginInput {
+  tenantId: UUID!
+  email: String!
+  password: String!
+}
+
+input NullableOfCompanyTypeOperationFilterInput {
+  eq: CompanyType @cost(weight: "10")
+  neq: CompanyType @cost(weight: "10")
+  in: [CompanyType] @cost(weight: "10")
+  nin: [CompanyType] @cost(weight: "10")
+}
+
+input NullableOfGenderOperationFilterInput {
+  eq: Gender @cost(weight: "10")
+  neq: Gender @cost(weight: "10")
+  in: [Gender] @cost(weight: "10")
+  nin: [Gender] @cost(weight: "10")
+}
+
+input NullableOfMaritalStatusOperationFilterInput {
+  eq: MaritalStatus @cost(weight: "10")
+  neq: MaritalStatus @cost(weight: "10")
+  in: [MaritalStatus] @cost(weight: "10")
+  nin: [MaritalStatus] @cost(weight: "10")
+}
+
+input PermissionFilterInput {
+  and: [PermissionFilterInput!]
+  or: [PermissionFilterInput!]
+  name: StringOperationFilterInput
+  description: StringOperationFilterInput
+  group: StringOperationFilterInput
+  isActive: BooleanOperationFilterInput
+  rolePermissions: ListFilterInputTypeOfRolePermissionFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input PersonFilterInput {
+  and: [PersonFilterInput!]
+  or: [PersonFilterInput!]
+  fullName: StringOperationFilterInput
+  preferredName: StringOperationFilterInput
+  documentNumber: StringOperationFilterInput
+  birthDate: LocalDateOperationFilterInput
+  gender: NullableOfGenderOperationFilterInput
+  maritalStatus: NullableOfMaritalStatusOperationFilterInput
+  nationality: StringOperationFilterInput
+  occupation: StringOperationFilterInput
+  email: StringOperationFilterInput
+  primaryPhone: StringOperationFilterInput
+  secondaryPhone: StringOperationFilterInput
+  whatsAppNumber: StringOperationFilterInput
+  profileImageUrl: StringOperationFilterInput
+  status: PersonStatusOperationFilterInput
+  notes: StringOperationFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input PersonSortInput {
+  fullName: SortEnumType @cost(weight: "10")
+  preferredName: SortEnumType @cost(weight: "10")
+  documentNumber: SortEnumType @cost(weight: "10")
+  birthDate: SortEnumType @cost(weight: "10")
+  gender: SortEnumType @cost(weight: "10")
+  maritalStatus: SortEnumType @cost(weight: "10")
+  nationality: SortEnumType @cost(weight: "10")
+  occupation: SortEnumType @cost(weight: "10")
+  email: SortEnumType @cost(weight: "10")
+  primaryPhone: SortEnumType @cost(weight: "10")
+  secondaryPhone: SortEnumType @cost(weight: "10")
+  whatsAppNumber: SortEnumType @cost(weight: "10")
+  profileImageUrl: SortEnumType @cost(weight: "10")
+  status: SortEnumType @cost(weight: "10")
+  notes: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input PersonStatusOperationFilterInput {
+  eq: PersonStatus @cost(weight: "10")
+  neq: PersonStatus @cost(weight: "10")
+  in: [PersonStatus!] @cost(weight: "10")
+  nin: [PersonStatus!] @cost(weight: "10")
+}
+
+input RefreshTokenInput {
+  tenantId: UUID!
+  refreshToken: String!
+}
+
+input RegisterTenantInput {
+  companyLegalName: String!
+  companyCnpj: String
+  companyEmail: String
+  companyPhone: String
+  adminName: String!
+  adminEmail: String!
+  adminCpf: String
+  adminPhone: String
+  password: String!
+  passwordConfirmation: String!
+}
+
+input RoleFilterInput {
+  and: [RoleFilterInput!]
+  or: [RoleFilterInput!]
+  name: StringOperationFilterInput
+  description: StringOperationFilterInput
+  isActive: BooleanOperationFilterInput
+  userRoles: ListFilterInputTypeOfUserRoleFilterInput
+  rolePermissions: ListFilterInputTypeOfRolePermissionFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input RolePermissionFilterInput {
+  and: [RolePermissionFilterInput!]
+  or: [RolePermissionFilterInput!]
+  roleId: UuidOperationFilterInput
+  permissionId: UuidOperationFilterInput
+  role: RoleFilterInput
+  permission: PermissionFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input RoleSortInput {
+  name: SortEnumType @cost(weight: "10")
+  description: SortEnumType @cost(weight: "10")
+  isActive: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input SetCompanyAddressInput {
+  companyId: UUID!
+  street: String!
+  number: String
+  complement: String
+  neighborhood: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  country: String! = "BR"
+}
+
+input SetCustomerAddressInput {
+  customerId: UUID!
+  street: String!
+  number: String
+  complement: String
+  neighborhood: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  country: String! = "BR"
+}
+
+input StringOperationFilterInput {
+  and: [StringOperationFilterInput!]
+  or: [StringOperationFilterInput!]
+  eq: String @cost(weight: "10")
+  neq: String @cost(weight: "10")
+  contains: String @cost(weight: "20")
+  ncontains: String @cost(weight: "20")
+  in: [String] @cost(weight: "10")
+  nin: [String] @cost(weight: "10")
+  startsWith: String @cost(weight: "20")
+  nstartsWith: String @cost(weight: "20")
+  endsWith: String @cost(weight: "20")
+  nendsWith: String @cost(weight: "20")
+}
+
+input StudentCourseFilterInput {
+  and: [StudentCourseFilterInput!]
+  or: [StudentCourseFilterInput!]
+  studentId: UuidOperationFilterInput
+  student: StudentFilterInput
+  courseId: UuidOperationFilterInput
+  course: CourseFilterInput
+  enrollmentDate: LocalDateOperationFilterInput
+  startDate: LocalDateOperationFilterInput
+  endDate: LocalDateOperationFilterInput
+  cancellationDate: LocalDateOperationFilterInput
+  completionDate: LocalDateOperationFilterInput
+  status: StudentCourseStatusOperationFilterInput
+  classGroup: StringOperationFilterInput
+  shift: StringOperationFilterInput
+  scheduleDescription: StringOperationFilterInput
+  unitId: UuidOperationFilterInput
+  notes: StringOperationFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input StudentCourseSortInput {
+  studentId: SortEnumType @cost(weight: "10")
+  student: StudentSortInput @cost(weight: "10")
+  courseId: SortEnumType @cost(weight: "10")
+  course: CourseSortInput @cost(weight: "10")
+  enrollmentDate: SortEnumType @cost(weight: "10")
+  startDate: SortEnumType @cost(weight: "10")
+  endDate: SortEnumType @cost(weight: "10")
+  cancellationDate: SortEnumType @cost(weight: "10")
+  completionDate: SortEnumType @cost(weight: "10")
+  status: SortEnumType @cost(weight: "10")
+  classGroup: SortEnumType @cost(weight: "10")
+  shift: SortEnumType @cost(weight: "10")
+  scheduleDescription: SortEnumType @cost(weight: "10")
+  unitId: SortEnumType @cost(weight: "10")
+  notes: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input StudentCourseStatusOperationFilterInput {
+  eq: StudentCourseStatus @cost(weight: "10")
+  neq: StudentCourseStatus @cost(weight: "10")
+  in: [StudentCourseStatus!] @cost(weight: "10")
+  nin: [StudentCourseStatus!] @cost(weight: "10")
+}
+
+input StudentFilterInput {
+  and: [StudentFilterInput!]
+  or: [StudentFilterInput!]
+  id: UuidOperationFilterInput
+  personId: UuidOperationFilterInput
+  unitId: UuidOperationFilterInput
+  notes: StringOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+}
+
+input StudentGuardianFilterInput {
+  and: [StudentGuardianFilterInput!]
+  or: [StudentGuardianFilterInput!]
+  studentId: UuidOperationFilterInput
+  student: StudentFilterInput
+  guardianPersonId: UuidOperationFilterInput
+  guardianPerson: PersonFilterInput
+  relationshipType: GuardianRelationshipTypeOperationFilterInput
+  isPrimaryGuardian: BooleanOperationFilterInput
+  isFinancialResponsible: BooleanOperationFilterInput
+  receivesNotifications: BooleanOperationFilterInput
+  canPickupChild: BooleanOperationFilterInput
+  notes: StringOperationFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input StudentGuardianSortInput {
+  studentId: SortEnumType @cost(weight: "10")
+  student: StudentSortInput @cost(weight: "10")
+  guardianPersonId: SortEnumType @cost(weight: "10")
+  guardianPerson: PersonSortInput @cost(weight: "10")
+  relationshipType: SortEnumType @cost(weight: "10")
+  isPrimaryGuardian: SortEnumType @cost(weight: "10")
+  isFinancialResponsible: SortEnumType @cost(weight: "10")
+  receivesNotifications: SortEnumType @cost(weight: "10")
+  canPickupChild: SortEnumType @cost(weight: "10")
+  notes: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input StudentSortInput {
+  id: SortEnumType @cost(weight: "10")
+  personId: SortEnumType @cost(weight: "10")
+  unitId: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+}
+
+input UpdateCompanyInput {
+  legalName: String!
+  tradeName: String
+  registrationNumber: String
+  stateRegistration: String
+  municipalRegistration: String
+  email: String
+  primaryPhone: String
+  secondaryPhone: String
+  whatsAppNumber: String
+  website: String
+  contactPersonName: String
+  contactPersonEmail: String
+  contactPersonPhone: String
+  companyType: CompanyType
+  industry: String
+  profileImageUrl: String
+  notes: String
+}
+
+input UpdateCourseInput {
+  name: String!
+  type: CourseType!
+  code: String
+  description: String
+  startDate: LocalDate
+  endDate: LocalDate
+  scheduleDescription: String
+  capacity: Int
+  workload: Int
+  unitId: UUID
+  notes: String
+  status: CourseStatus
+}
+
+input UpdateCustomerInput {
+  id: UUID!
+  name: String!
+  email: String!
+  phone: String
+  document: String
+  notes: String
+}
+
+input UpdateEmployeeInput {
+  employeeCode: String
+  hireDate: LocalDate
+  position: String
+  department: String
+  contractType: String
+  workSchedule: String
+  workloadHours: Decimal
+  payrollNumber: String
+  managerEmployeeId: UUID
+  unitId: UUID
+  costCenter: String
+  notes: String
+}
+
+input UpdatePersonInput {
+  fullName: String!
+  preferredName: String
+  documentNumber: String
+  birthDate: LocalDate
+  gender: Gender
+  maritalStatus: MaritalStatus
+  nationality: String
+  occupation: String
+  email: String
+  primaryPhone: String
+  secondaryPhone: String
+  whatsAppNumber: String
+  profileImageUrl: String
+  notes: String
+}
+
+input UpdateRoleInput {
+  name: String!
+  description: String
+  isActive: Boolean
+}
+
+input UpdateStudentCourseInput {
+  enrollmentDate: LocalDate
+  startDate: LocalDate
+  endDate: LocalDate
+  classGroup: String
+  shift: String
+  scheduleDescription: String
+  unitId: UUID
+  notes: String
+  status: StudentCourseStatus
+}
+
+input UpdateStudentGuardianInput {
+  relationshipType: GuardianRelationshipType!
+  isPrimaryGuardian: Boolean!
+  isFinancialResponsible: Boolean!
+  receivesNotifications: Boolean!
+  canPickupChild: Boolean!
+  notes: String
+}
+
+input UpdateStudentInput {
+  unitId: UUID
+  notes: String
+}
+
+input UpdateUserInput {
+  name: String!
+  email: String!
+  personId: UUID
+  isActive: Boolean!
+  password: String
+  roleIds: [UUID!]
+}
+
+input UserFilterInput {
+  and: [UserFilterInput!]
+  or: [UserFilterInput!]
+  email: StringOperationFilterInput
+  passwordHash: StringOperationFilterInput
+  name: StringOperationFilterInput
+  isActive: BooleanOperationFilterInput
+  userRoles: ListFilterInputTypeOfUserRoleFilterInput
+  personId: UuidOperationFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input UserRoleFilterInput {
+  and: [UserRoleFilterInput!]
+  or: [UserRoleFilterInput!]
+  userId: UuidOperationFilterInput
+  roleId: UuidOperationFilterInput
+  user: UserFilterInput
+  role: RoleFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input UserSortInput {
+  email: SortEnumType @cost(weight: "10")
+  passwordHash: SortEnumType @cost(weight: "10")
+  name: SortEnumType @cost(weight: "10")
+  isActive: SortEnumType @cost(weight: "10")
+  personId: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input UuidOperationFilterInput {
+  eq: UUID @cost(weight: "10")
+  neq: UUID @cost(weight: "10")
+  in: [UUID] @cost(weight: "10")
+  nin: [UUID] @cost(weight: "10")
+  gt: UUID @cost(weight: "10")
+  ngt: UUID @cost(weight: "10")
+  gte: UUID @cost(weight: "10")
+  ngte: UUID @cost(weight: "10")
+  lt: UUID @cost(weight: "10")
+  nlt: UUID @cost(weight: "10")
+  lte: UUID @cost(weight: "10")
+  nlte: UUID @cost(weight: "10")
+}
+
+"Defines when a policy shall be executed."
+enum ApplyPolicy {
+  "Before the resolver was executed."
+  BEFORE_RESOLVER
+  "After the resolver was executed."
+  AFTER_RESOLVER
+  "The policy is applied in the validation step before the execution."
+  VALIDATION
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  SUSPENDED
+}
+
+enum CompanyType {
+  SUPPLIER
+  PARTNER
+  SCHOOL
+  CORPORATE_CUSTOMER
+  BILLING_ACCOUNT
+  SERVICE_PROVIDER
+  SPONSOR
+  OTHER
+}
+
+enum CourseStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CourseType {
+  AFTER_SCHOOL
+  LANGUAGE
+  SCHOOL_CLASS
+  WORKSHOP
+  OTHER
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CustomerType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  NON_BINARY
+  PREFER_NOT_TO_SAY
+  OTHER
+}
+
+enum GuardianRelationshipType {
+  FATHER
+  MOTHER
+  GRANDMOTHER
+  GRANDFATHER
+  UNCLE
+  AUNT
+  LEGAL_GUARDIAN
+  OTHER
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  SEPARATED
+  STABLE_UNION
+}
+
+enum PersonStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum SortEnumType {
+  ASC
+  DESC
+}
+
+enum StudentCourseStatus {
+  ACTIVE
+  PENDING
+  COMPLETED
+  CANCELLED
+  SUSPENDED
+}
+
+enum StudentEnrollmentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TenantPlan {
+  FREE
+  BASIC
+  PREMIUM
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+directive @allowAnonymous repeatable on FIELD_DEFINITION
+
+"The authorize directive."
+directive @authorize("The name of the authorization policy that determines access to the annotated resource." policy: String "Roles that are allowed to access the annotated resource." roles: [String!] "Defines when when the authorize directive shall be applied.By default the authorize directives are applied during the validation phase." apply: ApplyPolicy! = BEFORE_RESOLVER) repeatable on OBJECT | FIELD_DEFINITION
+
+"The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response."
+directive @cost("The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc." weight: String!) on SCALAR | OBJECT | FIELD_DEFINITION | ARGUMENT_DEFINITION | ENUM | INPUT_FIELD_DEFINITION
+
+"The purpose of the `@listSize` directive is to either inform the static analysis about the size of returned lists (if that information is statically available), or to point the analysis to where to find that information."
+directive @listSize("The `assumedSize` argument can be used to statically define the maximum length of a list returned by a field." assumedSize: Int "The `slicingArguments` argument can be used to define which of the field's arguments with numeric type are slicing arguments, so that their value determines the size of the list returned by that field. It may specify a list of multiple slicing arguments." slicingArguments: [String!] "The `slicingArgumentDefaultValue` argument can be used to define a default value for a slicing argument, which is used if the argument is not present in a query." slicingArgumentDefaultValue: Int "The `sizedFields` argument can be used to define that the value of the `assumedSize` argument or of a slicing argument does not affect the size of a list returned by a field itself, but that of a list returned by one of its sub-fields." sizedFields: [String!] "The `requireOneSlicingArgument` argument can be used to inform the static analysis that it should expect that exactly one of the defined slicing arguments is present in a query. If that is not the case (i.e., if none or multiple slicing arguments are present), the static analysis may throw an error." requireOneSlicingArgument: Boolean! = true) on FIELD_DEFINITION
+
+"The `@specifiedBy` directive is used within the type system definition language to provide a URL for specifying the behavior of custom scalar definitions."
+directive @specifiedBy("The specifiedBy URL points to a human-readable specification. This field will only read a result for scalar types." url: String!) on SCALAR
+
+"The `DateTime` scalar represents an ISO-8601 compliant date time type."
+scalar DateTime @specifiedBy(url: "https:\/\/www.graphql-scalars.com\/date-time")
+
+"The `Decimal` scalar type represents a decimal floating-point number."
+scalar Decimal
+
+"The `LocalDate` scalar type represents a ISO date string, represented as UTF-8 character sequences YYYY-MM-DD. The scalar follows the specification defined in RFC3339"
+scalar LocalDate
+
+scalar UUID @specifiedBy(url: "https:\/\/tools.ietf.org\/html\/rfc4122")

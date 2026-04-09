@@ -1,54 +1,32 @@
-# AGENTS.md
+# Mundo da Lua CRM — Frontend
 
-## Objetivo
-Este repositorio deve priorizar mudancas pequenas, seguras e faceis de revisar.
+## Contrato GraphQL
 
-## Regras de implementacao
-- Siga o padrao existente do projeto.
-- Prefira diffs minimos.
-- Nao altere contratos publicos sem solicitacao explicita.
-- Nao altere dependencias, pipelines, infraestrutura ou arquivos de segredo sem solicitacao explicita.
-- Nao renomeie arquivos ou mova pastas sem necessidade clara.
+Toda implementação de tela que consuma dados do backend **deve se basear no contrato local** em [contracts/schema.graphql](contracts/schema.graphql).
 
-## Skills (.codex)
-- E permitido usar skills locais contidas em `.codex/skills` para tarefas especializadas.
-- Quando houver um `SKILL.md`, siga as instrucoes desse arquivo para fluxo, comandos e artefatos.
-- Priorize reutilizar scripts, templates e referencias das skills antes de criar do zero.
-- Se uma skill entrar em conflito com regras de seguranca deste `AGENTS.md`, prevalecem as regras deste arquivo.
-- Para arquitetura do front, use `.codex/skills/front-architecture/SKILL.md`.
-- Para autenticacao GraphQL, use tambem a skill `.codex/skills/auth-graphql/SKILL.md`.
-- Para CRUDs, use tambem a skill `.codex/skills/crud-front/SKILL.md`.
+O contrato é a fonte de verdade sobre quais queries, mutations, tipos e campos estão disponíveis. Não consulte o backend diretamente para descobrir a API — leia o schema.
 
-## Autenticacao GraphQL (padrao do projeto)
-- Endpoint oficial: `https://mundo-da-lua-crm-core.onrender.com/graphql/`.
-- Toda comunicacao com backend deve ser via GraphQL.
-- Requisicoes autenticadas devem enviar `Authorization: Bearer <token>`.
-- `tenantId` deve ser enviado no login e na mutation `refreshToken`.
-- Persistir no front: `auth_token`, `auth_expires_at`, `auth_refresh_token`, `auth_refresh_expires_at`, `auth_tenant_id`, `auth_user`.
-- Quando `auth_token` expirar, tentar renovar via mutation GraphQL `refreshToken` antes de encerrar sessao.
-- Se token expirar ou retornar `AUTH_NOT_AUTHORIZED`, limpar sessao local e redirecionar para `/login`.
+### Regras
 
-## Enums GraphQL (padrao do projeto)
-- Valores de enum enviados ao backend devem usar `SCREAMING_SNAKE_CASE`, conforme o schema GraphQL.
-- Nao converter enum GraphQL para `PascalCase` ou `camelCase` no payload (ex.: enviar `MOTHER`, nao `Mother`).
-- Ao integrar novos enums, preferir tipos/constantes gerados por GraphQL Codegen para evitar drift de convencao.
+- Antes de implementar uma query ou mutation, verifique no contrato se o campo raiz existe em `Query` ou `Mutation`.
+- Antes de selecionar campos aninhados, verifique os tipos correspondentes no contrato.
+- Nunca assuma que um campo existe sem confirmar no schema — o build falhará se o contrato for violado.
 
-## Testes e validacoes
-- Execute testes relevantes para a area alterada sempre que possivel.
-- Se a mudanca impactar comportamento, crie ou ajuste testes.
-- Se nao for possivel rodar testes, explique claramente na resposta final.
+### Atualizando o contrato
 
-## Documentacao
-- Atualize documentacao apenas quando a mudanca exigir.
+Quando o backend evoluir, sincronize o contrato local e revise o diff antes de continuar:
 
-## Pull Request
-- Resuma o que mudou.
-- Liste riscos ou pendencias.
-- Cite os testes/validacoes executados.
+```bash
+npm run graphql:contract:update
+```
 
-## Acionamento do backend (obrigatorio)
-- Sempre que for necessario consultar informacoes ou solicitar alteracoes no backend, usar o Claude CLI no repositorio `mundo-da-lua-crm-core`.
-- Comando padrao:
-  `cd "D:\Dev\Mundo da Lua\mundo-da-lua-crm\mundo-da-lua-crm-core" && claude -p "<instrucao>" --dangerously-skip-permissions`
-- Em PowerShell, pode usar o equivalente:
-  `Set-Location "D:\Dev\Mundo da Lua\mundo-da-lua-crm\mundo-da-lua-crm-core"; claude -p "<instrucao>" --dangerously-skip-permissions`
+O comando exibe as linhas adicionadas e removidas. Se alguma query ou mutation usada no front tiver sido removida ou renomeada, ajuste o código antes de commitar.
+
+### Validação automática
+
+A validação do contrato roda automaticamente em:
+
+- `npm run dev` — antes de subir o servidor de desenvolvimento
+- `npm run build` — antes de compilar para produção
+
+Se a validação falhar, o processo é interrompido com a lista de operações incompatíveis.
