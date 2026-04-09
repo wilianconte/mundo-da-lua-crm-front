@@ -1,52 +1,78 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Eye, Loader2, Plus, Save, Users, X } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { AlertCircle, Eye, Loader2, Plus, Save, Trash2, User, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  getAllMockPeople,
+  deleteStudent,
+  deleteStudentCourse,
+  deleteStudentGuardian,
   getStudentById,
-  getStudentStatusLabel,
+  mapStudentApiError,
   saveStudent,
-  studentStatusOptions,
+  studentCourseStatusOptions,
   type MockCourse,
   type MockPerson,
   type StudentCourseEnrollment,
   type StudentGuardian
 } from "@/features/alunos/api/student-mock-service";
+import { getStudentCourseById } from "@/features/alunos/api/search-student-courses";
+import { getStudentPersonById } from "@/features/alunos/api/search-student-people";
 import { CourseAutocomplete } from "@/features/alunos/components/course-autocomplete";
 import { CourseSearchModal } from "@/features/alunos/components/course-search-modal";
 import { GuardiansEditor } from "@/features/alunos/components/guardians-editor";
 import { PersonAutocomplete } from "@/features/alunos/components/person-autocomplete";
 import { PersonSearchModal } from "@/features/alunos/components/person-search-modal";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { studentFormSchema, type StudentFormSchema } from "@/features/alunos/schema/student-form-schema";
 import { cn } from "@/lib/utils/cn";
 
-type StudentTabKey = "general" | "guardians" | "health" | "authorizations" | "history";
+type StudentTabKey = "general" | "courses" | "guardians" | "health" | "authorizations" | "history";
+type CreatedPersonTarget = "student" | "guardian";
 
 const tabs: Array<{ key: StudentTabKey; label: string; description: string }> = [
   { key: "general", label: "Dados gerais", description: "Cadastro principal do aluno e pessoa vinculada." },
+  { key: "courses", label: "Cursos", description: "Matriculas e status dos cursos vinculados ao aluno." },
   { key: "guardians", label: "Responsaveis", description: "Pessoas responsaveis e regras de parentesco." },
   { key: "health", label: "Saude e cuidados", description: "Secao mock preparada para futuros dados clinicos." },
   { key: "authorizations", label: "Autorizacoes", description: "Secao mock preparada para permissoes e regras de retirada." },
   { key: "history", label: "Historico / Observacoes", description: "Secao mock preparada para ocorrencias e registros internos." }
 ];
 
+const STUDENT_REGISTRATION_STATE_PREFIX = "mdl:student-registration:";
+
+type StudentRegistrationDraft = {
+  courseEndDate: string;
+  courseStartDate: string;
+  courses: StudentCourseEnrollment[];
+  formValues: StudentFormSchema;
+  guardians: StudentGuardian[];
+  selectedCourse: MockCourse | null;
+  selectedPerson: MockPerson | null;
+  selectedTab: StudentTabKey;
+};
+
+function isPersistedEntityId(id: string) {
+  return !id.startsWith("enrollment-") && !id.startsWith("guardian-draft-") && !id.startsWith("legacy-course-");
+}
+
 export function StudentRegistrationView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEditMode = searchParams.get("mode") === "edit";
   const studentId = searchParams.get("id");
-  const allPeople = useMemo(() => getAllMockPeople(), []);
+  const restoreStateKey = searchParams.get("restoreState");
+  const createdPersonId = searchParams.get("createdPersonId");
+  const createdPersonTarget = searchParams.get("createdPersonTarget");
+  const createdCourseId = searchParams.get("createdCourseId");
+  const hasRestoredStateRef = useRef(false);
   const [selectedTab, setSelectedTab] = useState<StudentTabKey>("general");
   const [selectedPerson, setSelectedPerson] = useState<MockPerson | null>(null);
   const [guardians, setGuardians] = useState<StudentGuardian[]>([]);
@@ -56,83 +82,250 @@ export function StudentRegistrationView() {
   const [courseEndDate, setCourseEndDate] = useState("");
   const [isPersonModalOpen, setIsPersonModalOpen] = useState(false);
   const [isPersonDetailsModalOpen, setIsPersonDetailsModalOpen] = useState(false);
+  const [isPersonLockInfoModalOpen, setIsPersonLockInfoModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [isCourseDetailsModalOpen, setIsCourseDetailsModalOpen] = useState(false);
   const [isLoadingStudent, setIsLoadingStudent] = useState(isEditMode && Boolean(studentId));
+  const [isDeletingStudent, setIsDeletingStudent] = useState(false);
+  const [isDeleteStudentConfirmOpen, setIsDeleteStudentConfirmOpen] = useState(false);
+  const [courseToRemove, setCourseToRemove] = useState<StudentCourseEnrollment | null>(null);
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isSuccessModalLoading, setIsSuccessModalLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("Cadastro realizado com sucesso.");
+  const [successRedirectPath, setSuccessRedirectPath] = useState("/alunos/pesquisa");
+  const hasLinkedGuardians = guardians.length > 0;
+  const isStudentPersonLocked = isEditMode && hasLinkedGuardians;
 
   const {
     register,
     handleSubmit,
     reset,
+    getValues,
     setValue,
-    control,
     formState: { errors, isSubmitting }
   } = useForm<StudentFormSchema>({
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
       personId: "",
-      status: "ACTIVE",
       notes: ""
     }
   });
-
-  const status = useWatch({ control, name: "status" });
 
   useEffect(() => {
     register("personId");
   }, [register]);
 
   useEffect(() => {
+    if (restoreStateKey) {
+      setIsLoadingStudent(false);
+      return;
+    }
+
     if (!isEditMode || !studentId) return;
 
     let active = true;
-    getStudentById(studentId)
-      .then((student) => {
+    const currentStudentId = studentId;
+
+    async function loadStudent() {
+      try {
+        const student = await getStudentById(currentStudentId);
         if (!active) return;
         if (!student) {
           setFormError("Aluno nao encontrado.");
           return;
         }
 
-        const person = allPeople.find((item) => item.id === student.personId) ?? null;
+        const person = await getStudentPersonById(student.personId).catch(() => null);
+        if (!active) return;
+
         setSelectedPerson(person);
+        if (!person) {
+          setFormError("Nao foi possivel carregar a pessoa vinculada ao aluno.");
+        }
         setGuardians(student.guardians);
 
-        const legacyCourse: StudentCourseEnrollment = {
-          id: `legacy-course-${student.id}`,
-          course: {
-            id: `legacy-${student.id}`,
-            name: student.school || "Curso legado",
-            code: "LEGACY",
-            category: student.gradeClass || "Legado"
-          },
-          registrationNumber: student.registrationNumber,
-          startDate: student.startDate,
-          endDate: undefined
-        };
-        setCourses(student.courses?.length ? student.courses : [legacyCourse]);
+        setCourses(student.courses ?? []);
 
         reset({
           personId: student.personId,
-          status: student.status,
           notes: student.notes ?? ""
         });
-      })
-      .finally(() => {
+      } catch (error) {
+        if (!active) return;
+        setFormError(mapStudentApiError(error));
+      } finally {
         if (active) setIsLoadingStudent(false);
-      });
+      }
+    }
+
+    loadStudent();
 
     return () => {
       active = false;
     };
-  }, [allPeople, isEditMode, studentId, reset]);
+  }, [isEditMode, studentId, reset, restoreStateKey]);
+
+  useEffect(() => {
+    if (!isSuccessModalOpen || isSuccessModalLoading) return;
+
+    const timeoutId = window.setTimeout(() => {
+      router.push(successRedirectPath);
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isSuccessModalLoading, isSuccessModalOpen, router, successRedirectPath]);
+
+  useEffect(() => {
+    if (hasRestoredStateRef.current) return;
+    if (!restoreStateKey && !createdPersonId && !createdCourseId) return;
+
+    hasRestoredStateRef.current = true;
+
+    if (restoreStateKey && typeof window !== "undefined") {
+      const rawState = window.sessionStorage.getItem(restoreStateKey);
+      if (rawState) {
+        try {
+          const parsed = JSON.parse(rawState) as StudentRegistrationDraft;
+          setSelectedTab(parsed.selectedTab ?? "general");
+          setSelectedPerson(parsed.selectedPerson ?? null);
+          setGuardians(parsed.guardians ?? []);
+          setCourses(parsed.courses ?? []);
+          setSelectedCourse(parsed.selectedCourse ?? null);
+          setCourseStartDate(parsed.courseStartDate ?? "");
+          setCourseEndDate(parsed.courseEndDate ?? "");
+          reset(parsed.formValues ?? {
+            personId: "",
+            notes: ""
+          });
+        } catch {
+          setFormError("Nao foi possivel restaurar o estado anterior do cadastro.");
+        } finally {
+          window.sessionStorage.removeItem(restoreStateKey);
+        }
+      }
+    }
+
+    if (createdPersonId) {
+      const target: CreatedPersonTarget =
+        createdPersonTarget === "guardian" ? "guardian" : "student";
+
+      if (target === "student") {
+        getStudentPersonById(createdPersonId)
+          .then((person) => {
+            if (!person) return;
+            setSelectedPerson(person);
+            setValue("personId", person.id, { shouldValidate: true, shouldDirty: true });
+            setFormError(null);
+          })
+          .catch(() => {
+            setFormError("Pessoa recem-cadastrada nao encontrada para vincular ao aluno.");
+          });
+      }
+    }
+
+    if (createdCourseId) {
+      getStudentCourseById(createdCourseId)
+        .then((course) => {
+          if (!course) return;
+          setSelectedCourse(course);
+          setFormError(null);
+        })
+        .catch(() => {
+          setFormError("Curso recem-cadastrado nao encontrado para vincular ao aluno.");
+        });
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("restoreState");
+    nextParams.delete("createdPersonId");
+    nextParams.delete("createdPersonTarget");
+    nextParams.delete("createdCourseId");
+    const nextUrl = nextParams.toString() ? `/alunos/cadastro?${nextParams.toString()}` : "/alunos/cadastro";
+    router.replace(nextUrl);
+  }, [createdCourseId, createdPersonId, createdPersonTarget, restoreStateKey, reset, router, searchParams, setValue]);
 
   function handlePersonSelected(person: MockPerson) {
     setSelectedPerson(person);
     setValue("personId", person.id, { shouldValidate: true, shouldDirty: true });
     setFormError(null);
+  }
+
+  function handleCreatePersonFromStudent(query: string, target: CreatedPersonTarget) {
+    if (typeof window === "undefined") {
+      router.push("/pessoas/cadastro");
+      return;
+    }
+
+    const stateKey = `${STUDENT_REGISTRATION_STATE_PREFIX}${Date.now()}`;
+    const snapshot: StudentRegistrationDraft = {
+      courseEndDate,
+      courseStartDate,
+      courses,
+      formValues: getValues(),
+      guardians,
+      selectedCourse,
+      selectedPerson,
+      selectedTab
+    };
+
+    window.sessionStorage.setItem(stateKey, JSON.stringify(snapshot));
+
+    const returnParams = new URLSearchParams(searchParams.toString());
+    returnParams.delete("restoreState");
+    returnParams.delete("createdPersonId");
+    returnParams.delete("createdPersonTarget");
+    returnParams.delete("createdCourseId");
+    returnParams.set("restoreState", stateKey);
+    const returnTo = `/alunos/cadastro${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
+
+    const personParams = new URLSearchParams();
+    personParams.set("returnTo", returnTo);
+    personParams.set("prefillName", query.trim());
+    personParams.set("createdPersonTarget", target);
+    router.push(`/pessoas/cadastro?${personParams.toString()}`);
+  }
+
+  function handleCreateStudentPerson(query: string) {
+    handleCreatePersonFromStudent(query, "student");
+  }
+
+  function handleCreateGuardianPerson(query: string) {
+    handleCreatePersonFromStudent(query, "guardian");
+  }
+
+  function handleCreateCourseFromStudent(query: string) {
+    if (typeof window === "undefined") {
+      router.push("/cursos/cadastro");
+      return;
+    }
+
+    const stateKey = `${STUDENT_REGISTRATION_STATE_PREFIX}${Date.now()}`;
+    const snapshot: StudentRegistrationDraft = {
+      courseEndDate,
+      courseStartDate,
+      courses,
+      formValues: getValues(),
+      guardians,
+      selectedCourse,
+      selectedPerson,
+      selectedTab
+    };
+
+    window.sessionStorage.setItem(stateKey, JSON.stringify(snapshot));
+
+    const returnParams = new URLSearchParams(searchParams.toString());
+    returnParams.delete("restoreState");
+    returnParams.delete("createdPersonId");
+    returnParams.delete("createdCourseId");
+    returnParams.set("restoreState", stateKey);
+    const returnTo = `/alunos/cadastro${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
+
+    const courseParams = new URLSearchParams();
+    courseParams.set("returnTo", returnTo);
+    courseParams.set("prefillName", query.trim());
+    router.push(`/cursos/cadastro?${courseParams.toString()}`);
   }
 
   function handleCourseSelected(course: MockCourse) {
@@ -156,12 +349,18 @@ export function StudentRegistrationView() {
       return;
     }
 
+    if (courseEndDate && courseEndDate <= courseStartDate) {
+      setFormError("A data de fim do curso deve ser posterior a data de inicio.");
+      return;
+    }
+
     const enrollment: StudentCourseEnrollment = {
       id: `enrollment-${Date.now()}`,
       course: selectedCourse,
       registrationNumber: selectedCourse.code,
       startDate: courseStartDate,
-      endDate: courseEndDate || undefined
+      endDate: courseEndDate || undefined,
+      status: "ACTIVE"
     };
 
     setCourses((current) => [...current, enrollment]);
@@ -171,36 +370,93 @@ export function StudentRegistrationView() {
     setFormError(null);
   }
 
-  async function onSubmit(values: StudentFormSchema) {
-    if (!courses.length) {
-      setFormError("Adicione pelo menos um curso para salvar o aluno.");
-      return;
-    }
+  function handleCourseStatusChange(enrollmentId: string, status: StudentCourseEnrollment["status"]) {
+    setCourses((current) =>
+      current.map((item) => (item.id === enrollmentId ? { ...item, status } : item))
+    );
+    setFormError(null);
+  }
 
+  async function onSubmit(values: StudentFormSchema) {
     try {
       setFormError(null);
-      setSuccessMessage(null);
+      setSuccessRedirectPath("/alunos/pesquisa");
+      setSuccessMessage(isEditMode ? "Salvando alteracao..." : "Salvando cadastro...");
+      setIsSuccessModalLoading(true);
+      setIsSuccessModalOpen(true);
 
-      const primaryCourse = courses[0];
       await saveStudent(isEditMode ? studentId : null, {
         ...values,
-        registrationNumber: primaryCourse.registrationNumber,
-        school: primaryCourse.course.name,
-        gradeClass: primaryCourse.course.category,
-        startDate: primaryCourse.startDate,
-        notes: values.notes,
         guardians,
         courses
       });
-      setSuccessMessage(
-        isEditMode
-          ? "Aluno atualizado com sucesso no modo mock."
-          : "Aluno criado com sucesso no modo mock."
-      );
-      window.setTimeout(() => router.push("/alunos/pesquisa"), 1400);
-    } catch {
-      setFormError("Nao foi possivel salvar o aluno agora.");
+      setSuccessMessage(isEditMode ? "Alteracao realizada com sucesso." : "Cadastro realizado com sucesso.");
+      setIsSuccessModalLoading(false);
+    } catch (error) {
+      setIsSuccessModalLoading(false);
+      setIsSuccessModalOpen(false);
+      setFormError(mapStudentApiError(error));
     }
+  }
+
+  async function confirmDeleteStudent() {
+    if (!studentId || !isEditMode) return;
+
+    try {
+      setFormError(null);
+      setIsDeleteStudentConfirmOpen(false);
+      setIsDeletingStudent(true);
+      const deleted = await deleteStudent(studentId);
+      if (!deleted) {
+        setFormError("Nao foi possivel excluir o aluno.");
+        return;
+      }
+
+      setSuccessMessage("Aluno excluido com sucesso.");
+      setSuccessRedirectPath("/alunos/pesquisa");
+      setIsSuccessModalLoading(false);
+      setIsSuccessModalOpen(true);
+    } catch (error) {
+      setFormError(mapStudentApiError(error));
+    } finally {
+      setIsDeletingStudent(false);
+    }
+  }
+
+  async function confirmRemoveCourse() {
+    if (!courseToRemove) return;
+
+    try {
+      setFormError(null);
+      setDeletingCourseId(courseToRemove.id);
+      const shouldDeleteOnBackend = isEditMode && isPersistedEntityId(courseToRemove.id);
+      if (shouldDeleteOnBackend) {
+        const deleted = await deleteStudentCourse(courseToRemove.id);
+        if (!deleted) {
+          setFormError("Nao foi possivel remover o curso.");
+          return;
+        }
+      }
+
+      setCourses((current) => current.filter((item) => item.id !== courseToRemove.id));
+      setCourseToRemove(null);
+    } catch (error) {
+      setFormError(mapStudentApiError(error));
+    } finally {
+      setDeletingCourseId(null);
+    }
+  }
+
+  async function handleRemoveGuardian(guardian: StudentGuardian) {
+    const shouldDeleteOnBackend = isEditMode && isPersistedEntityId(guardian.id);
+    if (shouldDeleteOnBackend) {
+      const deleted = await deleteStudentGuardian(guardian.id);
+      if (!deleted) {
+        throw new Error("Nao foi possivel remover o responsavel.");
+      }
+    }
+
+    setGuardians((current) => current.filter((item) => item.id !== guardian.id));
   }
 
   function renderPlaceholder(title: string, description: string, fields: string[]) {
@@ -229,63 +485,43 @@ export function StudentRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">
-              <span className="font-mono text-base font-medium uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                Alunos
-              </span>{" "}
-              <span aria-hidden="true" className="text-[var(--color-muted-foreground)]">
-                |
-              </span>{" "}
-              <span className="text-xl">{isEditMode ? "Editar aluno" : "Novo aluno"}</span>
-            </h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              Fluxo de cadastro mock com selecao reutilizavel de pessoas, cursos e gerenciamento de responsaveis.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/alunos/pesquisa">
-              <Button variant="outline">Voltar para pesquisa</Button>
-            </Link>
+      <FeatureViewHeader
+        actions={
+          <>
+            {isEditMode ? (
+              <Button
+                className="min-w-40"
+                disabled={
+                  isDeletingStudent ||
+                  isSubmitting ||
+                  isLoadingStudent ||
+                  isDeleteStudentConfirmOpen ||
+                  isSuccessModalOpen
+                }
+                leadingIcon={isDeletingStudent ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={() => setIsDeleteStudentConfirmOpen(true)}
+                type="button"
+                variant="danger-outline"
+              >
+                {isDeletingStudent ? "Excluindo..." : "Excluir"}
+              </Button>
+            ) : null}
             <Button
+              className="min-w-40"
+              disabled={isDeletingStudent || isSubmitting || isLoadingStudent || isSuccessModalOpen}
               form="student-form"
-              leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              leadingIcon={<Save className="size-4" />}
               type="submit"
             >
-              {isEditMode ? "Salvar alteracoes" : "Salvar aluno"}
+              Salvar
             </Button>
-          </div>
-        </div>
-      </section>
-
-      {isEditMode && selectedPerson ? (
-        <Card>
-          <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-            <div className="space-y-1">
-              <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">Resumo da edicao</p>
-              <h3 className="text-lg font-semibold text-[var(--color-foreground)]">{selectedPerson.fullName}</h3>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                {selectedPerson.documentNumber} - {selectedPerson.phone}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="attention">Mock persistido localmente</Badge>
-              <Badge variant="neutral">{guardians.length} responsavel(eis)</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {successMessage ? (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <CardContent className="flex items-start gap-3 p-4 text-emerald-800">
-            <CheckCircle2 className="mt-0.5 size-5" />
-            <p className="text-sm font-medium">{successMessage}</p>
-          </CardContent>
-        </Card>
-      ) : null}
+          </>
+        }
+        backAriaLabel="Voltar para pesquisa de alunos"
+        backHref="/alunos/pesquisa"
+        description="Cadastro de estudante com vinculo opcional de cursos e responsaveis."
+        title={<span className="text-xl">{isEditMode ? "Editar aluno" : "Novo aluno"}</span>}
+      />
 
       {formError ? (
         <Card className="border-red-200 bg-red-50">
@@ -324,7 +560,7 @@ export function StudentRegistrationView() {
           {isLoadingStudent ? (
             <Card>
               <CardContent className="flex items-center gap-3 p-6 text-sm text-[var(--color-muted-foreground)]">
-                <Loader2 className="size-4 animate-spin" /> Carregando dados mock do aluno...
+                <Loader2 className="size-4 animate-spin" /> Carregando dados do aluno...
               </CardContent>
             </Card>
           ) : null}
@@ -334,7 +570,7 @@ export function StudentRegistrationView() {
               <CardHeader>
                 <CardTitle>Dados gerais</CardTitle>
                 <CardDescription>
-                  Vincule o aluno a uma pessoa e adicione os cursos com matricula e data de inicio.
+                  Vincule o aluno a uma pessoa e preencha os dados cadastrais principais.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -348,12 +584,23 @@ export function StudentRegistrationView() {
                       onClick={() => setIsPersonDetailsModalOpen(true)}
                       type="button"
                     >
-                      <Eye className="size-4" />
+                      <User className="size-4" />
                     </button>
+                    {isStudentPersonLocked ? (
+                      <button
+                        aria-label="Ver observacao de bloqueio da pessoa do aluno"
+                        className="inline-flex items-center justify-center text-[var(--color-muted-foreground)] transition hover:text-[var(--color-foreground)]"
+                        onClick={() => setIsPersonLockInfoModalOpen(true)}
+                        type="button"
+                      >
+                        <AlertCircle className="size-4" />
+                      </button>
+                    ) : null}
                   </div>
                   <PersonAutocomplete
+                    disabled={isStudentPersonLocked}
                     label="Pessoa"
-                    onCreateNew={() => router.push("/pessoas/cadastro")}
+                    onCreateNew={handleCreateStudentPerson}
                     onOpenModal={() => setIsPersonModalOpen(true)}
                     onSelect={handlePersonSelected}
                     value={selectedPerson}
@@ -363,6 +610,31 @@ export function StudentRegistrationView() {
                   ) : null}
                 </Field>
 
+                <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
+
+                <Field>
+                  <FieldLabel htmlFor="student-notes">Observacoes gerais</FieldLabel>
+                  <textarea
+                    className="min-h-32 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+                    id="student-notes"
+                    placeholder="Adicione observacoes sobre matricula, adaptacao ou anotacoes internas"
+                    {...register("notes")}
+                  />
+                </Field>
+
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {selectedTab === "courses" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Cursos</CardTitle>
+                <CardDescription>
+                  Gerencie as matriculas do aluno e altere o status de cada curso associado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
                 <Field>
                   <div className="flex items-center gap-2">
                     <FieldLabel>Curso</FieldLabel>
@@ -378,13 +650,14 @@ export function StudentRegistrationView() {
                   </div>
                   <CourseAutocomplete
                     excludedCourseIds={courses.map((course) => course.course.id)}
+                    onCreateNew={handleCreateCourseFromStudent}
                     onOpenModal={() => setIsCourseModalOpen(true)}
                     onSelect={handleCourseSelected}
                     value={selectedCourse}
                   />
                 </Field>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                   <Field>
                     <FieldLabel htmlFor="course-start-date">Inicio</FieldLabel>
                     <Input
@@ -403,20 +676,6 @@ export function StudentRegistrationView() {
                       value={courseEndDate}
                     />
                   </Field>
-                  <Field>
-                    <FieldLabel htmlFor="student-status">Status</FieldLabel>
-                    <select
-                      className="h-12 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                      id="student-status"
-                      {...register("status")}
-                    >
-                      {studentStatusOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
                   <div className="flex items-end">
                     <Button
                       leadingIcon={<Plus className="size-4" />}
@@ -429,10 +688,10 @@ export function StudentRegistrationView() {
                 </div>
 
                 <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
-                  <table className="min-w-[680px] w-full border-collapse text-sm">
+                  <table className="min-w-[760px] w-full border-collapse text-sm">
                     <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
                       <tr>
-                        {["Curso", "Inicio", "Fim", "Acao"].map((label) => (
+                        {["Curso", "Inicio", "Fim", "Status", "Acao"].map((label) => (
                           <th className="px-4 py-3 font-semibold" key={label}>
                             {label}
                           </th>
@@ -446,28 +705,42 @@ export function StudentRegistrationView() {
                             <td className="px-4 py-3 font-medium text-[var(--color-foreground)]">
                               {enrollment.course.name}
                             </td>
-                            <td className="px-4 py-3 text-[var(--color-muted-foreground)]">
-                              {enrollment.startDate}
-                            </td>
+                            <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{enrollment.startDate}</td>
                             <td className="px-4 py-3 text-[var(--color-muted-foreground)]">{enrollment.endDate ?? "-"}</td>
                             <td className="px-4 py-3">
-                              <Button
-                                onClick={() =>
-                                  setCourses((current) =>
-                                    current.filter((item) => item.id !== enrollment.id)
+                              <select
+                                aria-label={`Status do curso ${enrollment.course.name}`}
+                                className="h-9 rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-foreground)]"
+                                onChange={(event) =>
+                                  handleCourseStatusChange(
+                                    enrollment.id,
+                                    event.target.value as StudentCourseEnrollment["status"]
                                   )
                                 }
+                                value={enrollment.status}
+                              >
+                                {studentCourseStatusOptions.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Button
+                                disabled={deletingCourseId === enrollment.id}
+                                onClick={() => setCourseToRemove(enrollment)}
                                 size="sm"
                                 variant="ghost"
                               >
-                                Remover
+                                {deletingCourseId === enrollment.id ? "Removendo..." : "Remover"}
                               </Button>
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr className="border-t border-[var(--color-border)]">
-                          <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={4}>
+                          <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={5}>
                             Nenhum curso adicionado ainda.
                           </td>
                         </tr>
@@ -475,21 +748,18 @@ export function StudentRegistrationView() {
                     </tbody>
                   </table>
                 </div>
-
-                <Field>
-                  <FieldLabel htmlFor="student-notes">Observacoes gerais</FieldLabel>
-                  <textarea
-                    className="min-h-32 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                    id="student-notes"
-                    placeholder="Adicione observacoes sobre matricula, adaptacao ou anotacoes internas"
-                    {...register("notes")}
-                  />
-                </Field>
               </CardContent>
             </Card>
           ) : null}
 
-          {selectedTab === "guardians" ? <GuardiansEditor guardians={guardians} onChange={setGuardians} /> : null}
+          {selectedTab === "guardians" ? (
+            <GuardiansEditor
+              guardians={guardians}
+              onChange={setGuardians}
+              onCreateGuardianPerson={handleCreateGuardianPerson}
+              onRemoveGuardian={handleRemoveGuardian}
+            />
+          ) : null}
 
           {selectedTab === "health"
             ? renderPlaceholder("Saude e cuidados", "Placeholders preparados para futuros registros de saude e cuidado.", [
@@ -521,26 +791,6 @@ export function StudentRegistrationView() {
               ])
             : null}
 
-          <Card>
-            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-              <div className="flex items-center gap-3 text-sm text-[var(--color-muted-foreground)]">
-                <Users className="size-4" />
-                {guardians.length} responsavel(eis) vinculado(s)
-                <span>- {getStudentStatusLabel(status ?? "ACTIVE")}</span>
-              </div>
-              <div className="flex gap-3">
-                <Button onClick={() => setSelectedTab("general")} type="button" variant="ghost">
-                  Revisar dados gerais
-                </Button>
-                <Button
-                  leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                  type="submit"
-                >
-                  {isEditMode ? "Salvar alteracoes" : "Salvar aluno"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </form>
       </div>
 
@@ -634,6 +884,121 @@ export function StudentRegistrationView() {
           </Card>
         </div>
       ) : null}
+      {isPersonLockInfoModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <Card className="w-full max-w-xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--color-foreground)]">Observacao</h3>
+              </div>
+              <button
+                aria-label="Fechar modal de observacao"
+                className="inline-flex size-10 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-foreground)]"
+                onClick={() => setIsPersonLockInfoModalOpen(false)}
+                type="button"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <CardContent className="space-y-4 p-6">
+              <p className="text-sm text-[var(--color-foreground)]">
+                A pessoa vinculada ao aluno não pode ser alterada após a criação
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
+      {isSuccessModalOpen ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="flex items-start gap-3">
+              <Loader2 className="mt-0.5 size-5 animate-spin text-[var(--color-primary)]" />
+              <div className="space-y-1">
+                <p className="text-base font-semibold text-[var(--color-foreground)]">{successMessage}</p>
+                <p className="text-sm text-[var(--color-muted-foreground)]">
+                  {isSuccessModalLoading ? "Aguarde, estamos processando os dados..." : "Redirecionando para a listagem de alunos..."}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isDeleteStudentConfirmOpen ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                Deseja excluir este aluno? Esta acao nao podera ser desfeita.
+              </p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                disabled={isDeletingStudent}
+                leadingIcon={<X className="size-4" />}
+                onClick={() => setIsDeleteStudentConfirmOpen(false)}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isDeletingStudent}
+                leadingIcon={isDeletingStudent ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={confirmDeleteStudent}
+                variant="danger-outline"
+              >
+                {isDeletingStudent ? "Excluindo..." : "Excluir"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {courseToRemove ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                Deseja remover a matricula do curso <strong>{courseToRemove.course.name}</strong>?
+              </p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                disabled={deletingCourseId === courseToRemove.id}
+                leadingIcon={<X className="size-4" />}
+                onClick={() => setCourseToRemove(null)}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={deletingCourseId === courseToRemove.id}
+                leadingIcon={deletingCourseId === courseToRemove.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={confirmRemoveCourse}
+                variant="danger-outline"
+              >
+                {deletingCourseId === courseToRemove.id ? "Removendo..." : "Remover"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
+

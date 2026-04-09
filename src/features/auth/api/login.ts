@@ -5,6 +5,8 @@ const LOGIN_MUTATION = `
     login(input: $input) {
       token
       expiresAt
+      refreshToken
+      refreshTokenExpiresAt
       userId
       name
       email
@@ -22,6 +24,8 @@ type LoginMutationResponse = {
   login: {
     token: string;
     expiresAt: string;
+    refreshToken: string;
+    refreshTokenExpiresAt: string;
     userId: string;
     name: string;
     email: string;

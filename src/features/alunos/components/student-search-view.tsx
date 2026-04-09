@@ -8,32 +8,31 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   searchStudents,
-  type StudentListItem,
-  type StudentStatus
+  type GetStudentsVariables,
+  type StudentFilterInput,
+  type StudentLifecycleStatus
 } from "@/features/alunos/api/student-mock-service";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
+import {
+  getPeople,
+  type GetPeopleVariables,
+  type PersonFilterInput
+} from "@/features/pessoas/api/get-people";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
+import { GraphQLRequestError } from "@/lib/graphql/client";
 
 type FilterFieldKey =
   | "studentName"
   | "documentNumber"
-  | "guardianName"
-  | "registrationNumber"
-  | "school"
-  | "gradeClass"
   | "status";
 type FieldType = "text" | "category";
 type TextOperator = "contains" | "equals" | "startsWith";
 type CategoryOperator = "equals" | "notEquals";
 type FilterOperator = TextOperator | CategoryOperator;
-type SortableColumn =
-  | "studentName"
-  | "registrationNumber"
-  | "school"
-  | "gradeClass"
-  | "status"
-  | "primaryGuardianName";
+type SortableColumn = "status" | "createdAt";
 type SortDirection = "asc" | "desc";
+type CursorMode = "forward" | "backward";
 
 type FilterField = {
   key: FilterFieldKey;
@@ -48,13 +47,13 @@ type FilterChip = {
   value: string;
 };
 
+type StudentRow = Awaited<ReturnType<typeof searchStudents>>["nodes"][number];
+
+const PAGE_SIZE = 20;
+
 const filterFields: FilterField[] = [
   { key: "studentName", label: "Aluno", type: "text" },
   { key: "documentNumber", label: "Documento", type: "text" },
-  { key: "guardianName", label: "Responsavel", type: "text" },
-  { key: "registrationNumber", label: "Matricula", type: "text" },
-  { key: "school", label: "Escola", type: "text" },
-  { key: "gradeClass", label: "Turma", type: "text" },
   { key: "status", label: "Status", type: "category" }
 ];
 
@@ -70,12 +69,9 @@ const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
 ];
 
 const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
-  { label: "Aluno", sortKey: "studentName" },
-  { label: "Matricula", sortKey: "registrationNumber" },
-  { label: "Escola", sortKey: "school" },
-  { label: "Turma", sortKey: "gradeClass" },
+  { label: "Aluno" },
   { label: "Status", sortKey: "status" },
-  { label: "Responsavel", sortKey: "primaryGuardianName" },
+  { label: "Responsavel" },
   { label: "Contato" },
   { label: "Acao" }
 ];
@@ -84,38 +80,119 @@ function normalize(value: string) {
   return value.trim().toLowerCase();
 }
 
-function toStatusEnum(value: string): StudentStatus | null {
+function toStatusEnum(value: string): StudentLifecycleStatus | null {
   const normalized = normalize(value);
   if (normalized === "active" || normalized === "ativo") return "ACTIVE";
-  if (normalized === "pending" || normalized === "pendente") return "PENDING";
   if (normalized === "inactive" || normalized === "inativo") return "INACTIVE";
   return null;
 }
 
-function toStatusLabel(status: StudentStatus) {
+function toStatusLabel(status: StudentLifecycleStatus) {
   if (status === "ACTIVE") return "Ativo";
-  if (status === "PENDING") return "Pendente";
   return "Inativo";
 }
 
-function matchesTextOperator(value: string, query: string, operator: TextOperator) {
-  const normalizedValue = normalize(value);
-  const normalizedQuery = normalize(query);
-  if (!normalizedQuery) return true;
-
-  if (operator === "equals") return normalizedValue === normalizedQuery;
-  if (operator === "startsWith") return normalizedValue.startsWith(normalizedQuery);
-  return normalizedValue.includes(normalizedQuery);
+function statusBadgeVariant(status: StudentLifecycleStatus): "success" | "attention" | "neutral" {
+  if (status === "ACTIVE") return "success";
+  return "neutral";
 }
 
-function getFilterValue(row: StudentListItem, key: FilterFieldKey) {
-  if (key === "studentName") return row.studentName;
-  if (key === "documentNumber") return row.documentNumber;
-  if (key === "guardianName") return row.primaryGuardianName;
-  if (key === "registrationNumber") return row.registrationNumber;
-  if (key === "school") return row.school;
-  if (key === "gradeClass") return row.gradeClass;
-  return row.status;
+function mapSortColumn(column: SortableColumn) {
+  if (column === "status") return "enrollmentStatus";
+  return "createdAt";
+}
+
+function mapTextOperator(operator: TextOperator): "contains" | "eq" | "startsWith" {
+  if (operator === "equals") return "eq";
+  if (operator === "startsWith") return "startsWith";
+  return "contains";
+}
+
+function mergeAndFilters(filters: StudentFilterInput[]) {
+  if (!filters.length) return null;
+  if (filters.length === 1) return filters[0];
+  return { and: filters };
+}
+
+async function searchPeopleIdsByFilter(where: PersonFilterInput) {
+  const variables: GetPeopleVariables = {
+    first: 200,
+    where,
+    order: [{ fullName: "ASC" }]
+  };
+
+  const people = await getPeople(variables);
+  return people.nodes.map((person) => person.id);
+}
+
+async function buildStudentWhere({
+  chips,
+  freeQuery
+}: {
+  chips: FilterChip[];
+  freeQuery: string;
+}): Promise<{ where: StudentFilterInput | null; enrollmentStatus?: StudentLifecycleStatus; forceEmpty: boolean }> {
+  const andFilters: StudentFilterInput[] = [];
+  const freeQueryValue = freeQuery.trim();
+  let enrollmentStatus: StudentLifecycleStatus | undefined;
+
+  if (freeQueryValue) {
+    const personIdsFromQuery = await searchPeopleIdsByFilter({
+      or: [
+        { fullName: { contains: freeQueryValue } },
+        { documentNumber: { contains: freeQueryValue } }
+      ]
+    }).catch(() => []);
+
+    if (!personIdsFromQuery.length) {
+      return { where: null, forceEmpty: true, enrollmentStatus };
+    }
+
+    andFilters.push({ personId: { in: personIdsFromQuery } });
+  }
+
+  for (const chip of chips) {
+    const value = chip.value.trim();
+    if (!value) continue;
+
+    if (chip.field.key === "status") {
+      const status = toStatusEnum(value);
+      if (!status) continue;
+      if (chip.operator === "equals") {
+        enrollmentStatus = status;
+      } else {
+        enrollmentStatus = status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+      }
+      continue;
+    }
+
+    if (chip.field.key === "studentName" || chip.field.key === "documentNumber") {
+      const personWhere: PersonFilterInput =
+        chip.field.key === "studentName"
+          ? { fullName: { [mapTextOperator(chip.operator as TextOperator)]: value } }
+          : { documentNumber: { [mapTextOperator(chip.operator as TextOperator)]: value } };
+
+      const personIds = await searchPeopleIdsByFilter(personWhere).catch(() => []);
+      if (!personIds.length) {
+        return { where: null, forceEmpty: true, enrollmentStatus };
+      }
+      andFilters.push({ personId: { in: personIds } });
+      continue;
+    }
+
+    const operator = mapTextOperator(chip.operator as TextOperator);
+    const personWhere: PersonFilterInput =
+      chip.field.key === "studentName"
+        ? { fullName: { [operator]: value } }
+        : { documentNumber: { [operator]: value } };
+    const personIds = await searchPeopleIdsByFilter(personWhere).catch(() => []);
+    if (!personIds.length) {
+      return { where: null, forceEmpty: true, enrollmentStatus };
+    }
+    andFilters.push({ personId: { in: personIds } });
+  }
+
+  return { where: mergeAndFilters(andFilters), enrollmentStatus, forceEmpty: false };
 }
 
 export function StudentSearchView() {
@@ -126,99 +203,114 @@ export function StudentSearchView() {
   const [selectedOperator, setSelectedOperator] = useState<FilterOperator>("contains");
   const [chips, setChips] = useState<FilterChip[]>([]);
   const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
-  const [rows, setRows] = useState<StudentListItem[]>([]);
+  const [sortBy, setSortBy] = useState<SortableColumn>("createdAt");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [rows, setRows] = useState<StudentRow[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortableColumn>("studentName");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const [pageStartCursor, setPageStartCursor] = useState<string | null>(null);
+  const [pageEndCursor, setPageEndCursor] = useState<string | null>(null);
+  const [requestAfter, setRequestAfter] = useState<string | null>(null);
+  const [requestBefore, setRequestBefore] = useState<string | null>(null);
+  const [cursorMode, setCursorMode] = useState<CursorMode>("forward");
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const availableOperators = selectedField?.type === "category" ? categoryOperators : textOperators;
 
   useEffect(() => {
-    let active = true;
+    let isMounted = true;
 
     async function loadStudents() {
       try {
         setIsLoading(true);
         setErrorMessage(null);
-        const response = await searchStudents({});
-        if (!active) return;
-        setRows(response);
-      } catch {
-        if (!active) return;
+
+        const whereResult = await buildStudentWhere({ chips, freeQuery });
+        if (!isMounted) return;
+
+        if (whereResult.forceEmpty) {
+          setRows([]);
+          setTotalCount(0);
+          setHasNextPage(false);
+          setHasPreviousPage(false);
+          setPageStartCursor(null);
+          setPageEndCursor(null);
+          return;
+        }
+
+        const variables: GetStudentsVariables = {
+          enrollmentStatus: whereResult.enrollmentStatus,
+          where: whereResult.where,
+          order: [{ [mapSortColumn(sortBy)]: sortDirection === "asc" ? "ASC" : "DESC" }]
+        };
+
+        if (cursorMode === "backward") {
+          variables.last = PAGE_SIZE;
+          variables.before = requestBefore;
+        } else {
+          variables.first = PAGE_SIZE;
+          variables.after = requestAfter;
+        }
+
+        if (!requestBefore && !requestAfter) {
+          variables.first = PAGE_SIZE;
+          variables.after = null;
+          delete variables.last;
+          delete variables.before;
+        }
+
+        const response = await searchStudents(variables);
+        if (!isMounted) return;
+
+        setRows(response.nodes ?? []);
+        setTotalCount(response.totalCount ?? 0);
+        setHasNextPage(Boolean(response.pageInfo?.hasNextPage));
+        setHasPreviousPage(Boolean(response.pageInfo?.hasPreviousPage));
+        setPageStartCursor(response.pageInfo?.startCursor ?? null);
+        setPageEndCursor(response.pageInfo?.endCursor ?? null);
+      } catch (error) {
+        if (!isMounted) return;
+
+        const message =
+          error instanceof GraphQLRequestError
+            ? error.message
+            : "Nao foi possivel carregar a pesquisa de alunos.";
         setRows([]);
-        setErrorMessage("Nao foi possivel carregar a pesquisa de alunos.");
+        setTotalCount(0);
+        setErrorMessage(message);
       } finally {
-        if (active) setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadStudents();
 
     return () => {
-      active = false;
+      isMounted = false;
     };
-  }, []);
+  }, [chips, freeQuery, sortBy, sortDirection, cursorMode, requestAfter, requestBefore]);
 
-  const filteredRows = useMemo(() => {
-    const freeQueryValue = normalize(freeQuery);
-
-    return rows.filter((row) => {
-      const matchesFreeQuery =
-        !freeQueryValue ||
-        [
-          row.studentName,
-          row.documentNumber,
-          row.registrationNumber,
-          row.school,
-          row.gradeClass,
-          row.primaryGuardianName
-        ]
-          .map((value) => normalize(value))
-          .some((value) => value.includes(freeQueryValue));
-
-      if (!matchesFreeQuery) return false;
-
-      for (const chip of chips) {
-        if (chip.field.key === "status") {
-          const status = toStatusEnum(chip.value);
-          if (!status) return false;
-
-          const isEqual = row.status === status;
-          if (chip.operator === "notEquals" && isEqual) return false;
-          if (chip.operator === "equals" && !isEqual) return false;
-          continue;
-        }
-
-        const value = chip.value.trim();
-        if (!value) continue;
-        const rowValue = getFilterValue(row, chip.field.key);
-        const operator = chip.operator as TextOperator;
-        if (!matchesTextOperator(String(rowValue), value, operator)) return false;
-      }
-
-      return true;
-    });
-  }, [chips, freeQuery, rows]);
-
-  const sortedRows = useMemo(() => {
-    return [...filteredRows].sort((left, right) => {
-      const leftValue = normalize(String(left[sortBy]));
-      const rightValue = normalize(String(right[sortBy]));
-      const comparison = leftValue.localeCompare(rightValue);
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-  }, [filteredRows, sortBy, sortDirection]);
+  function resetToFirstPage() {
+    setCursorMode("forward");
+    setRequestAfter(null);
+    setRequestBefore(null);
+  }
 
   function toggleSort(column: SortableColumn) {
     if (sortBy !== column) {
       setSortBy(column);
       setSortDirection("asc");
+      resetToFirstPage();
       return;
     }
 
     setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+    resetToFirstPage();
   }
 
   function renderSortIcon(column: SortableColumn) {
@@ -254,6 +346,7 @@ export function StudentSearchView() {
     setChips((current) => [...current, chip]);
     setSearchInput("");
     setIsFieldDropdownOpen(false);
+    resetToFirstPage();
   }
 
   function handleInputChange(value: string) {
@@ -269,6 +362,7 @@ export function StudentSearchView() {
 
     setIsFieldDropdownOpen(false);
     setFreeQuery(value);
+    resetToFirstPage();
   }
 
   function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -281,6 +375,7 @@ export function StudentSearchView() {
 
   function removeChip(id: string) {
     setChips((current) => current.filter((chip) => chip.id !== id));
+    resetToFirstPage();
   }
 
   function getOperatorLabel(operator: FilterOperator) {
@@ -289,13 +384,7 @@ export function StudentSearchView() {
     );
   }
 
-  function statusBadgeVariant(status: StudentStatus): "success" | "attention" | "neutral" {
-    if (status === "ACTIVE") return "success";
-    if (status === "PENDING") return "attention";
-    return "neutral";
-  }
-
-  function openEditStudent(student: StudentListItem) {
+  function openEditStudent(student: StudentRow) {
     const params = new URLSearchParams({
       mode: "edit",
       id: student.id
@@ -307,22 +396,21 @@ export function StudentSearchView() {
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Alunos</p>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de alunos</h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              Omnisearch com filtros tokenizados e busca livre global por aluno, documento e matricula.
-            </p>
-          </div>
-          <Button
-            className="min-w-40"
-            leadingIcon={<Plus className="size-4" />}
-            onClick={() => router.push("/alunos/cadastro")}
-          >
-            Adicionar
-          </Button>
-        </div>
+        <FeatureViewHeader
+          actions={
+            <Button
+              className="min-w-40"
+              leadingIcon={<Plus className="size-4" />}
+              onClick={() => router.push("/alunos/cadastro")}
+            >
+              Adicionar
+            </Button>
+          }
+          backAriaLabel="Voltar para o dashboard"
+          backHref="/"
+          description="Omnisearch com filtros tokenizados e busca por aluno, documento e status."
+          title="Pesquisa de alunos"
+        />
       </section>
 
       <section className="space-y-5">
@@ -357,14 +445,22 @@ export function StudentSearchView() {
         ) : null}
 
         <SearchResultsTable
-          canGoNext={false}
-          canGoPrevious={false}
+          canGoNext={!isLoading && hasNextPage && Boolean(pageEndCursor)}
+          canGoPrevious={!isLoading && hasPreviousPage && Boolean(pageStartCursor)}
           columns={tableColumns}
           emptyText="Nenhum aluno encontrado com os filtros atuais."
           isLoading={isLoading}
           loadingText="Carregando alunos..."
-          onNextPage={() => undefined}
-          onPreviousPage={() => undefined}
+          onNextPage={() => {
+            setCursorMode("forward");
+            setRequestBefore(null);
+            setRequestAfter(pageEndCursor);
+          }}
+          onPreviousPage={() => {
+            setCursorMode("backward");
+            setRequestAfter(null);
+            setRequestBefore(pageStartCursor);
+          }}
           onToggleSort={toggleSort}
           renderRow={(student) => (
             <tr
@@ -372,9 +468,6 @@ export function StudentSearchView() {
               key={student.id}
             >
               <td className="px-4 py-3">{student.studentName}</td>
-              <td className="px-4 py-3">{student.registrationNumber}</td>
-              <td className="px-4 py-3">{student.school}</td>
-              <td className="px-4 py-3">{student.gradeClass}</td>
               <td className="px-4 py-3">
                 <Badge variant={statusBadgeVariant(student.status)}>{toStatusLabel(student.status)}</Badge>
               </td>
@@ -388,9 +481,9 @@ export function StudentSearchView() {
             </tr>
           )}
           renderSortIcon={renderSortIcon}
-          rows={sortedRows}
+          rows={rows}
           sortBy={sortBy}
-          totalText={`${sortedRows.length} alunos encontrados com os filtros atuais.`}
+          totalText={`${totalCount} alunos encontrados com os filtros atuais.`}
         />
       </section>
     </div>

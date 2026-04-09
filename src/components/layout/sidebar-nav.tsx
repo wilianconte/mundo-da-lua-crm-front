@@ -3,10 +3,12 @@
 import { Menu, Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { NavChildItem, NavItem } from "@/config/navigation";
 import { navigationItems } from "@/config/navigation";
+import { SYSTEM_PERMISSIONS, canAccessPath } from "@/lib/auth/permissions";
+import { getAuthUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
 
 type SidebarNavProps = {
@@ -14,6 +16,69 @@ type SidebarNavProps = {
   collapsed?: boolean;
   onNavigate?: () => void;
 };
+
+function isAdminUser(permissions: string[]) {
+  return (
+    permissions.includes(SYSTEM_PERMISSIONS.usersManage) &&
+    permissions.includes(SYSTEM_PERMISSIONS.rolesManage)
+  );
+}
+
+function isUnimplementedMenuItem(href?: string) {
+  return href === "/components" || href?.startsWith("/system-design") === true;
+}
+
+function filterChildrenByPermissions(items: NavChildItem[], permissions: string[], isAdmin: boolean): NavChildItem[] {
+  return items.reduce<NavChildItem[]>((accumulator, item) => {
+      const nextChildren = item.children?.length
+        ? filterChildrenByPermissions(item.children, permissions, isAdmin)
+        : undefined;
+
+      if (isUnimplementedMenuItem(item.href) && !isAdmin) {
+        return accumulator;
+      }
+
+      const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : false;
+      const hasVisibleChildren = Boolean(nextChildren?.length);
+      if (!hasHrefAccess && !hasVisibleChildren) {
+        return accumulator;
+      }
+
+      accumulator.push({
+        ...item,
+        children: nextChildren
+      });
+
+      return accumulator;
+    }, []);
+}
+
+function filterNavigationByPermissions(items: NavItem[], permissions: string[]): NavItem[] {
+  const isAdmin = isAdminUser(permissions);
+
+  return items.reduce<NavItem[]>((accumulator, item) => {
+      const nextChildren = item.children?.length
+        ? filterChildrenByPermissions(item.children, permissions, isAdmin)
+        : undefined;
+
+      if (isUnimplementedMenuItem(item.href) && !isAdmin) {
+        return accumulator;
+      }
+
+      const hasHrefAccess = item.href ? canAccessPath(item.href, permissions) : false;
+      const hasVisibleChildren = Boolean(nextChildren?.length);
+      if (!hasHrefAccess && !hasVisibleChildren) {
+        return accumulator;
+      }
+
+      accumulator.push({
+        ...item,
+        children: nextChildren
+      });
+
+      return accumulator;
+    }, []);
+}
 
 function getFirstHref(items?: NavChildItem[]): string | undefined {
   if (!items?.length) {
@@ -34,12 +99,33 @@ function getFirstHref(items?: NavChildItem[]): string | undefined {
   return undefined;
 }
 
+function isPathActive(pathname: string, href?: string): boolean {
+  if (!href) {
+    return false;
+  }
+
+  if (pathname === href) {
+    return true;
+  }
+
+  if (href.endsWith("/pesquisa") || href.endsWith("/cadastro")) {
+    const parentPath = href.replace(/\/(pesquisa|cadastro)$/, "");
+    if (!parentPath) {
+      return false;
+    }
+
+    return pathname === parentPath || pathname.startsWith(`${parentPath}/`);
+  }
+
+  return false;
+}
+
 function hasActivePath(items: NavChildItem[] | undefined, pathname: string): boolean {
   if (!items?.length) {
     return false;
   }
 
-  return items.some((item) => item.href === pathname || hasActivePath(item.children, pathname));
+  return items.some((item) => isPathActive(pathname, item.href) || hasActivePath(item.children, pathname));
 }
 
 function ChildNavItem({
@@ -54,7 +140,7 @@ function ChildNavItem({
   level: number;
 }) {
   const hasChildren = Boolean(item.children?.length);
-  const isChildActive = item.href ? pathname === item.href : false;
+  const isChildActive = isPathActive(pathname, item.href);
   const [expanded, setExpanded] = useState(hasActivePath(item.children, pathname));
 
   if (hasChildren) {
@@ -124,7 +210,7 @@ function SidebarLink({
 }) {
   const [expanded, setExpanded] = useState(item.defaultExpanded || hasActivePath(item.children, pathname) || false);
   const Icon = item.icon;
-  const isActive = item.href ? pathname === item.href : expanded;
+  const isActive = item.href ? isPathActive(pathname, item.href) : expanded;
 
   if (collapsed) {
     const href = item.href ?? getFirstHref(item.children) ?? "#";
@@ -211,20 +297,34 @@ function SidebarLink({
 
 export function SidebarNav({ className, collapsed = false, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
-  const groupedItems = navigationItems.reduce<Array<{ section?: string; items: NavItem[] }>>(
-    (accumulator, item) => {
-      const currentGroup = accumulator[accumulator.length - 1];
+  const [userPermissions, setUserPermissions] = useState<string[] | null>(null);
+  const [isPermissionsResolved, setIsPermissionsResolved] = useState(false);
 
-      if (currentGroup && currentGroup.section === item.section) {
-        currentGroup.items.push(item);
-        return accumulator;
-      }
+  useEffect(() => {
+    setUserPermissions(getAuthUser()?.permissions ?? []);
+    setIsPermissionsResolved(true);
+  }, []);
 
-      accumulator.push({ section: item.section, items: [item] });
-      return accumulator;
-    },
-    []
+  const allowedNavigationItems = useMemo(
+    () => (isPermissionsResolved ? filterNavigationByPermissions(navigationItems, userPermissions ?? []) : []),
+    [isPermissionsResolved, userPermissions]
   );
+  const groupedItems = useMemo(
+    () =>
+      allowedNavigationItems.reduce<Array<{ section?: string; items: NavItem[] }>>((accumulator, item) => {
+        const currentGroup = accumulator[accumulator.length - 1];
+
+        if (currentGroup && currentGroup.section === item.section) {
+          currentGroup.items.push(item);
+          return accumulator;
+        }
+
+        accumulator.push({ section: item.section, items: [item] });
+        return accumulator;
+      }, []),
+    [allowedNavigationItems]
+  );
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   return (
     <nav className={cn("space-y-4", collapsed && "space-y-3", className)}>
@@ -233,19 +333,38 @@ export function SidebarNav({ className, collapsed = false, onNavigate }: Sidebar
           {collapsed ? (
             <div className="h-px w-full bg-[var(--color-border)]/70" />
           ) : group.section ? (
-            <p className="px-2 pt-2 text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]">
-              {group.section}
-            </p>
+            <button
+              aria-expanded={!(collapsedSections[group.section] ?? false)}
+              className="flex w-full items-center justify-between px-2 pt-2 text-left text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]"
+              onClick={() => {
+                const section = group.section;
+
+                if (!section) {
+                  return;
+                }
+
+                setCollapsedSections((current) => ({
+                  ...current,
+                  [section]: !(current[section] ?? false)
+                }));
+              }}
+              type="button"
+            >
+              <span>{group.section}</span>
+              {!(collapsedSections[group.section] ?? false) ? <Minus className="size-3.5" /> : <Plus className="size-3.5" />}
+            </button>
           ) : null}
-          {group.items.map((item) => (
-            <SidebarLink
-              collapsed={collapsed}
-              item={item}
-              key={item.label}
-              onNavigate={onNavigate}
-              pathname={pathname}
-            />
-          ))}
+          {!group.section || !(collapsedSections[group.section] ?? false)
+            ? group.items.map((item) => (
+                <SidebarLink
+                  collapsed={collapsed}
+                  item={item}
+                  key={item.label}
+                  onNavigate={onNavigate}
+                  pathname={pathname}
+                />
+              ))
+            : null}
         </div>
       ))}
     </nav>

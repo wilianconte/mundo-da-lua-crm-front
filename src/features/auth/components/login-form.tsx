@@ -1,22 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, KeyRound } from "lucide-react";
+import { ArrowRight, Lock, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { getMyPermissionsWithToken } from "@/features/auth/api/get-my-permissions";
 import { login } from "@/features/auth/api/login";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { type LoginSchema, loginSchema } from "@/features/auth/schema/login-schema";
 import { type GraphQLRequestError } from "@/lib/graphql/client";
@@ -26,15 +20,11 @@ type LoginFormProps = {
   embedded?: boolean;
 };
 
-const DEFAULT_LOGIN = {
-  email: "admin@mundodalua.com",
-  password: "Admin@123"
-};
-
 const DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
 export function LoginForm({ embedded = false }: LoginFormProps) {
   const router = useRouter();
+  const [socialInfoMessage, setSocialInfoMessage] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -43,8 +33,8 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
   } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: DEFAULT_LOGIN.email,
-      password: DEFAULT_LOGIN.password
+      email: "",
+      password: ""
     }
   });
 
@@ -56,19 +46,25 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
 
   async function onSubmit(values: LoginSchema) {
     try {
+      setSocialInfoMessage(null);
       const response = await login({
         tenantId: DEFAULT_TENANT_ID,
         email: values.email.trim().toLowerCase(),
         password: values.password
       });
+      const permissions = await getMyPermissionsWithToken(response.token).catch(() => []);
 
-      saveAuthSession({
+      await saveAuthSession({
         token: response.token,
         expiresAt: response.expiresAt,
+        refreshToken: response.refreshToken,
+        refreshTokenExpiresAt: response.refreshTokenExpiresAt,
+        tenantId: DEFAULT_TENANT_ID,
         user: {
           userId: response.userId,
           name: response.name,
-          email: response.email
+          email: response.email,
+          permissions
         }
       });
 
@@ -89,87 +85,99 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
     }
   }
 
+  function handleGoogleSocialLogin() {
+    setSocialInfoMessage("Login com Google sera habilitado em breve.");
+  }
+
   const content = (
-    <>
-      <CardHeader className={embedded ? "space-y-1.5 px-0 pt-0" : undefined}>
-        <div
-          className={
-            embedded
-              ? "mb-3 inline-flex size-10 items-center justify-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary)]"
-              : "mb-4 inline-flex size-12 items-center justify-center rounded-2xl bg-[var(--color-primary-soft)] text-[var(--color-primary)]"
-          }
-        >
-          <KeyRound className="size-5" />
-        </div>
-        <CardTitle className={embedded ? "text-2xl font-semibold" : undefined}>
-          Entrar no painel
-        </CardTitle>
-        <CardDescription className={embedded ? "text-sm" : undefined}>
-          Acesse o CRM com sua conta corporativa para operar os modulos da instituicao.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className={embedded ? "px-0 pb-0" : undefined}>
-        <form className={embedded ? "space-y-4" : "space-y-5"} onSubmit={handleSubmit(onSubmit)}>
-          <Field>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
+    <div className="w-full">
+      <form className="mx-auto w-full max-w-[310px] space-y-5" onSubmit={handleSubmit(onSubmit)}>
+        <Field>
+          <FieldLabel className="text-xs font-bold uppercase tracking-[0.08em] text-slate-600" htmlFor="email">
+            E-mail
+          </FieldLabel>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
             <Input
+              autoComplete="username"
+              className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
               id="email"
-              placeholder="voce@mundodalua.com.br"
+              placeholder="seu@email.com"
               type="email"
               {...register("email")}
             />
-            {errors.email ? <FieldMessage>{errors.email.message}</FieldMessage> : null}
-          </Field>
+          </div>
+          {errors.email ? <FieldMessage>{errors.email.message}</FieldMessage> : null}
+        </Field>
 
-          <Field>
-            <FieldLabel htmlFor="password">Senha</FieldLabel>
+        <Field>
+          <FieldLabel className="text-xs font-bold uppercase tracking-[0.08em] text-slate-600" htmlFor="password">
+            Senha
+          </FieldLabel>
+          <div className="relative">
+            <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
             <Input
+              autoComplete="current-password"
+              className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
               id="password"
               placeholder="Digite sua senha"
               type="password"
               {...register("password")}
             />
-            {errors.password ? (
-              <FieldMessage>{errors.password.message}</FieldMessage>
-            ) : (
-              <FieldMessage>Use sua credencial com permissao de operador.</FieldMessage>
-            )}
-          </Field>
-
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <label className="flex items-center gap-2 text-[var(--color-muted-foreground)]">
-              <input className="size-4 rounded border-[var(--color-border)]" type="checkbox" />
-              Manter conectado
-            </label>
-            <Link className="font-medium text-[var(--color-primary)]" href="/login">
-              Recuperar acesso
-            </Link>
           </div>
+          {errors.password ? <FieldMessage>{errors.password.message}</FieldMessage> : null}
+        </Field>
 
-          <Button
-            className="w-full"
-            leadingIcon={<ArrowRight className="size-4" />}
-            size="lg"
-            type="submit"
-          >
-            {isSubmitting ? "Entrando..." : "Entrar"}
-          </Button>
+        <Button
+          className="mt-2 h-12 w-full rounded-none bg-[#0a2f68] text-white hover:bg-[#09306f]"
+          leadingIcon={<ArrowRight className="size-4" />}
+          size="lg"
+          type="submit"
+        >
+          {isSubmitting ? "Entrando..." : "Entrar"}
+        </Button>
 
-          {errors.root?.message ? (
-            <FieldMessage>{errors.root.message}</FieldMessage>
-          ) : null}
+        <div className="relative py-1">
+          <div className="h-px w-full bg-slate-200" />
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+            ou com SSO
+          </span>
+        </div>
 
-          <p className="text-xs text-[var(--color-muted-foreground)]">
-            Demo: {DEFAULT_LOGIN.email} | {DEFAULT_LOGIN.password}
-          </p>
-        </form>
-      </CardContent>
-    </>
+        <Button
+          className="h-12 w-full justify-center gap-2 rounded-none border-slate-300 bg-[#f3f4f6] text-slate-700 hover:bg-slate-100"
+          onClick={handleGoogleSocialLogin}
+          type="button"
+          variant="outline"
+        >
+          <span aria-hidden="true" className="text-base font-bold leading-none text-[#EA4335]">
+            G
+          </span>
+          Logar com Google
+        </Button>
+
+        <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-6 text-sm">
+          <Link className="font-semibold text-[#0a2f68] hover:text-[#061d41]" href="/esqueci-senha">
+            Esqueci minha senha
+          </Link>
+          <Link className="font-semibold text-[#0a2f68] hover:text-[#061d41]" href="/criar-conta">
+            Criar conta
+          </Link>
+        </div>
+
+        {errors.root?.message ? <FieldMessage>{errors.root.message}</FieldMessage> : null}
+        {socialInfoMessage ? <FieldMessage>{socialInfoMessage}</FieldMessage> : null}
+      </form>
+    </div>
   );
 
   if (embedded) {
-    return <div className="w-full">{content}</div>;
+    return content;
   }
 
-  return <Card className="border-white/55 bg-white/80 backdrop-blur-xl">{content}</Card>;
+  return (
+    <div className="mx-auto w-full max-w-md rounded-2xl border border-[#d7e3ff] bg-white p-6 shadow-[0_16px_40px_rgba(3,14,34,0.45)] md:p-8">
+      {content}
+    </div>
+  );
 }

@@ -169,7 +169,7 @@ export function SystemDesignComponentsShowcase() {
         <CardContent className="grid gap-2">
           <p className="flex items-start gap-2 text-sm text-[var(--color-foreground)]">
             <CheckCircle2 className="mt-0.5 size-4 text-[var(--color-secondary-strong)]" />
-            Use texto orientado a acao: ex. "Salvar", "Filtrar", "Novo cadastro".
+            Use texto orientado a acao: ex. &quot;Salvar&quot;, &quot;Filtrar&quot;, &quot;Novo cadastro&quot;.
           </p>
           <p className="flex items-start gap-2 text-sm text-[var(--color-foreground)]">
             <CheckCircle2 className="mt-0.5 size-4 text-[var(--color-secondary-strong)]" />
@@ -177,7 +177,8 @@ export function SystemDesignComponentsShowcase() {
           </p>
           <p className="flex items-start gap-2 text-sm text-[var(--color-foreground)]">
             <CheckCircle2 className="mt-0.5 size-4 text-[var(--color-secondary-strong)]" />
-            Em formularios, use `type=\"submit\"` na acao principal e `type=\"button\"` nas auxiliares.
+            Em formularios, use `type=&quot;submit&quot;` na acao principal e `type=&quot;button&quot;` nas
+            auxiliares.
           </p>
           <p className="flex items-start gap-2 text-sm text-[var(--color-foreground)]">
             <CheckCircle2 className="mt-0.5 size-4 text-[var(--color-secondary-strong)]" />

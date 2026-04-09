@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   getPeople,
   type GetPeopleVariables,
@@ -13,6 +14,7 @@ import {
   type PersonNode,
   type PersonStatus
 } from "@/features/pessoas/api/get-people";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 import { GraphQLRequestError } from "@/lib/graphql/client";
@@ -60,16 +62,6 @@ const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
   { key: "notEquals", label: "e diferente de" }
 ];
 
-const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
-  { label: "Nome", sortKey: "fullName" },
-  { label: "E-mail" },
-  { label: "Documento", sortKey: "documentNumber" },
-  { label: "Telefone", sortKey: "primaryPhone" },
-  { label: "Status", sortKey: "status" },
-  { label: "Criado em", sortKey: "createdAt" },
-  { label: "Acao" }
-];
-
 function normalize(value: string) {
   return value.trim().toLowerCase();
 }
@@ -113,8 +105,65 @@ function mapTextOperator(operator: TextOperator): "contains" | "eq" | "startsWit
 }
 
 type CursorMode = "forward" | "backward";
+type AdditionalFieldKey = "id" | "createdDate" | "createdTime";
+type PersonColumnId =
+  | "fullName"
+  | "email"
+  | "documentNumber"
+  | "primaryPhone"
+  | "status"
+  | "createdAt"
+  | "action"
+  | `extra:${AdditionalFieldKey}`;
 
-export function PersonSearchView() {
+type PersonSearchViewProps = {
+  basePath?: string;
+  sectionLabel?: string;
+  title?: string;
+  description?: string;
+  loadingText?: string;
+  emptyText?: string;
+  totalText?: (totalCount: number) => string;
+};
+
+type PanelFieldOption = {
+  key: PersonColumnId;
+  label: string;
+  description: string;
+};
+
+const panelFieldOptions: PanelFieldOption[] = [
+  { key: "fullName", label: "Nome", description: "Nome completo da pessoa." },
+  { key: "email", label: "E-mail", description: "Email principal da pessoa." },
+  { key: "documentNumber", label: "Documento", description: "CPF/CNPJ cadastrado." },
+  { key: "primaryPhone", label: "Telefone", description: "Telefone principal da pessoa." },
+  { key: "status", label: "Status", description: "Situacao atual da pessoa." },
+  { key: "createdAt", label: "Criado em", description: "Data e hora de criacao." },
+  { key: "action", label: "Acao", description: "Coluna de acao para editar registro." },
+  { key: "extra:id", label: "ID", description: "Identificador unico da pessoa." },
+  { key: "extra:createdDate", label: "Data de criacao", description: "Somente a data do cadastro." },
+  { key: "extra:createdTime", label: "Hora de criacao", description: "Somente o horario do cadastro." }
+];
+
+const DEFAULT_ORDERED_COLUMN_IDS: PersonColumnId[] = [
+  "fullName",
+  "email",
+  "documentNumber",
+  "primaryPhone",
+  "status",
+  "createdAt",
+  "action"
+];
+
+export function PersonSearchView({
+  basePath = "/pessoas",
+  sectionLabel = "Pessoas",
+  title = "Pesquisa de pessoas",
+  description = "Omnisearch com filtros tokenizados e busca livre global por nome, email e documento.",
+  loadingText = "Carregando pessoas...",
+  emptyText = "Nenhuma pessoa encontrada com os filtros atuais.",
+  totalText = (totalCount) => `${totalCount} pessoas encontradas com os filtros atuais.`
+}: PersonSearchViewProps = {}) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [freeQuery, setFreeQuery] = useState("");
@@ -135,6 +184,9 @@ export function PersonSearchView() {
   const [requestAfter, setRequestAfter] = useState<string | null>(null);
   const [requestBefore, setRequestBefore] = useState<string | null>(null);
   const [cursorMode, setCursorMode] = useState<CursorMode>("forward");
+  const [isFieldsPanelOpen, setIsFieldsPanelOpen] = useState(false);
+  const [fieldSearch, setFieldSearch] = useState("");
+  const [orderedColumnIds, setOrderedColumnIds] = useState<PersonColumnId[]>(DEFAULT_ORDERED_COLUMN_IDS);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -174,6 +226,53 @@ export function PersonSearchView() {
 
     return Object.keys(nextWhere).length ? nextWhere : null;
   }, [chips, freeQuery]);
+
+  const filteredPanelFieldOptions = useMemo(
+    () =>
+      panelFieldOptions.filter((option) =>
+        !orderedColumnIds.includes(option.key) &&
+        option.label.toLowerCase().includes(fieldSearch.trim().toLowerCase())
+      ),
+    [fieldSearch, orderedColumnIds]
+  );
+
+  const tableColumns = useMemo<Array<{ id?: string; label: ReactNode; sortKey?: SortableColumn; draggable?: boolean; hideable?: boolean }>>(
+    () => [
+      ...orderedColumnIds.map((columnId) => {
+        if (columnId === "fullName") return { id: columnId, label: "Nome", sortKey: "fullName" as SortableColumn };
+        if (columnId === "email") return { id: columnId, label: "E-mail" };
+        if (columnId === "documentNumber") return { id: columnId, label: "Documento", sortKey: "documentNumber" as SortableColumn };
+        if (columnId === "primaryPhone") return { id: columnId, label: "Telefone", sortKey: "primaryPhone" as SortableColumn };
+        if (columnId === "status") return { id: columnId, label: "Status", sortKey: "status" as SortableColumn };
+        if (columnId === "createdAt") return { id: columnId, label: "Criado em", sortKey: "createdAt" as SortableColumn };
+        if (columnId === "action") return { id: columnId, label: "Acao" };
+
+        const additionalFieldKey = columnId.replace("extra:", "") as AdditionalFieldKey;
+        return {
+          id: columnId,
+          label: panelFieldOptions.find((option) => option.key === columnId)?.label ?? additionalFieldKey
+        };
+      }),
+      {
+        id: "add-column-control",
+        draggable: false,
+        hideable: false,
+        label: (
+          <div className="flex justify-center">
+            <button
+              aria-label="Abrir painel para adicionar campos"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[var(--color-border-strong)] text-base font-semibold leading-none text-[var(--color-foreground)] transition hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-45"
+              onClick={() => setIsFieldsPanelOpen(true)}
+              type="button"
+            >
+              +
+            </button>
+          </div>
+        )
+      }
+    ],
+    [orderedColumnIds]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -331,30 +430,114 @@ export function PersonSearchView() {
       id: person.id
     });
 
-    router.push(`/pessoas/cadastro?${params.toString()}`);
+    router.push(`${basePath}/cadastro?${params.toString()}`);
+  }
+
+  function toDateOnly(value?: string | null) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("pt-BR");
+  }
+
+  function toTimeOnly(value?: string | null) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleTimeString("pt-BR");
+  }
+
+  function addColumnToView(columnId: PersonColumnId) {
+    setOrderedColumnIds((current) => {
+      if (current.includes(columnId)) return current;
+      const actionIndex = current.indexOf("action");
+      if (actionIndex < 0) return [...current, columnId];
+      const next = [...current];
+      next.splice(actionIndex, 0, columnId);
+      return next;
+    });
+  }
+
+  function renderAdditionalFieldValue(person: PersonNode, field: AdditionalFieldKey) {
+    if (field === "id") return person.id;
+    if (field === "createdDate") return toDateOnly(person.createdAt);
+    return toTimeOnly(person.createdAt);
+  }
+
+  function renderColumnCell(person: PersonNode, columnId: PersonColumnId, cellKey: string) {
+    if (columnId === "fullName") return <td className="px-3 py-2.5" key={cellKey}>{person.fullName}</td>;
+    if (columnId === "email") return <td className="px-3 py-2.5" key={cellKey}>{person.email ?? "-"}</td>;
+    if (columnId === "documentNumber") return <td className="px-3 py-2.5" key={cellKey}>{person.documentNumber ?? "-"}</td>;
+    if (columnId === "primaryPhone") return <td className="px-3 py-2.5" key={cellKey}>{person.primaryPhone ?? "-"}</td>;
+    if (columnId === "status") {
+      return (
+        <td className="px-3 py-2.5" key={cellKey}>
+          <Badge variant={person.status === "ACTIVE" ? "success" : "attention"}>{toStatusLabel(person.status)}</Badge>
+        </td>
+      );
+    }
+    if (columnId === "createdAt") return <td className="px-3 py-2.5" key={cellKey}>{toDateTime(person.createdAt)}</td>;
+    if (columnId === "action") {
+      return (
+        <td className="px-3 py-2.5" key={cellKey}>
+          <Button onClick={() => openEditPerson(person)} size="sm" variant="outline">
+            Editar
+          </Button>
+        </td>
+      );
+    }
+
+    const additionalFieldKey = columnId.replace("extra:", "") as AdditionalFieldKey;
+    return (
+      <td className={additionalFieldKey === "id" ? "px-3 py-2.5 font-mono text-xs" : "px-3 py-2.5"} key={cellKey}>
+        {renderAdditionalFieldValue(person, additionalFieldKey)}
+      </td>
+    );
+  }
+
+  function handleReorderColumns(sourceColumnId: string, targetColumnId: string) {
+    const source = sourceColumnId as PersonColumnId;
+    const target = targetColumnId as PersonColumnId;
+
+    setOrderedColumnIds((current) => {
+      const sourceIndex = current.indexOf(source);
+      const targetIndex = current.indexOf(target);
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return current;
+
+      const next = [...current];
+      const [moved] = next.splice(sourceIndex, 1);
+      const adjustedTargetIndex = next.indexOf(target);
+      next.splice(adjustedTargetIndex, 0, moved);
+      return next;
+    });
+  }
+
+  function handleHideColumn(columnId: string) {
+    if (columnId === "add-column-control") return;
+    if (orderedColumnIds.length <= 1) return;
+
+    setOrderedColumnIds((current) => current.filter((id) => id !== columnId));
   }
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6 overflow-hidden">
       <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">
-          Pessoas
-        </p>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de pessoas</h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              Omnisearch com filtros tokenizados e busca livre global por nome, email e documento.
-            </p>
-          </div>
-          <Button
-            className="min-w-40"
-            leadingIcon={<Plus className="size-4" />}
-            onClick={() => router.push("/pessoas/cadastro")}
-          >
-            Adicionar
-          </Button>
-        </div>
+        <span className="sr-only">{sectionLabel}</span>
+        <FeatureViewHeader
+          actions={
+            <Button
+              className="min-w-40"
+              leadingIcon={<Plus className="size-4" />}
+              onClick={() => router.push(`${basePath}/cadastro`)}
+            >
+              Adicionar
+            </Button>
+          }
+          backAriaLabel="Voltar para o dashboard"
+          backHref="/"
+          description={description}
+          title={title}
+        />
       </section>
 
       <section className="space-y-5">
@@ -392,14 +575,17 @@ export function PersonSearchView() {
           canGoNext={!isLoading && hasNextPage && Boolean(pageEndCursor)}
           canGoPrevious={!isLoading && hasPreviousPage && Boolean(pageStartCursor)}
           columns={tableColumns}
-          emptyText="Nenhuma pessoa encontrada com os filtros atuais."
+          compact
+          emptyText={emptyText}
           isLoading={isLoading}
-          loadingText="Carregando pessoas..."
+          loadingText={loadingText}
           onNextPage={() => {
             setCursorMode("forward");
             setRequestBefore(null);
             setRequestAfter(pageEndCursor);
           }}
+          onHideColumn={handleHideColumn}
+          onReorderColumns={handleReorderColumns}
           onPreviousPage={() => {
             setCursorMode("backward");
             setRequestAfter(null);
@@ -411,29 +597,88 @@ export function PersonSearchView() {
               className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
               key={person.id}
             >
-              <td className="px-4 py-3">{person.fullName}</td>
-              <td className="px-4 py-3">{person.email ?? "-"}</td>
-              <td className="px-4 py-3">{person.documentNumber ?? "-"}</td>
-              <td className="px-4 py-3">{person.primaryPhone ?? "-"}</td>
-              <td className="px-4 py-3">
-                <Badge variant={person.status === "ACTIVE" ? "success" : "attention"}>
-                  {toStatusLabel(person.status)}
-                </Badge>
-              </td>
-              <td className="px-4 py-3">{toDateTime(person.createdAt)}</td>
-              <td className="px-4 py-3">
-                <Button onClick={() => openEditPerson(person)} size="sm" variant="outline">
-                  Editar
-                </Button>
-              </td>
+              {orderedColumnIds.map((columnId) => renderColumnCell(person, columnId, `${person.id}-${columnId}`))}
+              <td className="px-3 py-2.5" />
             </tr>
           )}
           renderSortIcon={renderSortIcon}
           rows={rows}
           sortBy={sortBy}
-          totalText={`${totalCount} pessoas encontradas com os filtros atuais.`}
+          totalText={totalText(totalCount)}
         />
       </section>
+
+      <button
+        aria-label="Fechar painel de campos"
+        className={`fixed inset-0 z-40 bg-slate-950/38 transition-opacity duration-300 ${
+          isFieldsPanelOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setIsFieldsPanelOpen(false)}
+        type="button"
+      />
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 w-full max-w-md border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl transition-transform duration-300 ease-[var(--ease-standard)] ${
+          isFieldsPanelOpen ? "translate-x-0" : "pointer-events-none translate-x-full"
+        }`}
+      >
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
+            <div>
+              <h3 className="text-lg font-semibold text-[var(--color-foreground)]">Campos</h3>
+              <p className="text-sm text-[var(--color-muted-foreground)]">Adicione mais campos na visualizacao.</p>
+            </div>
+            <button
+              aria-label="Fechar painel"
+              className="inline-flex size-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-muted-foreground)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-foreground)]"
+              onClick={() => setIsFieldsPanelOpen(false)}
+              type="button"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
+          <div className="border-b border-[var(--color-border)] px-5 py-4">
+            <Input
+              onChange={(event) => setFieldSearch(event.target.value)}
+              placeholder="Pesquise campos novos ou existentes"
+              value={fieldSearch}
+            />
+          </div>
+
+          <div className="flex-1 space-y-2 overflow-auto px-3 py-3">
+            {filteredPanelFieldOptions.length ? (
+              filteredPanelFieldOptions.map((option) => {
+                const isAdded = orderedColumnIds.includes(option.key);
+
+                return (
+                  <div
+                    className="flex items-center justify-between rounded-[var(--radius-md)] border border-transparent px-3 py-3 transition hover:border-[var(--color-border)] hover:bg-[var(--color-surface-muted)]"
+                    key={option.key}
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-[var(--color-foreground)]">{option.label}</p>
+                      <p className="text-xs text-[var(--color-muted-foreground)]">{option.description}</p>
+                    </div>
+                    <Button
+                      disabled={isAdded}
+                      onClick={() => addColumnToView(option.key)}
+                      size="sm"
+                      variant={isAdded ? "outline" : "secondary"}
+                    >
+                      {isAdded ? "Adicionado" : "Adicionar"}
+                    </Button>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="px-2 py-4 text-sm text-[var(--color-muted-foreground)]">
+                Nenhum campo encontrado para esse filtro.
+              </p>
+            )}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
+

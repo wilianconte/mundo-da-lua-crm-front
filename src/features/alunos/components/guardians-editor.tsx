@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Loader2, Trash2, X } from "lucide-react";
 
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Badge } from "@/components/ui/badge";
@@ -30,21 +31,27 @@ const initialDraft: GuardianDraft = {
   relationshipType: "",
   isPrimaryGuardian: false,
   isFinancialResponsible: false,
-  receivesNotifications: true,
-  canPickupChild: true,
+  receivesNotifications: false,
+  canPickupChild: false,
   notes: ""
 };
 
 export function GuardiansEditor({
   guardians,
-  onChange
+  onChange,
+  onCreateGuardianPerson,
+  onRemoveGuardian
 }: {
   guardians: StudentGuardian[];
   onChange: (guardians: StudentGuardian[]) => void;
+  onCreateGuardianPerson?: (query: string) => void;
+  onRemoveGuardian?: (guardian: StudentGuardian) => Promise<void> | void;
 }) {
-  const [draft, setDraft] = useState<GuardianDraft>(initialDraft);
+  const [draft, setDraft] = useState<GuardianDraft>({ ...initialDraft });
   const [editingGuardianId, setEditingGuardianId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [guardianToRemove, setGuardianToRemove] = useState<StudentGuardian | null>(null);
+  const [isRemovingGuardian, setIsRemovingGuardian] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const excludedIds = useMemo(
@@ -53,7 +60,7 @@ export function GuardiansEditor({
   );
 
   function resetDraft() {
-    setDraft(initialDraft);
+    setDraft({ ...initialDraft });
     setEditingGuardianId(null);
     setErrorMessage(null);
   }
@@ -114,11 +121,35 @@ export function GuardiansEditor({
     setErrorMessage(null);
   }
 
+  async function confirmRemoveGuardian() {
+    if (!guardianToRemove) return;
+
+    try {
+      setErrorMessage(null);
+      setIsRemovingGuardian(true);
+
+      if (onRemoveGuardian) {
+        await onRemoveGuardian(guardianToRemove);
+      } else {
+        onChange(guardians.filter((item) => item.id !== guardianToRemove.id));
+      }
+
+      if (editingGuardianId === guardianToRemove.id) {
+        resetDraft();
+      }
+      setGuardianToRemove(null);
+    } catch {
+      setErrorMessage("Nao foi possivel remover o responsavel.");
+    } finally {
+      setIsRemovingGuardian(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Adicionar responsaveis</CardTitle>
+          <CardTitle>Responsaveis</CardTitle>
           <CardDescription>
             Vincule um ou mais responsaveis usando o mesmo fluxo de selecao de pessoas da aba Dados gerais.
           </CardDescription>
@@ -128,6 +159,7 @@ export function GuardiansEditor({
             <FieldLabel>Pessoa responsavel</FieldLabel>
             <PersonAutocomplete
               excludedPersonIds={excludedIds}
+              onCreateNew={onCreateGuardianPerson}
               onOpenModal={() => setIsModalOpen(true)}
               onSelect={(person) => {
                 setDraft((current) => ({ ...current, person }));
@@ -154,17 +186,18 @@ export function GuardiansEditor({
                 ))}
               </select>
             </Field>
-            <Field>
-              <FieldLabel htmlFor="guardian-notes">Observacoes</FieldLabel>
-              <textarea
-                className="min-h-28 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
-                id="guardian-notes"
-                onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
-                placeholder="Instrucoes especificas sobre o responsavel"
-                value={draft.notes}
-              />
-            </Field>
           </div>
+
+          <Field>
+            <FieldLabel htmlFor="guardian-notes">Observacoes</FieldLabel>
+            <textarea
+              className="min-h-28 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-foreground)] outline-none transition duration-200 ease-[var(--ease-standard)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary-soft)]"
+              id="guardian-notes"
+              onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
+              placeholder="Instrucoes especificas sobre o responsavel"
+              value={draft.notes}
+            />
+          </Field>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {[
@@ -192,21 +225,23 @@ export function GuardiansEditor({
 
           {errorMessage ? <FieldMessage className="text-red-600">{errorMessage}</FieldMessage> : null}
 
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={handleSubmitDraft}>{editingGuardianId ? "Atualizar responsavel" : "Adicionar responsavel"}</Button>
-            <Button onClick={resetDraft} variant="outline">
+          <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
+
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button className="min-w-40" onClick={resetDraft} variant="outline">
               Limpar
             </Button>
+            <Button className="min-w-40" onClick={handleSubmitDraft}>
+              {editingGuardianId ? "Atualizar" : "Adicionar"}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Responsaveis vinculados ao aluno</CardTitle>
-          <CardDescription>Lista mock de parentesco preparada para futuras validacoes e persistencia via API.</CardDescription>
-        </CardHeader>
-        <CardContent>
+          <div aria-hidden="true" className="h-px w-full bg-[var(--color-border)]" />
+
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-[var(--color-foreground)]">Responsaveis vinculados ao aluno</p>
+          </div>
+
           <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[var(--color-border)]">
             <table className="min-w-[920px] w-full border-collapse text-sm">
               <thead className="bg-[var(--color-surface-muted)] text-left text-[var(--color-muted-foreground)]">
@@ -242,7 +277,8 @@ export function GuardiansEditor({
                             Editar
                           </Button>
                           <Button
-                            onClick={() => onChange(guardians.filter((item) => item.id !== guardian.id))}
+                            disabled={isRemovingGuardian}
+                            onClick={() => setGuardianToRemove(guardian)}
                             size="sm"
                             variant="ghost"
                           >
@@ -255,7 +291,7 @@ export function GuardiansEditor({
                 ) : (
                   <tr className="border-t border-[var(--color-border)]">
                     <td className="px-4 py-6 text-center text-[var(--color-muted-foreground)]" colSpan={8}>
-                      Nenhum responsavel vinculado ainda. Adicione pelo menos um responsavel para continuar.
+                      Nenhum responsavel vinculado ainda.
                     </td>
                   </tr>
                 )}
@@ -272,8 +308,42 @@ export function GuardiansEditor({
           setErrorMessage(null);
         }}
         open={isModalOpen}
-        title="Pesquisar responsavel"
       />
+
+      {guardianToRemove ? (
+        <div
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
+          role="dialog"
+        >
+          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">
+                Deseja remover o responsavel <strong>{guardianToRemove.person.fullName}</strong>?
+              </p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                disabled={isRemovingGuardian}
+                leadingIcon={<X className="size-4" />}
+                onClick={() => setGuardianToRemove(null)}
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={isRemovingGuardian}
+                leadingIcon={isRemovingGuardian ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={confirmRemoveGuardian}
+                variant="danger-outline"
+              >
+                {isRemovingGuardian ? "Removendo..." : "Remover"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

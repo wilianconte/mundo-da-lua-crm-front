@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import {
   createPerson,
   deletePerson,
@@ -85,8 +86,12 @@ export function PersonRegistrationView() {
   const searchParams = useSearchParams();
   const isEditMode = searchParams.get("mode") === "edit";
   const personId = searchParams.get("id");
+  const returnTo = searchParams.get("returnTo");
+  const prefillName = searchParams.get("prefillName");
+  const createdPersonTarget = searchParams.get("createdPersonTarget");
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("Cadastro realizado com sucesso.");
+  const [successRedirectPath, setSuccessRedirectPath] = useState("/pessoas/pesquisa");
   const [isLoadingPerson, setIsLoadingPerson] = useState(false);
   const [isDeletingPerson, setIsDeletingPerson] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -115,6 +120,7 @@ export function PersonRegistrationView() {
     register,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors, isSubmitting }
   } = useForm<PersonRegistrationSchema>({
@@ -132,11 +138,17 @@ export function PersonRegistrationView() {
     if (!isSuccessModalOpen) return;
 
     const timeoutId = window.setTimeout(() => {
-      router.push("/pessoas/pesquisa");
+      router.push(successRedirectPath);
     }, 3000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [isSuccessModalOpen, router]);
+  }, [isSuccessModalOpen, router, successRedirectPath]);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    if (!prefillName?.trim()) return;
+    setValue("fullName", prefillName.trim(), { shouldDirty: true });
+  }, [isEditMode, prefillName, setValue]);
 
   useEffect(() => {
     if (!isEditMode || !personId) return;
@@ -219,9 +231,21 @@ export function PersonRegistrationView() {
       if (isEditMode && personId) {
         await updatePerson(personId, payload);
         setSuccessMessage("Alteracao realizada com sucesso.");
+        setSuccessRedirectPath("/pessoas/pesquisa");
       } else {
-        await createPerson(payload);
+        const createdPerson = await createPerson(payload);
         setSuccessMessage("Cadastro realizado com sucesso.");
+        if (returnTo) {
+          const nextParams = new URLSearchParams(returnTo.includes("?") ? returnTo.split("?")[1] : "");
+          nextParams.set("createdPersonId", createdPerson.id);
+          if (createdPersonTarget) {
+            nextParams.set("createdPersonTarget", createdPersonTarget);
+          }
+          const basePath = returnTo.split("?")[0] || "/pessoas/pesquisa";
+          setSuccessRedirectPath(nextParams.toString() ? `${basePath}?${nextParams.toString()}` : basePath);
+        } else {
+          setSuccessRedirectPath("/pessoas/pesquisa");
+        }
       }
 
       setIsSuccessModalOpen(true);
@@ -253,6 +277,7 @@ export function PersonRegistrationView() {
       }
 
       setSuccessMessage("Pessoa excluida com sucesso.");
+      setSuccessRedirectPath("/pessoas/pesquisa");
       setIsSuccessModalOpen(true);
     } catch (error) {
       setFormError(mapPersonApiError(error));
@@ -263,43 +288,58 @@ export function PersonRegistrationView() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">
-              <span className="font-mono text-base font-medium uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
-                Pessoas
-              </span>{" "}
-              <span aria-hidden="true" className="text-[var(--color-muted-foreground)]">
-                |
-              </span>{" "}
-              <span className="text-xl">{isEditMode ? "Edicao de pessoa" : "Cadastro de pessoa"}</span>
-            </h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              {isEditMode
-                ? "Revise e atualize os dados da pessoa selecionada."
-                : "Preencha os dados principais para criar um novo cadastro de pessoa."}
-            </p>
-          </div>
-          {isEditMode ? (
+      <FeatureViewHeader
+        actions={
+          <>
+            {isEditMode ? (
+              <Button
+                className="min-w-40"
+                disabled={
+                  isSubmitting ||
+                  isLoadingPerson ||
+                  isDeletingPerson ||
+                  isSuccessModalOpen ||
+                  isDeleteConfirmOpen
+                }
+                leadingIcon={isDeletingPerson ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                onClick={handleDeletePerson}
+                variant="danger-outline"
+              >
+                {isDeletingPerson ? "Excluindo..." : "Excluir"}
+              </Button>
+            ) : null}
             <Button
               className="min-w-40"
-              disabled={
-                isSubmitting ||
-                isLoadingPerson ||
-                isDeletingPerson ||
-                isSuccessModalOpen ||
-                isDeleteConfirmOpen
-              }
-              leadingIcon={isDeletingPerson ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-              onClick={handleDeletePerson}
-              variant="danger-outline"
+              disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
+              leadingIcon={<UserPlus className="size-4" />}
+              onClick={handleClear}
+              size="lg"
+              type="button"
+              variant="outline"
             >
-              {isDeletingPerson ? "Excluindo..." : "Excluir"}
+              Limpar
             </Button>
-          ) : null}
-        </div>
-      </section>
+            <Button
+              className="min-w-40"
+              disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
+              form="person-form"
+              leadingIcon={isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              size="lg"
+              type="submit"
+            >
+              Salvar
+            </Button>
+          </>
+        }
+        backAriaLabel="Voltar para pesquisa de pessoas"
+        backHref="/pessoas/pesquisa"
+        description={
+          isEditMode
+            ? "Revise e atualize os dados da pessoa selecionada."
+            : "Preencha os dados principais para criar um novo cadastro de pessoa."
+        }
+        title={<span className="text-xl">{isEditMode ? "Edicao de pessoa" : "Cadastro de pessoa"}</span>}
+      />
 
       {formError ? (
         <div className="rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-sm font-medium text-[var(--color-danger-strong)]">
@@ -322,7 +362,7 @@ export function PersonRegistrationView() {
           </div>
         </CardHeader>
         <CardContent>
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <form className="space-y-6" id="person-form" onSubmit={handleSubmit(onSubmit)}>
             {isLoadingPerson ? (
               <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
                 <Loader2 className="size-4 animate-spin" />
@@ -489,26 +529,6 @@ export function PersonRegistrationView() {
               </Field>
             </div>
 
-            <div className="flex flex-wrap justify-end gap-3">
-              <Button
-                disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
-                leadingIcon={<Save className="size-4" />}
-                size="lg"
-                type="submit"
-              >
-                {isSubmitting ? "Salvando..." : isEditMode ? "Salvar alteracoes" : "Salvar pessoa"}
-              </Button>
-              <Button
-                disabled={isSuccessModalOpen || isLoadingPerson || isDeletingPerson}
-                leadingIcon={<UserPlus className="size-4" />}
-                onClick={handleClear}
-                size="lg"
-                type="button"
-                variant="outline"
-              >
-                Limpar formulario
-              </Button>
-            </div>
           </form>
         </CardContent>
       </Card>
@@ -527,7 +547,9 @@ export function PersonRegistrationView() {
                   {successMessage}
                 </p>
                 <p className="text-sm text-[var(--color-muted-foreground)]">
-                  Redirecionando para a listagem de pessoas...
+                  {successRedirectPath.startsWith("/alunos/cadastro")
+                    ? "Redirecionando para o cadastro de aluno..."
+                    : "Redirecionando para a listagem de pessoas..."}
                 </p>
               </div>
             </div>
@@ -572,3 +594,4 @@ export function PersonRegistrationView() {
     </div>
   );
 }
+

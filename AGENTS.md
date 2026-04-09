@@ -23,10 +23,15 @@ Este repositorio deve priorizar mudancas pequenas, seguras e faceis de revisar.
 - Endpoint oficial: `https://mundo-da-lua-crm-core.onrender.com/graphql/`.
 - Toda comunicacao com backend deve ser via GraphQL.
 - Requisicoes autenticadas devem enviar `Authorization: Bearer <token>`.
-- `tenantId` deve ser enviado apenas no login.
-- Persistir no front: `auth_token`, `auth_expires_at`, `auth_user`.
+- `tenantId` deve ser enviado no login e na mutation `refreshToken`.
+- Persistir no front: `auth_token`, `auth_expires_at`, `auth_refresh_token`, `auth_refresh_expires_at`, `auth_tenant_id`, `auth_user`.
+- Quando `auth_token` expirar, tentar renovar via mutation GraphQL `refreshToken` antes de encerrar sessao.
 - Se token expirar ou retornar `AUTH_NOT_AUTHORIZED`, limpar sessao local e redirecionar para `/login`.
-- Enquanto refresh token nao existir no backend, validar `expiresAt` localmente antes de requests autenticados.
+
+## Enums GraphQL (padrao do projeto)
+- Valores de enum enviados ao backend devem usar `SCREAMING_SNAKE_CASE`, conforme o schema GraphQL.
+- Nao converter enum GraphQL para `PascalCase` ou `camelCase` no payload (ex.: enviar `MOTHER`, nao `Mother`).
+- Ao integrar novos enums, preferir tipos/constantes gerados por GraphQL Codegen para evitar drift de convencao.
 
 ## Testes e validacoes
 - Execute testes relevantes para a area alterada sempre que possivel.
@@ -40,3 +45,10 @@ Este repositorio deve priorizar mudancas pequenas, seguras e faceis de revisar.
 - Resuma o que mudou.
 - Liste riscos ou pendencias.
 - Cite os testes/validacoes executados.
+
+## Acionamento do backend (obrigatorio)
+- Sempre que for necessario consultar informacoes ou solicitar alteracoes no backend, usar o Claude CLI no repositorio `mundo-da-lua-crm-core`.
+- Comando padrao:
+  `cd "D:\Dev\Mundo da Lua\mundo-da-lua-crm\mundo-da-lua-crm-core" && claude -p "<instrucao>" --dangerously-skip-permissions`
+- Em PowerShell, pode usar o equivalente:
+  `Set-Location "D:\Dev\Mundo da Lua\mundo-da-lua-crm\mundo-da-lua-crm-core"; claude -p "<instrucao>" --dangerously-skip-permissions`

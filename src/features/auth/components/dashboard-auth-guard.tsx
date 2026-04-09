@@ -1,9 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { isAuthenticated } from "@/lib/auth/session";
+import { getMyPermissionsWithToken } from "@/features/auth/api/get-my-permissions";
+import { canAccessPath, getFirstAccessiblePath } from "@/lib/auth/permissions";
+import { clearAuthSession, getAuthUser, getValidToken, isAuthenticated, updateAuthUser } from "@/lib/auth/session";
+import { GraphQLRequestError } from "@/lib/graphql/client";
 
 type DashboardAuthGuardProps = {
   children: React.ReactNode;
@@ -11,25 +14,88 @@ type DashboardAuthGuardProps = {
 
 export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
   const router = useRouter();
-  const [isReady, setIsReady] = useState(false);
+  const pathname = usePathname();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
   useEffect(() => {
-    function validateSession() {
+    let isMounted = true;
+
+    async function validateSession() {
+      if (!isMounted) return;
+      setIsCheckingAccess(true);
+
       if (!isAuthenticated()) {
+        setIsAuthorized(false);
         router.replace("/login");
         return;
       }
 
-      setIsReady(true);
+      const user = getAuthUser();
+      if (!user) {
+        setIsAuthorized(false);
+        router.replace("/login");
+        return;
+      }
+
+      let permissions = user.permissions ?? [];
+      if (permissions.length === 0) {
+        const token = getValidToken();
+        if (!token) {
+          router.replace("/login");
+          return;
+        }
+
+        try {
+          permissions = await getMyPermissionsWithToken(token);
+          if (!isMounted) return;
+          updateAuthUser({ ...user, permissions });
+        } catch (error) {
+          if (!isMounted) return;
+          if (error instanceof GraphQLRequestError) {
+            // Falha fechada: sem permissoes confiaveis, a rota privada nao deve abrir.
+            await clearAuthSession();
+            setIsAuthorized(false);
+            router.replace("/login");
+            return;
+          }
+
+          await clearAuthSession();
+          setIsAuthorized(false);
+          router.replace("/login");
+          return;
+        }
+      }
+
+      if (permissions.length === 0) {
+        await clearAuthSession();
+        setIsAuthorized(false);
+        router.replace("/login");
+        return;
+      }
+
+      if (!canAccessPath(pathname, permissions)) {
+        setIsAuthorized(false);
+        router.replace(getFirstAccessiblePath(permissions));
+        return;
+      }
+
+      setIsAuthorized(true);
+      setIsCheckingAccess(false);
     }
 
-    validateSession();
-    const intervalId = window.setInterval(validateSession, 30_000);
+    void validateSession();
+    const intervalId = window.setInterval(() => {
+      void validateSession();
+    }, 30_000);
 
-    return () => window.clearInterval(intervalId);
-  }, [router]);
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [pathname, router]);
 
-  if (!isReady) {
+  if (isCheckingAccess || !isAuthorized) {
     return null;
   }
 

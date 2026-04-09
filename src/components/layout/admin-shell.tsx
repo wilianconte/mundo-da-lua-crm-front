@@ -1,13 +1,12 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
+import packageJson from "../../../package.json";
 
 import {
   Bell,
   ChevronRight,
   CircleUserRound,
-  CodeXml,
-  IdCard,
   Languages,
   LogOut,
   Moon,
@@ -176,13 +175,11 @@ export function AdminShell({ children }: AdminShellProps) {
                       </div>
 
                       <div className="space-y-1 border-b border-[var(--color-border)] p-2">
-                        <ProfileMenuItem icon={IdCard} label="Public Profile" />
-                        <ProfileMenuItem icon={CircleUserRound} label="My Profile" />
-                        <ProfileMenuItem icon={Settings} label="My Account" trailingIcon={<ChevronRight className="size-4" />} />
-                        <ProfileMenuItem icon={CodeXml} label="Dev Forum" />
+                        <ProfileMenuItem icon={CircleUserRound} label="Meu perfil" />
+                        <ProfileMenuItem icon={Settings} label="Minha assinatura" trailingIcon={<ChevronRight className="size-4" />} />
                         <ProfileMenuItem
                           icon={Languages}
-                          label="Language"
+                          label="Idioma"
                           trailingContent={
                             <span className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-medium text-[var(--color-foreground)]">
                               English
@@ -217,15 +214,15 @@ export function AdminShell({ children }: AdminShellProps) {
 
                         <button
                           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] text-sm font-semibold text-[var(--color-foreground)]"
-                          onClick={() => {
-                            clearAuthSession();
+                          onClick={async () => {
+                            await clearAuthSession();
                             setIsProfileMenuOpen(false);
                             router.replace("/login");
                           }}
                           type="button"
                         >
                           <LogOut className="size-4" />
-                          Log out
+                          Sair
                         </button>
                       </div>
                     </div>
@@ -318,6 +315,9 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
         </span>
         <span className="text-[1.15rem] font-semibold leading-tight text-[var(--color-foreground)]">
           Painel administrativo
+        </span>
+        <span className="mt-1 inline-flex py-0.5 text-[0.7rem] font-medium uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]">
+          v{packageJson.version}
         </span>
       </Link>
     </div>
