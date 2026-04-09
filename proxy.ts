@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { canAccessPath, getFirstAccessiblePath, normalizePermissions } from "@/lib/auth/permissions";
 import { AUTH_COOKIE_KEYS } from "@/lib/auth/session-keys";
 import { isValidSessionSignature } from "@/lib/auth/server-session-signature";
 
@@ -33,17 +34,41 @@ function isDateExpired(rawDate: string | null, referenceDate = new Date()) {
   return expiresDate <= referenceDate;
 }
 
-async function hasValidSession(request: NextRequest): Promise<boolean> {
+type SessionValidationResult = {
+  isAuthenticated: boolean;
+  permissions: string[];
+};
+
+function parsePermissionsCookie(rawPermissions: string | null): string[] | null {
+  if (!rawPermissions) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(rawPermissions) as unknown;
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+
+    return normalizePermissions(parsed.filter((permission): permission is string => typeof permission === "string"));
+  } catch {
+    return null;
+  }
+}
+
+async function validateSession(request: NextRequest): Promise<SessionValidationResult> {
   const token = request.cookies.get(AUTH_COOKIE_KEYS.token)?.value ?? null;
   const tokenExpiresAt = request.cookies.get(AUTH_COOKIE_KEYS.expiresAt)?.value ?? null;
   const refreshToken = request.cookies.get(AUTH_COOKIE_KEYS.refreshToken)?.value ?? null;
   const refreshTokenExpiresAt =
     request.cookies.get(AUTH_COOKIE_KEYS.refreshTokenExpiresAt)?.value ?? null;
   const tenantId = request.cookies.get(AUTH_COOKIE_KEYS.tenantId)?.value ?? null;
+  const rawPermissions = request.cookies.get(AUTH_COOKIE_KEYS.permissions)?.value ?? null;
   const signature = request.cookies.get(AUTH_COOKIE_KEYS.signature)?.value ?? null;
+  const permissions = parsePermissionsCookie(rawPermissions);
 
-  if (!token || !tokenExpiresAt || !refreshToken || !refreshTokenExpiresAt || !tenantId || !signature) {
-    return false;
+  if (!token || !tokenExpiresAt || !refreshToken || !refreshTokenExpiresAt || !tenantId || !signature || !permissions) {
+    return { isAuthenticated: false, permissions: [] };
   }
 
   const signatureIsValid = await isValidSessionSignature(
@@ -52,21 +77,26 @@ async function hasValidSession(request: NextRequest): Promise<boolean> {
       expiresAt: tokenExpiresAt,
       refreshToken,
       refreshTokenExpiresAt,
-      tenantId
+      tenantId,
+      permissions
     },
     signature
   );
 
   if (!signatureIsValid) {
-    return false;
+    return { isAuthenticated: false, permissions: [] };
   }
 
   if (!isDateExpired(tokenExpiresAt)) {
-    return true;
+    return { isAuthenticated: true, permissions };
   }
 
-  return Boolean(refreshToken) && Boolean(tenantId) && !isDateExpired(refreshTokenExpiresAt);
+  return {
+    isAuthenticated: Boolean(refreshToken) && Boolean(tenantId) && !isDateExpired(refreshTokenExpiresAt),
+    permissions
+  };
 }
+ 
 
 function clearAuthCookies(response: NextResponse) {
   response.cookies.set(AUTH_COOKIE_KEYS.token, "", {
@@ -89,6 +119,10 @@ function clearAuthCookies(response: NextResponse) {
     ...COOKIE_SECURITY_OPTIONS,
     expires: new Date(0)
   });
+  response.cookies.set(AUTH_COOKIE_KEYS.permissions, "", {
+    ...COOKIE_SECURITY_OPTIONS,
+    expires: new Date(0)
+  });
   response.cookies.set(AUTH_COOKIE_KEYS.signature, "", {
     ...COOKIE_SECURITY_OPTIONS,
     expires: new Date(0)
@@ -98,7 +132,8 @@ function clearAuthCookies(response: NextResponse) {
 export async function proxy(request: NextRequest) {
   const pathname = normalizePathname(request.nextUrl.pathname);
   const isPublicRoute = PUBLIC_ROUTES.has(pathname);
-  const isAuthenticated = await hasValidSession(request);
+  const session = await validateSession(request);
+  const isAuthenticated = session.isAuthenticated;
 
   if (isPublicRoute && isAuthenticated) {
     return NextResponse.redirect(new URL("/", request.url));
@@ -113,6 +148,11 @@ export async function proxy(request: NextRequest) {
     const response = NextResponse.redirect(loginUrl);
     clearAuthCookies(response);
     return response;
+  }
+
+  if (!isPublicRoute && isAuthenticated && !canAccessPath(pathname, session.permissions)) {
+    const fallbackPath = getFirstAccessiblePath(session.permissions);
+    return NextResponse.redirect(new URL(fallbackPath, request.url));
   }
 
   return NextResponse.next();

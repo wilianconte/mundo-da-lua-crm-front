@@ -22,7 +22,9 @@ export type AuthSession = {
 type SessionCookiePayload = Pick<
   AuthSession,
   "token" | "expiresAt" | "refreshToken" | "refreshTokenExpiresAt" | "tenantId"
->;
+> & {
+  permissions: string[];
+};
 
 const AUTH_SESSION_SYNC_ROUTE = "/api/auth/session";
 
@@ -100,6 +102,7 @@ async function clearSessionCookieFromServer() {
 }
 
 export async function saveAuthSession(session: AuthSession) {
+  const normalizedPermissions = normalizePermissions(session.user.permissions ?? []);
   writeSessionToStorage(session);
 
   try {
@@ -108,7 +111,8 @@ export async function saveAuthSession(session: AuthSession) {
       expiresAt: session.expiresAt,
       refreshToken: session.refreshToken,
       refreshTokenExpiresAt: session.refreshTokenExpiresAt,
-      tenantId: session.tenantId
+      tenantId: session.tenantId,
+      permissions: normalizedPermissions
     });
   } catch (error) {
     clearSessionFromStorage();
@@ -198,13 +202,35 @@ export function updateAuthUser(user: AuthUser) {
     return;
   }
 
+  const normalizedPermissions = normalizePermissions(user.permissions ?? []);
   window.localStorage.setItem(
     AUTH_STORAGE_KEYS.user,
     JSON.stringify({
       ...user,
-      permissions: normalizePermissions(user.permissions ?? [])
+      permissions: normalizedPermissions
     } satisfies AuthUser)
   );
+
+  const token = getAuthToken();
+  const expiresAt = getAuthExpiresAt();
+  const refreshToken = getAuthRefreshToken();
+  const refreshTokenExpiresAt = getAuthRefreshTokenExpiresAt();
+  const tenantId = getAuthTenantId();
+
+  if (!token || !expiresAt || !refreshToken || !refreshTokenExpiresAt || !tenantId) {
+    return;
+  }
+
+  void syncSessionCookieWithServer({
+    token,
+    expiresAt,
+    refreshToken,
+    refreshTokenExpiresAt,
+    tenantId,
+    permissions: normalizedPermissions
+  }).catch(() => {
+    // Melhor esforco: manter sessao local e permitir nova sincronizacao em refresh/login.
+  });
 }
 
 function isDateExpired(rawDate: string | null, referenceDate = new Date()) {

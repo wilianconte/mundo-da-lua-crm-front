@@ -13,5 +13,6 @@ export const AUTH_COOKIE_KEYS = {
   refreshToken: AUTH_STORAGE_KEYS.refreshToken,
   refreshTokenExpiresAt: AUTH_STORAGE_KEYS.refreshTokenExpiresAt,
   tenantId: AUTH_STORAGE_KEYS.tenantId,
+  permissions: "auth_permissions",
   signature: "auth_session_sig"
 } as const;

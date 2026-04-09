@@ -6,6 +6,7 @@ type SessionSignatureInput = {
   refreshToken: string;
   refreshTokenExpiresAt: string;
   tenantId: string;
+  permissions?: string[];
 };
 
 function getAuthGateSecret(): string {
@@ -43,12 +44,21 @@ function fixedTimeEquals(left: string, right: string): boolean {
 }
 
 function serializeSession(input: SessionSignatureInput): string {
+  const normalizedPermissions = Array.isArray(input.permissions)
+    ? input.permissions
+        .filter((permission) => typeof permission === "string")
+        .map((permission) => permission.trim().toLowerCase())
+        .filter((permission) => permission.length > 0)
+        .sort()
+    : [];
+
   return [
     input.token,
     input.expiresAt,
     input.refreshToken,
     input.refreshTokenExpiresAt,
-    input.tenantId
+    input.tenantId,
+    normalizedPermissions.join(",")
   ].join("\u001f");
 }
 

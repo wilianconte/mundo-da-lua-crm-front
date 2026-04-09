@@ -14,6 +14,25 @@ Data da resolucao: 2026-03-31
 - Validacoes apos ajuste:
   - `node node_modules/typescript/bin/tsc --noEmit`: **sucesso**.
   - `next build`: **sucesso**.
+- Achado alto **"Endereco de empresa ficou obrigatorio por acidente, contrariando a UX da propria tela"**: **RESOLVIDO**.
+- Correcoes aplicadas:
+  - `src/features/empresas/components/company-registration-view.tsx`: `country` inicial alterado de `"BR"` para `""`.
+  - `src/features/empresas/components/company-registration-view.tsx`: carregamento de empresa em edicao sem fallback automatico para `"BR"` quando nao ha endereco.
+  - `src/features/empresas/components/company-registration-view.tsx`: `country` passa a ser preenchido com `"BR"` apenas quando o usuario comeca a preencher algum campo do bloco de endereco.
+- Validacoes apos ajuste:
+  - `node node_modules/typescript/bin/tsc --noEmit`: **sucesso**.
+  - `next build`: **sucesso**.
+- Achado alto **"Autorizacao de rota continua client-side e falha aberta quando permissoes nao carregam"**: **RESOLVIDO**.
+- Correcoes aplicadas:
+  - `proxy.ts`: gate server-side passou a validar permissao por rota com base em permissoes assinadas na sessao e redirecionar para fallback autorizado.
+  - `app/api/auth/session/route.ts`: passou a persistir `auth_permissions` em cookie `httpOnly` e incluir permissoes na assinatura de sessao.
+  - `src/lib/auth/server-session-signature.ts`: assinatura de sessao agora cobre permissoes normalizadas.
+  - `src/lib/auth/session.ts`: sincronizacao server-side de permissoes no login e em `updateAuthUser`.
+  - `src/features/auth/components/dashboard-auth-guard.tsx`: falha fechada quando permissoes nao carregam (limpa sessao e redireciona para `/login`) e bloqueio de render ate autorizacao concluir.
+  - `src/components/layout/sidebar-nav.tsx`: evita renderizar menu completo antes de resolver permissoes.
+- Validacoes apos ajuste:
+  - `node node_modules/typescript/bin/tsc --noEmit`: **sucesso**.
+  - `next build`: **sucesso**.
 
 ## Resumo executivo
 
@@ -73,47 +92,44 @@ Em paralelo, seguem ativos problemas de padrao e consolidacao: modais repetidos,
 
 ### Alto
 
-#### 2. Autorizacao de rota continua client-side e falha aberta quando permissoes nao carregam
+#### 2. Autorizacao de rota continua client-side e falha aberta quando permissoes nao carregam (RESOLVIDO)
 
 - Severidade: `alto`
 - Categoria: `arquitetura`
 - Titulo curto: Gate server-side valida sessao, mas nao autorizacao
-- Descricao objetiva: `proxy.ts` so valida sessao. A autorizacao por permissao acontece no cliente em `DashboardAuthGuard`, e quando a carga de permissoes falha ou volta vazia o componente simplesmente mantem a rota aberta.
-- Evidencia:
-  - `proxy.ts:85-98`
-  - `src/features/auth/components/dashboard-auth-guard.tsx:34-63`
-  - `src/components/layout/sidebar-nav.tsx:299-310`
-- Impacto tecnico e/ou funcional:
-  - a rota privada ja chega a ser renderizada antes do redirect por permissao;
-  - se `myPermissions` falhar, o guard nao bloqueia a rota;
-  - a navegacao inicialmente cai em `navigationItems` completos antes do filtro por permissao.
-- Recomendacao pratica:
-  - mover o gate de permissao para uma camada server-side confiavel, ou propagar claims/permissoes assinadas para o request;
-  - no cliente, falhar fechado enquanto permissoes nao estiverem resolvidas;
-  - evitar renderizar o menu completo antes da permissao estar carregada.
-- Sugestao de generalizacao/reuso:
-  - consolidar um unico auth/permission gate para App Router, em vez de separar sessao no servidor e autorizacao no cliente.
+- Status de resolucao: `resolvido em 2026-03-31`
+- Descricao objetiva: o gate foi consolidado para falha fechada em duas camadas:
+  - servidor: `proxy.ts` agora valida permissao por rota com permissoes assinadas em cookie;
+  - cliente: `DashboardAuthGuard` bloqueia render ate resolver autorizacao e encerra sessao em erro de carga de permissoes.
+- Evidencia da correcao:
+  - `proxy.ts`
+  - `app/api/auth/session/route.ts`
+  - `src/lib/auth/server-session-signature.ts`
+  - `src/lib/auth/session.ts`
+  - `src/features/auth/components/dashboard-auth-guard.tsx`
+  - `src/components/layout/sidebar-nav.tsx`
+  - Validacao local: `node node_modules/typescript/bin/tsc --noEmit`
+  - Validacao local: `next build`
+- Impacto tecnico e/ou funcional apos correcao:
+  - rota privada sem permissao deixa de abrir no servidor;
+  - erro/falha de carga de permissao no cliente deixa de manter rota aberta;
+  - menu lateral nao renderiza mais a arvore completa antes de resolver permissao.
 
-#### 3. Endereco de empresa ficou obrigatorio por acidente, contrariando a UX da propria tela
+#### 3. Endereco de empresa ficou obrigatorio por acidente, contrariando a UX da propria tela (RESOLVIDO)
 
 - Severidade: `alto`
 - Categoria: `bug`
 - Titulo curto: `country: "BR"` transforma endereco opcional em obrigatorio
-- Descricao objetiva: o formulario de empresa inicia `country` com `"BR"`. Como o schema considera qualquer valor de endereco como sinal de que o bloco foi preenchido, isso torna rua, bairro, cidade, UF e CEP obrigatorios mesmo quando a tela descreve o endereco como opcional.
-- Evidencia:
-  - `src/features/empresas/components/company-registration-view.tsx:93-120`
-  - `src/features/empresas/components/company-registration-view.tsx:221-235`
-  - `src/features/empresas/components/company-registration-view.tsx:553-559`
-  - `src/features/empresas/schema/company-registration-schema.ts:53-86`
-- Impacto tecnico e/ou funcional:
-  - a UX real contradiz a descricao da aba;
-  - o cadastro de empresa pode falhar sem que o usuario espere que endereco seja obrigatorio;
-  - o contrato de persistencia fica ambiguo entre schema e `persistAddress`.
-- Recomendacao pratica:
-  - definir `country` vazio por padrao e preencher `BR` apenas quando o usuario iniciar o bloco;
-  - ou tornar o endereco realmente obrigatorio na copia e no comportamento da tela, se essa for a regra de negocio desejada.
-- Sugestao de generalizacao/reuso:
-  - criar um helper compartilhado para blocos de endereco opcionais, evitando repetir refinements e defaults inconsistentes.
+- Status de resolucao: `resolvido em 2026-03-31`
+- Descricao objetiva: o formulario passou a iniciar com `country` vazio e so define `"BR"` quando o usuario de fato inicia o preenchimento do bloco de endereco.
+- Evidencia da correcao:
+  - `src/features/empresas/components/company-registration-view.tsx`
+  - Validacao local: `node node_modules/typescript/bin/tsc --noEmit`
+  - Validacao local: `next build`
+- Impacto tecnico e/ou funcional apos correcao:
+  - o bloco de endereco volta a ser opcional, conforme descrito na UX;
+  - o schema so exige campos de endereco apos inicio real de preenchimento;
+  - elimina a ambiguidade causada por preenchimento default de `country`.
 
 #### 4. Empresas, grupos e alunos persistem dados em varias mutacoes sem rollback
 

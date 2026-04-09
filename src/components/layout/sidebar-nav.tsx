@@ -298,17 +298,16 @@ function SidebarLink({
 export function SidebarNav({ className, collapsed = false, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
   const [userPermissions, setUserPermissions] = useState<string[] | null>(null);
+  const [isPermissionsResolved, setIsPermissionsResolved] = useState(false);
 
   useEffect(() => {
     setUserPermissions(getAuthUser()?.permissions ?? []);
+    setIsPermissionsResolved(true);
   }, []);
 
   const allowedNavigationItems = useMemo(
-    () =>
-      userPermissions && userPermissions.length
-        ? filterNavigationByPermissions(navigationItems, userPermissions)
-        : navigationItems,
-    [userPermissions]
+    () => (isPermissionsResolved ? filterNavigationByPermissions(navigationItems, userPermissions ?? []) : []),
+    [isPermissionsResolved, userPermissions]
   );
   const groupedItems = useMemo(
     () =>

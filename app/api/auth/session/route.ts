@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { AUTH_COOKIE_KEYS } from "@/lib/auth/session-keys";
+import { normalizePermissions } from "@/lib/auth/permissions";
 import { createSessionSignature } from "@/lib/auth/server-session-signature";
 
 const COOKIE_SECURITY_OPTIONS = {
@@ -40,6 +41,10 @@ function clearAuthCookies(response: NextResponse) {
     ...COOKIE_SECURITY_OPTIONS,
     expires: new Date(0)
   });
+  response.cookies.set(AUTH_COOKIE_KEYS.permissions, "", {
+    ...COOKIE_SECURITY_OPTIONS,
+    expires: new Date(0)
+  });
   response.cookies.set(AUTH_COOKIE_KEYS.signature, "", {
     ...COOKIE_SECURITY_OPTIONS,
     expires: new Date(0)
@@ -66,6 +71,11 @@ export async function POST(request: NextRequest) {
   const refreshToken = session.refreshToken;
   const refreshTokenExpiresAt = session.refreshTokenExpiresAt;
   const tenantId = session.tenantId;
+  const permissions = normalizePermissions(
+    Array.isArray(session.permissions)
+      ? session.permissions.filter((permission): permission is string => typeof permission === "string")
+      : []
+  );
 
   if (
     !isNonEmptyString(token) ||
@@ -90,7 +100,8 @@ export async function POST(request: NextRequest) {
     expiresAt,
     refreshToken,
     refreshTokenExpiresAt,
-    tenantId
+    tenantId,
+    permissions
   });
 
   response.cookies.set(AUTH_COOKIE_KEYS.token, token, {
@@ -110,6 +121,10 @@ export async function POST(request: NextRequest) {
     expires: refreshTokenExpiresDate
   });
   response.cookies.set(AUTH_COOKIE_KEYS.tenantId, tenantId, {
+    ...COOKIE_SECURITY_OPTIONS,
+    expires: refreshTokenExpiresDate
+  });
+  response.cookies.set(AUTH_COOKIE_KEYS.permissions, JSON.stringify(permissions), {
     ...COOKIE_SECURITY_OPTIONS,
     expires: refreshTokenExpiresDate
   });

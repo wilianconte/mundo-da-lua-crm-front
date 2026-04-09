@@ -1,11 +1,11 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { getMyPermissionsWithToken } from "@/features/auth/api/get-my-permissions";
 import { canAccessPath, getFirstAccessiblePath } from "@/lib/auth/permissions";
-import { getAuthUser, getValidToken, isAuthenticated, updateAuthUser } from "@/lib/auth/session";
+import { clearAuthSession, getAuthUser, getValidToken, isAuthenticated, updateAuthUser } from "@/lib/auth/session";
 import { GraphQLRequestError } from "@/lib/graphql/client";
 
 type DashboardAuthGuardProps = {
@@ -15,18 +15,25 @@ type DashboardAuthGuardProps = {
 export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
 
     async function validateSession() {
+      if (!isMounted) return;
+      setIsCheckingAccess(true);
+
       if (!isAuthenticated()) {
+        setIsAuthorized(false);
         router.replace("/login");
         return;
       }
 
       const user = getAuthUser();
       if (!user) {
+        setIsAuthorized(false);
         router.replace("/login");
         return;
       }
@@ -45,22 +52,36 @@ export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
           updateAuthUser({ ...user, permissions });
         } catch (error) {
           if (!isMounted) return;
-          // Fallback: em alguns ambientes o endpoint de permissoes pode falhar mesmo com login valido.
-          // Nesses casos, mantemos a sessao e deixamos o backend aplicar a autorizacao final por policy.
           if (error instanceof GraphQLRequestError) {
+            // Falha fechada: sem permissoes confiaveis, a rota privada nao deve abrir.
+            await clearAuthSession();
+            setIsAuthorized(false);
+            router.replace("/login");
             return;
           }
+
+          await clearAuthSession();
+          setIsAuthorized(false);
+          router.replace("/login");
           return;
         }
       }
 
       if (permissions.length === 0) {
+        await clearAuthSession();
+        setIsAuthorized(false);
+        router.replace("/login");
         return;
       }
 
       if (!canAccessPath(pathname, permissions)) {
+        setIsAuthorized(false);
         router.replace(getFirstAccessiblePath(permissions));
+        return;
       }
+
+      setIsAuthorized(true);
+      setIsCheckingAccess(false);
     }
 
     void validateSession();
@@ -73,6 +94,10 @@ export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
       window.clearInterval(intervalId);
     };
   }, [pathname, router]);
+
+  if (isCheckingAccess || !isAuthorized) {
+    return null;
+  }
 
   return <>{children}</>;
 }

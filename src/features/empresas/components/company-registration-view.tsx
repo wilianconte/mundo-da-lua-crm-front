@@ -116,7 +116,7 @@ export function CompanyRegistrationView() {
       city: "",
       state: "",
       zipCode: "",
-      country: "BR"
+      country: ""
     }),
     []
   );
@@ -193,7 +193,7 @@ export function CompanyRegistrationView() {
           city: company.address?.city ?? "",
           state: company.address?.state ?? "",
           zipCode: company.address?.zipCode ? maskZipCode(company.address.zipCode) : "",
-          country: company.address?.country ?? "BR"
+          country: company.address?.country ?? ""
         });
       } catch (error) {
         if (!isMounted) return;
@@ -309,6 +309,19 @@ export function CompanyRegistrationView() {
   function handleClear() {
     reset(initialValues);
     setFormError(null);
+  }
+
+  function ensureAddressCountryDefault(nextValue: string) {
+    if (!nextValue.trim()) {
+      return;
+    }
+
+    const currentCountry = watch("country") ?? "";
+    if (currentCountry.trim()) {
+      return;
+    }
+
+    setValue("country", "BR", { shouldDirty: true, shouldValidate: true });
   }
 
   return (
@@ -561,27 +574,67 @@ export function CompanyRegistrationView() {
               <CardContent className="grid gap-4 md:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="street">Rua</FieldLabel>
-                  <Input id="street" {...register("street")} />
+                  <Input
+                    id="street"
+                    {...register("street")}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setValue("street", value, { shouldDirty: true, shouldValidate: true });
+                      ensureAddressCountryDefault(value);
+                    }}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.street?.message}</FieldMessage>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="number">Numero</FieldLabel>
-                  <Input id="number" {...register("number")} />
+                  <Input
+                    id="number"
+                    {...register("number")}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setValue("number", value, { shouldDirty: true, shouldValidate: true });
+                      ensureAddressCountryDefault(value);
+                    }}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.number?.message}</FieldMessage>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="complement">Complemento</FieldLabel>
-                  <Input id="complement" {...register("complement")} />
+                  <Input
+                    id="complement"
+                    {...register("complement")}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setValue("complement", value, { shouldDirty: true, shouldValidate: true });
+                      ensureAddressCountryDefault(value);
+                    }}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.complement?.message}</FieldMessage>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="neighborhood">Bairro</FieldLabel>
-                  <Input id="neighborhood" {...register("neighborhood")} />
+                  <Input
+                    id="neighborhood"
+                    {...register("neighborhood")}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setValue("neighborhood", value, { shouldDirty: true, shouldValidate: true });
+                      ensureAddressCountryDefault(value);
+                    }}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.neighborhood?.message}</FieldMessage>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="city">Cidade</FieldLabel>
-                  <Input id="city" {...register("city")} />
+                  <Input
+                    id="city"
+                    {...register("city")}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setValue("city", value, { shouldDirty: true, shouldValidate: true });
+                      ensureAddressCountryDefault(value);
+                    }}
+                  />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.city?.message}</FieldMessage>
                 </Field>
                 <Field>
@@ -590,7 +643,11 @@ export function CompanyRegistrationView() {
                     id="state"
                     maxLength={2}
                     {...register("state")}
-                    onChange={(event) => setValue("state", event.target.value.toUpperCase())}
+                    onChange={(event) => {
+                      const value = event.target.value.toUpperCase();
+                      setValue("state", value, { shouldDirty: true, shouldValidate: true });
+                      ensureAddressCountryDefault(value);
+                    }}
                   />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.state?.message}</FieldMessage>
                 </Field>
@@ -600,7 +657,11 @@ export function CompanyRegistrationView() {
                     id="zipCode"
                     inputMode="numeric"
                     {...register("zipCode")}
-                    onChange={(event) => setValue("zipCode", maskZipCode(event.target.value))}
+                    onChange={(event) => {
+                      const value = maskZipCode(event.target.value);
+                      setValue("zipCode", value, { shouldDirty: true, shouldValidate: true });
+                      ensureAddressCountryDefault(value);
+                    }}
                   />
                   <FieldMessage className="text-[var(--color-danger-strong)]">{errors.zipCode?.message}</FieldMessage>
                 </Field>
