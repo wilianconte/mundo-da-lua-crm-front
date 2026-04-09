@@ -724,7 +724,7 @@ export function CompanyRegistrationView() {
             </p>
             <div className="mt-6 flex justify-end gap-3">
               <Button leadingIcon={<X className="size-4" />} onClick={() => setIsDeleteConfirmOpen(false)} variant="outline">Cancelar</Button>
-              <Button leadingIcon={<Trash2 className="size-4" />} onClick={confirmDeleteCompany} variant="danger-outline">Excluir empresa</Button>
+              <Button leadingIcon={<Trash2 className="size-4" />} onClick={confirmDeleteCompany} variant="danger-outline">Excluir</Button>
             </div>
           </div>
         </div>
