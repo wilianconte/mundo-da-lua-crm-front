@@ -27,6 +27,8 @@ jobs:
           context: .
           push: false
           tags: mundo-da-lua-crm-front:build
+          build-args: |
+            NEXT_PUBLIC_GRAPHQL_ENDPOINT=${{ secrets.NEXT_PUBLIC_GRAPHQL_ENDPOINT_PRD }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
