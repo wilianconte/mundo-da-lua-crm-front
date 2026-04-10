@@ -1,16 +1,26 @@
-import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { resolve, join } from "node:path";
 import process from "node:process";
 
 const LOCAL_SCHEMA_PATH = resolve(process.cwd(), "contracts/schema.graphql");
 
 function listSourceFiles() {
-  const output = execSync("git ls-files src/", { encoding: "utf-8" });
-  return output
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.endsWith(".ts") || line.endsWith(".tsx"));
+  const srcDir = resolve(process.cwd(), "src");
+  const results = [];
+
+  function walk(dir) {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        walk(full);
+      } else if (entry.endsWith(".ts") || entry.endsWith(".tsx")) {
+        results.push(full.replace(process.cwd() + "/", "").replace(/\\/g, "/"));
+      }
+    }
+  }
+
+  walk(srcDir);
+  return results;
 }
 
 function extractOperations(content) {
