@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { NavChildItem, NavItem } from "@/config/navigation";
 import { navigationItems } from "@/config/navigation";
-import { SYSTEM_PERMISSIONS, canAccessPath } from "@/lib/auth/permissions";
+import { canAccessPath } from "@/lib/auth/permissions";
 import { getAuthUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
 
@@ -17,18 +17,15 @@ type SidebarNavProps = {
   onNavigate?: () => void;
 };
 
-function isAdminUser(permissions: string[]) {
-  return (
-    permissions.includes(SYSTEM_PERMISSIONS.usersManage) &&
-    permissions.includes(SYSTEM_PERMISSIONS.rolesManage)
-  );
-}
-
 function isUnimplementedMenuItem(href?: string) {
   return href === "/components" || href?.startsWith("/system-design") === true;
 }
 
 function filterChildrenByPermissions(items: NavChildItem[], permissions: string[], isAdmin: boolean): NavChildItem[] {
+  if (isAdmin) {
+    return items;
+  }
+
   return items.reduce<NavChildItem[]>((accumulator, item) => {
       const nextChildren = item.children?.length
         ? filterChildrenByPermissions(item.children, permissions, isAdmin)
@@ -53,8 +50,10 @@ function filterChildrenByPermissions(items: NavChildItem[], permissions: string[
     }, []);
 }
 
-function filterNavigationByPermissions(items: NavItem[], permissions: string[]): NavItem[] {
-  const isAdmin = isAdminUser(permissions);
+function filterNavigationByPermissions(items: NavItem[], permissions: string[], isAdmin: boolean): NavItem[] {
+  if (isAdmin) {
+    return items;
+  }
 
   return items.reduce<NavItem[]>((accumulator, item) => {
       const nextChildren = item.children?.length
@@ -298,16 +297,19 @@ function SidebarLink({
 export function SidebarNav({ className, collapsed = false, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
   const [userPermissions, setUserPermissions] = useState<string[] | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isPermissionsResolved, setIsPermissionsResolved] = useState(false);
 
   useEffect(() => {
-    setUserPermissions(getAuthUser()?.permissions ?? []);
+    const user = getAuthUser();
+    setUserPermissions(user?.permissions ?? []);
+    setIsAdmin(user?.isAdmin ?? false);
     setIsPermissionsResolved(true);
   }, []);
 
   const allowedNavigationItems = useMemo(
-    () => (isPermissionsResolved ? filterNavigationByPermissions(navigationItems, userPermissions ?? []) : []),
-    [isPermissionsResolved, userPermissions]
+    () => (isPermissionsResolved ? filterNavigationByPermissions(navigationItems, userPermissions ?? [], isAdmin) : []),
+    [isPermissionsResolved, userPermissions, isAdmin]
   );
   const groupedItems = useMemo(
     () =>

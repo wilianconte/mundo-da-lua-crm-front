@@ -36,6 +36,7 @@ type RefreshTokenMutationResponse = {
     userId: string;
     name: string;
     email: string;
+    isAdmin: boolean;
   };
 };
 
@@ -92,6 +93,7 @@ const REFRESH_TOKEN_MUTATION = `
       userId
       name
       email
+      isAdmin
     }
   }
 `;
@@ -154,6 +156,7 @@ async function refreshAccessToken(): Promise<string | null> {
           userId: refreshed.userId,
           name: refreshed.name,
           email: refreshed.email,
+          isAdmin: refreshed.isAdmin,
           permissions: getAuthUser()?.permissions ?? []
         }
       });

@@ -28,6 +28,7 @@ const GET_USERS_QUERY = `
         id
         name
         email
+        isAdmin
         isActive
         personId
         createdAt
@@ -43,6 +44,7 @@ export type UserNode = {
   id: string;
   name: string;
   email: string;
+  isAdmin: boolean;
   isActive: boolean;
   personId?: string | null;
   createdAt: string;
@@ -92,6 +94,7 @@ export type UserFilterInput = {
   name?: StringFilter;
   email?: StringFilter;
   isActive?: BooleanFilter;
+  isAdmin?: BooleanFilter;
   personId?: NullableUuidFilter;
 };
 

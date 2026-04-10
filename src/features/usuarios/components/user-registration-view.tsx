@@ -57,6 +57,7 @@ export function UserRegistrationView() {
       email: "",
       password: "",
       confirmPassword: "",
+      isAdmin: false,
       isActive: true,
       personId: "",
       groups: []
@@ -154,6 +155,7 @@ export function UserRegistrationView() {
           email: user.email ?? "",
           password: "",
           confirmPassword: "",
+          isAdmin: user.isAdmin,
           isActive: user.isActive,
           personId: user.personId ?? "",
           groups: user.roles?.map((role) => role.id) ?? []
@@ -277,6 +279,7 @@ export function UserRegistrationView() {
       const basePayload = {
         name: resolvedName,
         email: values.email,
+        isAdmin: values.isAdmin,
         personId: values.personId || undefined,
         roleIds: values.groups
       };
@@ -436,6 +439,21 @@ export function UserRegistrationView() {
                 <Field className="md:col-span-2">
                   <label
                     className="inline-flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-foreground)]"
+                    htmlFor="user-is-admin"
+                  >
+                    <input
+                      className="size-4 accent-[var(--color-primary)]"
+                      id="user-is-admin"
+                      type="checkbox"
+                      {...register("isAdmin")}
+                    />
+                    Administrador (acesso completo aos menus)
+                  </label>
+                </Field>
+
+                <Field className="md:col-span-2">
+                  <label
+                    className="inline-flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-foreground)]"
                     htmlFor="user-is-active"
                   >
                     <input
@@ -578,4 +596,3 @@ export function UserRegistrationView() {
     </div>
   );
 }
-

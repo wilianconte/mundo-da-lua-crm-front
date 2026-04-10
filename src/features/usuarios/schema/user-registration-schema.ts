@@ -5,6 +5,7 @@ export const userRegistrationSchema = z
     email: z.string().trim().email("Informe um email valido.").max(254, "Use no maximo 254 caracteres."),
     password: z.union([z.literal(""), z.string().max(128, "A senha deve ter no maximo 128 caracteres.")]),
     confirmPassword: z.union([z.literal(""), z.string().max(128, "A confirmacao deve ter no maximo 128 caracteres.")]),
+    isAdmin: z.boolean(),
     isActive: z.boolean(),
     personId: z.string().trim().min(1, "Selecione uma pessoa."),
     groups: z.array(z.string()).optional()
