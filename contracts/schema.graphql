@@ -303,6 +303,7 @@ type LoginDto {
   userId: UUID!
   name: String!
   email: String!
+  isAdmin: Boolean!
   refreshToken: String!
   refreshTokenExpiresAt: DateTime!
 }
@@ -739,6 +740,7 @@ type User {
   id: UUID!
   name: String!
   email: String!
+  isAdmin: Boolean!
   isActive: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime
@@ -753,6 +755,7 @@ type UserDto {
   tenantId: UUID!
   name: String!
   email: String!
+  isAdmin: Boolean!
   isActive: Boolean!
   personId: UUID
   createdAt: DateTime!
@@ -1059,6 +1062,7 @@ input CreateUserInput {
   name: String!
   email: String!
   password: String!
+  isAdmin: Boolean
   personId: UUID
   roleIds: [UUID!]
 }
@@ -1722,6 +1726,7 @@ input UpdateStudentInput {
 input UpdateUserInput {
   name: String!
   email: String!
+  isAdmin: Boolean
   personId: UUID
   isActive: Boolean!
   password: String

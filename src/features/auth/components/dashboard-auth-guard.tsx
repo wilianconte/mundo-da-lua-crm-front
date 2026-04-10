@@ -74,7 +74,7 @@ export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
         return;
       }
 
-      if (!canAccessPath(pathname, permissions)) {
+      if (!user.isAdmin && !canAccessPath(pathname, permissions)) {
         setIsAuthorized(false);
         router.replace(getFirstAccessiblePath(permissions));
         return;

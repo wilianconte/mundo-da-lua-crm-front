@@ -7,6 +7,7 @@ export type AuthUser = {
   userId: string;
   name: string;
   email: string;
+  isAdmin: boolean;
   permissions: string[];
 };
 
@@ -43,6 +44,7 @@ function writeSessionToStorage(session: AuthSession) {
 
   const normalizedUser: AuthUser = {
     ...session.user,
+    isAdmin: session.user.isAdmin ?? false,
     permissions: normalizePermissions(session.user.permissions ?? [])
   };
 
@@ -185,6 +187,7 @@ export function getAuthUser(): AuthUser | null {
       userId: parsed.userId,
       name: parsed.name,
       email: parsed.email,
+      isAdmin: typeof parsed.isAdmin === "boolean" ? parsed.isAdmin : false,
       permissions: normalizePermissions(
         Array.isArray(parsed.permissions)
           ? parsed.permissions.filter((permission): permission is string => typeof permission === "string")

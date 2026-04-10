@@ -6,6 +6,7 @@ const CREATE_USER_MUTATION = `
       id
       name
       email
+      isAdmin
       isActive
       personId
       createdAt
@@ -22,6 +23,7 @@ const UPDATE_USER_MUTATION = `
       id
       name
       email
+      isAdmin
       isActive
       personId
       createdAt
@@ -42,6 +44,7 @@ export type UserUpsertRecord = {
   id: string;
   name: string;
   email: string;
+  isAdmin: boolean;
   isActive: boolean;
   personId?: string | null;
   createdAt: string;
@@ -54,6 +57,7 @@ export type UserUpsertInput = {
   name: string;
   email: string;
   password?: string;
+  isAdmin?: boolean;
   isActive?: boolean;
   personId?: string;
   roleIds?: string[];

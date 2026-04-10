@@ -62,6 +62,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
           userId: response.userId,
           name: response.name,
           email: response.email,
+          isAdmin: response.isAdmin,
           permissions
         }
       });

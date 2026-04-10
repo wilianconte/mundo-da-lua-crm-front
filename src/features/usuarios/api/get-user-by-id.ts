@@ -6,6 +6,7 @@ const GET_USER_BY_ID_QUERY = `
       id
       name
       email
+      isAdmin
       isActive
       personId
       createdAt
@@ -26,6 +27,7 @@ export type UserByIdNode = {
   id: string;
   name: string;
   email: string;
+  isAdmin: boolean;
   isActive: boolean;
   personId?: string | null;
   createdAt: string;

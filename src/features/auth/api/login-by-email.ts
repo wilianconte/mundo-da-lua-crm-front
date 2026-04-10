@@ -10,6 +10,7 @@ const LOGIN_BY_EMAIL_MUTATION = `
       userId
       name
       email
+      isAdmin
     }
   }
 `;
@@ -28,13 +29,13 @@ type LoginByEmailMutationResponse = {
     userId: string;
     name: string;
     email: string;
+    isAdmin: boolean;
   };
 };
 
-function extractTenantIdFromToken(token: string): string {
+function parseTokenPayload(token: string): Record<string, unknown> {
   const payload = token.split(".")[1];
-  const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as Record<string, unknown>;
-  return decoded["tenant_id"] as string;
+  return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as Record<string, unknown>;
 }
 
 export async function loginByEmail(input: LoginByEmailInput) {
@@ -45,8 +46,14 @@ export async function loginByEmail(input: LoginByEmailInput) {
   );
 
   const { token } = data.loginByEmail;
+  const tokenPayload = parseTokenPayload(token);
+
   return {
     ...data.loginByEmail,
-    tenantId: extractTenantIdFromToken(token)
+    isAdmin:
+      typeof data.loginByEmail.isAdmin === "boolean"
+        ? data.loginByEmail.isAdmin
+        : tokenPayload["is_admin"] === "true",
+    tenantId: tokenPayload["tenant_id"] as string
   };
 }
