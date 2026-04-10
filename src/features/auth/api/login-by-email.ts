@@ -7,7 +7,6 @@ const LOGIN_BY_EMAIL_MUTATION = `
       expiresAt
       refreshToken
       refreshTokenExpiresAt
-      tenantId
       userId
       name
       email
@@ -26,12 +25,17 @@ type LoginByEmailMutationResponse = {
     expiresAt: string;
     refreshToken: string;
     refreshTokenExpiresAt: string;
-    tenantId: string;
     userId: string;
     name: string;
     email: string;
   };
 };
+
+function extractTenantIdFromToken(token: string): string {
+  const payload = token.split(".")[1];
+  const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as Record<string, unknown>;
+  return decoded["tenant_id"] as string;
+}
 
 export async function loginByEmail(input: LoginByEmailInput) {
   const data = await gqlRequest<LoginByEmailMutationResponse, { input: LoginByEmailInput }>(
@@ -40,5 +44,9 @@ export async function loginByEmail(input: LoginByEmailInput) {
     { requiresAuth: false }
   );
 
-  return data.loginByEmail;
+  const { token } = data.loginByEmail;
+  return {
+    ...data.loginByEmail,
+    tenantId: extractTenantIdFromToken(token)
+  };
 }
