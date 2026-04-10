@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Lock, Mail, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
     handleSubmit,
     setError,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting }
   } = useForm<SignUpSchema>({
     resolver: zodResolver(signUpSchema),
@@ -108,8 +108,8 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === WIZARD_STEPS.length - 1;
   const current = WIZARD_STEPS[currentStep];
-  const personPhoneValue = watch("personPhone") ?? "";
-  const companyPhoneValue = watch("companyPhone") ?? "";
+  const personPhoneValue = useWatch({ control, name: "personPhone" }) ?? "";
+  const companyPhoneValue = useWatch({ control, name: "companyPhone" }) ?? "";
 
   async function onSubmit(values: SignUpSchema) {
     try {
