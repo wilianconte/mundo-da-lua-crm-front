@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { getMyPermissionsWithToken } from "@/features/auth/api/get-my-permissions";
-import { login } from "@/features/auth/api/login";
+import { loginByEmail } from "@/features/auth/api/login-by-email";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,6 @@ type LoginFormProps = {
   embedded?: boolean;
 };
 
-const DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
 export function LoginForm({ embedded = false }: LoginFormProps) {
   const router = useRouter();
@@ -47,8 +46,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
   async function onSubmit(values: LoginSchema) {
     try {
       setSocialInfoMessage(null);
-      const response = await login({
-        tenantId: DEFAULT_TENANT_ID,
+      const response = await loginByEmail({
         email: values.email.trim().toLowerCase(),
         password: values.password
       });
@@ -59,7 +57,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
         expiresAt: response.expiresAt,
         refreshToken: response.refreshToken,
         refreshTokenExpiresAt: response.refreshTokenExpiresAt,
-        tenantId: DEFAULT_TENANT_ID,
+        tenantId: response.tenantId,
         user: {
           userId: response.userId,
           name: response.name,

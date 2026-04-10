@@ -307,6 +307,17 @@ type LoginDto {
   refreshTokenExpiresAt: DateTime!
 }
 
+type LoginByEmailDto {
+  token: String!
+  expiresAt: DateTime!
+  userId: UUID!
+  name: String!
+  email: String!
+  refreshToken: String!
+  refreshTokenExpiresAt: DateTime!
+  tenantId: UUID!
+}
+
 type Mutation {
   createCustomer(input: CreateCustomerInput!): CustomerDto! @authorize(policy: "customers:create") @cost(weight: "10")
   updateCustomer(input: UpdateCustomerInput!): CustomerDto! @authorize(policy: "customers:update") @cost(weight: "10")
@@ -325,6 +336,7 @@ type Mutation {
   updateUser(id: UUID! input: UpdateUserInput!): UserDto! @authorize(policy: "users:manage") @cost(weight: "10")
   deleteUser(id: UUID!): Boolean! @authorize(policy: "users:manage") @cost(weight: "10")
   login(input: LoginInput!): LoginDto! @allowAnonymous @cost(weight: "10")
+  loginByEmail(input: LoginByEmailInput!): LoginByEmailDto! @allowAnonymous @cost(weight: "10")
   refreshToken(input: RefreshTokenInput!): LoginDto! @allowAnonymous @cost(weight: "10")
   createRole(input: CreateRoleInput!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
   updateRole(id: UUID! input: UpdateRoleInput!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
@@ -1273,6 +1285,11 @@ input LocalDateOperationFilterInput {
 
 input LoginInput {
   tenantId: UUID!
+  email: String!
+  password: String!
+}
+
+input LoginByEmailInput {
   email: String!
   password: String!
 }
