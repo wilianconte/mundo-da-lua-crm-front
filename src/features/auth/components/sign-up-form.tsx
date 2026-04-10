@@ -9,7 +9,9 @@ import { useForm } from "react-hook-form";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { registerTenant } from "@/features/auth/api/register-tenant";
 import { type SignUpSchema, signUpSchema } from "@/features/auth/schema/sign-up-schema";
+import { type GraphQLRequestError } from "@/lib/graphql/client";
 import { cn } from "@/lib/utils/cn";
 
 type WizardStep = {
@@ -109,16 +111,34 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
   const personPhoneValue = watch("personPhone") ?? "";
   const companyPhoneValue = watch("companyPhone") ?? "";
 
-  async function onSubmit() {
+  async function onSubmit(values: SignUpSchema) {
     try {
       setSuccessMessage(null);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await registerTenant({
+        companyLegalName: values.legalName,
+        companyCnpj: values.registrationNumber,
+        companyEmail: values.companyEmail,
+        companyPhone: values.companyPhone,
+        adminName: values.fullName,
+        adminEmail: values.personEmail.trim().toLowerCase(),
+        adminCpf: values.documentNumber,
+        adminPhone: values.personPhone,
+        password: values.password,
+        passwordConfirmation: values.confirmPassword
+      });
+
       setSuccessMessage(
-        "Solicitacao recebida. O time administrativo validara os dados de Pessoa e Empresa para liberar o acesso."
+        "Conta criada com sucesso. Faça login para acessar sua nova organizacao."
       );
-    } catch {
+    } catch (error) {
+      const code = (error as GraphQLRequestError).code;
+      const messageByCode: Record<string, string> = {
+        VALIDATION_ERROR: "Campos invalidos. Revise os dados e tente novamente.",
+        INVALID_CREDENTIALS: "Nao foi possivel concluir o cadastro com as credenciais informadas."
+      };
+
       setError("root", {
-        message: "Nao foi possivel concluir o cadastro agora. Tente novamente."
+        message: messageByCode[code ?? ""] ?? "Nao foi possivel concluir o cadastro agora. Tente novamente."
       });
     }
   }
