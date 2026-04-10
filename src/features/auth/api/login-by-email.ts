@@ -38,6 +38,17 @@ function parseTokenPayload(token: string): Record<string, unknown> {
   return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as Record<string, unknown>;
 }
 
+function parseBooleanClaim(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1 ? true : value === 0 ? false : null;
+  if (typeof value !== "string") return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") return true;
+  if (normalized === "false" || normalized === "0") return false;
+  return null;
+}
+
 export async function loginByEmail(input: LoginByEmailInput) {
   const data = await gqlRequest<LoginByEmailMutationResponse, { input: LoginByEmailInput }>(
     LOGIN_BY_EMAIL_MUTATION,
@@ -47,13 +58,12 @@ export async function loginByEmail(input: LoginByEmailInput) {
 
   const { token } = data.loginByEmail;
   const tokenPayload = parseTokenPayload(token);
+  const tokenIsAdminClaim = parseBooleanClaim(tokenPayload["is_admin"]);
+  const graphqlIsAdmin = data.loginByEmail.isAdmin;
 
   return {
     ...data.loginByEmail,
-    isAdmin:
-      typeof data.loginByEmail.isAdmin === "boolean"
-        ? data.loginByEmail.isAdmin
-        : tokenPayload["is_admin"] === "true",
+    isAdmin: tokenIsAdminClaim ?? graphqlIsAdmin,
     tenantId: tokenPayload["tenant_id"] as string
   };
 }

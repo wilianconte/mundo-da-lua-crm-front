@@ -36,8 +36,34 @@ function isDateExpired(rawDate: string | null, referenceDate = new Date()) {
 
 type SessionValidationResult = {
   isAuthenticated: boolean;
+  isAdmin: boolean;
   permissions: string[];
 };
+
+function parseBooleanClaim(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1 ? true : value === 0 ? false : null;
+  if (typeof value !== "string") return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") return true;
+  if (normalized === "false" || normalized === "0") return false;
+  return null;
+}
+
+function getAdminClaimFromToken(token: string): boolean {
+  try {
+    const payloadSegment = token.split(".")[1];
+    if (!payloadSegment) return false;
+    const payload = JSON.parse(
+      atob(payloadSegment.replace(/-/g, "+").replace(/_/g, "/"))
+    ) as Record<string, unknown>;
+
+    return parseBooleanClaim(payload.is_admin) === true;
+  } catch {
+    return false;
+  }
+}
 
 function parsePermissionsCookie(rawPermissions: string | null): string[] | null {
   if (!rawPermissions) {
@@ -68,8 +94,10 @@ async function validateSession(request: NextRequest): Promise<SessionValidationR
   const permissions = parsePermissionsCookie(rawPermissions);
 
   if (!token || !tokenExpiresAt || !refreshToken || !refreshTokenExpiresAt || !tenantId || !signature || !permissions) {
-    return { isAuthenticated: false, permissions: [] };
+    return { isAuthenticated: false, isAdmin: false, permissions: [] };
   }
+
+  const isAdmin = getAdminClaimFromToken(token);
 
   const signatureIsValid = await isValidSessionSignature(
     {
@@ -84,15 +112,16 @@ async function validateSession(request: NextRequest): Promise<SessionValidationR
   );
 
   if (!signatureIsValid) {
-    return { isAuthenticated: false, permissions: [] };
+    return { isAuthenticated: false, isAdmin: false, permissions: [] };
   }
 
   if (!isDateExpired(tokenExpiresAt)) {
-    return { isAuthenticated: true, permissions };
+    return { isAuthenticated: true, isAdmin, permissions };
   }
 
   return {
     isAuthenticated: Boolean(refreshToken) && Boolean(tenantId) && !isDateExpired(refreshTokenExpiresAt),
+    isAdmin,
     permissions
   };
 }
@@ -150,7 +179,7 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  if (!isPublicRoute && isAuthenticated && !canAccessPath(pathname, session.permissions)) {
+  if (!isPublicRoute && isAuthenticated && !session.isAdmin && !canAccessPath(pathname, session.permissions)) {
     const fallbackPath = getFirstAccessiblePath(session.permissions);
     return NextResponse.redirect(new URL(fallbackPath, request.url));
   }

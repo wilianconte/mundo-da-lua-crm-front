@@ -483,6 +483,7 @@ type Role {
   name: String!
   description: String
   isActive: Boolean!
+  usersCount: Int!
   createdAt: DateTime!
   updatedAt: DateTime
   createdBy: UUID

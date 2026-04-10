@@ -21,7 +21,7 @@ type FieldType = "text" | "category";
 type TextOperator = "contains" | "equals" | "startsWith";
 type CategoryOperator = "equals" | "notEquals";
 type FilterOperator = TextOperator | CategoryOperator;
-type SortableColumn = "name" | "isActive" | "createdAt" | "updatedAt";
+type SortableColumn = "name" | "isActive";
 type SortDirection = "asc" | "desc";
 type CursorMode = "forward" | "backward";
 
@@ -60,9 +60,8 @@ const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
 const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
   { label: "Nome", sortKey: "name" },
   { label: "Descricao" },
+  { label: "Usuarios" },
   { label: "Status", sortKey: "isActive" },
-  { label: "Criado em", sortKey: "createdAt" },
-  { label: "Atualizado em", sortKey: "updatedAt" },
   { label: "Acao" }
 ];
 
@@ -79,19 +78,9 @@ function toStatusBool(value: string): boolean | null {
   return null;
 }
 
-function toDateTime(value?: string | null) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-
-  return date.toLocaleString("pt-BR");
-}
-
 function mapSortColumn(column: SortableColumn) {
-  if (column === "name") return "name";
   if (column === "isActive") return "isActive";
-  if (column === "updatedAt") return "updatedAt";
-  return "createdAt";
+  return "name";
 }
 
 function mapTextOperator(operator: TextOperator): "contains" | "eq" | "startsWith" {
@@ -393,8 +382,7 @@ export function GroupSearchView() {
               <td className="px-4 py-3">
                 <Badge variant={role.isActive ? "success" : "attention"}>{role.isActive ? "Ativo" : "Inativo"}</Badge>
               </td>
-              <td className="px-4 py-3">{toDateTime(role.createdAt)}</td>
-              <td className="px-4 py-3">{toDateTime(role.updatedAt)}</td>
+              <td className="px-4 py-3">{role.usersCount}</td>
               <td className="px-4 py-3">
                 <Button onClick={() => openEditGroup(role)} size="sm" variant="outline">
                   Editar
