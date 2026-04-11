@@ -8,6 +8,7 @@ O contrato é a fonte de verdade sobre quais queries, mutations, tipos e campos 
 
 ### Regras
 
+- Antes de qualquer implementacao, execute `npm run graphql:contract:update` para sincronizar o contrato local e revisar o diff gerado.
 - Antes de implementar uma query ou mutation, verifique no contrato se o campo raiz existe em `Query` ou `Mutation`.
 - Antes de selecionar campos aninhados, verifique os tipos correspondentes no contrato.
 - Nunca assuma que um campo existe sem confirmar no schema — o build falhará se o contrato for violado.

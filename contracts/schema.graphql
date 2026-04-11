@@ -303,9 +303,9 @@ type LoginDto {
   userId: UUID!
   name: String!
   email: String!
-  isAdmin: Boolean!
   refreshToken: String!
   refreshTokenExpiresAt: DateTime!
+  isAdmin: Boolean!
 }
 
 type Mutation {
@@ -348,6 +348,8 @@ type Mutation {
   updateEmployee(id: UUID! input: UpdateEmployeeInput!): EmployeePayload! @authorize(policy: "employees:update") @cost(weight: "10")
   deleteEmployee(id: UUID!): Boolean! @authorize(policy: "employees:delete") @cost(weight: "10")
   registerTenant(input: RegisterTenantInput!): TenantPayload! @allowAnonymous @cost(weight: "10")
+  updateTenant(id: UUID! input: UpdateTenantInput!): TenantPayload! @authorize(policy: "tenants:manage") @cost(weight: "10")
+  deleteTenant(id: UUID!): Boolean! @authorize(policy: "tenants:manage") @cost(weight: "10")
 }
 
 "Information about pagination in a connection."
@@ -476,6 +478,8 @@ type Query {
   studentCourseById(id: UUID!): StudentCourse @authorize(policy: "student_courses:read") @cost(weight: "10")
   employees("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: EmployeeFilterInput @cost(weight: "10") order: [EmployeeSortInput!] @cost(weight: "10")): EmployeesConnection @authorize(policy: "employees:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
   employeeById(id: UUID!): Employee @authorize(policy: "employees:read") @cost(weight: "10")
+  tenants("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: TenantFilterInput @cost(weight: "10") order: [TenantSortInput!] @cost(weight: "10")): TenantsConnection @authorize(policy: "tenants:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  tenantById(id: UUID!): Tenant @authorize(policy: "tenants:manage") @cost(weight: "10")
 }
 
 type Role {
@@ -483,12 +487,12 @@ type Role {
   name: String!
   description: String
   isActive: Boolean!
-  usersCount: Int!
   createdAt: DateTime!
   updatedAt: DateTime
   createdBy: UUID
   updatedBy: UUID
   permissions: [PermissionDto!]! @cost(weight: "10")
+  usersCount: Int! @cost(weight: "10")
   rolePermissions: [RolePermission!]!
 }
 
@@ -722,6 +726,21 @@ type StudentsEdge {
   node: Student!
 }
 
+type Tenant {
+  name: String!
+  companyId: UUID!
+  ownerPersonId: UUID
+  status: TenantStatus!
+  plan: TenantPlan!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
 type TenantDto {
   id: UUID!
   name: String!
@@ -737,12 +756,32 @@ type TenantPayload {
   tenant: TenantDto!
 }
 
+"A connection to a list of items."
+type TenantsConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [TenantsEdge!]
+  "A flattened list of the nodes."
+  nodes: [Tenant!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type TenantsEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Tenant!
+}
+
 type User {
   id: UUID!
   name: String!
   email: String!
-  isAdmin: Boolean!
   isActive: Boolean!
+  isAdmin: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime
   createdBy: UUID
@@ -756,8 +795,8 @@ type UserDto {
   tenantId: UUID!
   name: String!
   email: String!
-  isAdmin: Boolean!
   isActive: Boolean!
+  isAdmin: Boolean!
   personId: UUID
   createdAt: DateTime!
   updatedAt: DateTime
@@ -1063,7 +1102,6 @@ input CreateUserInput {
   name: String!
   email: String!
   password: String!
-  isAdmin: Boolean
   personId: UUID
   roleIds: [UUID!]
 }
@@ -1277,13 +1315,13 @@ input LocalDateOperationFilterInput {
   nlte: LocalDate @cost(weight: "10")
 }
 
-input LoginInput {
-  tenantId: UUID!
+input LoginByEmailInput {
   email: String!
   password: String!
 }
 
-input LoginByEmailInput {
+input LoginInput {
+  tenantId: UUID!
   email: String!
   password: String!
 }
@@ -1616,6 +1654,52 @@ input StudentSortInput {
   updatedAt: SortEnumType @cost(weight: "10")
 }
 
+input TenantFilterInput {
+  and: [TenantFilterInput!]
+  or: [TenantFilterInput!]
+  name: StringOperationFilterInput
+  companyId: UuidOperationFilterInput
+  ownerPersonId: UuidOperationFilterInput
+  status: TenantStatusOperationFilterInput
+  plan: TenantPlanOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input TenantPlanOperationFilterInput {
+  eq: TenantPlan @cost(weight: "10")
+  neq: TenantPlan @cost(weight: "10")
+  in: [TenantPlan!] @cost(weight: "10")
+  nin: [TenantPlan!] @cost(weight: "10")
+}
+
+input TenantSortInput {
+  name: SortEnumType @cost(weight: "10")
+  companyId: SortEnumType @cost(weight: "10")
+  ownerPersonId: SortEnumType @cost(weight: "10")
+  status: SortEnumType @cost(weight: "10")
+  plan: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input TenantStatusOperationFilterInput {
+  eq: TenantStatus @cost(weight: "10")
+  neq: TenantStatus @cost(weight: "10")
+  in: [TenantStatus!] @cost(weight: "10")
+  nin: [TenantStatus!] @cost(weight: "10")
+}
+
 input UpdateCompanyInput {
   legalName: String!
   tradeName: String
@@ -1724,12 +1808,18 @@ input UpdateStudentInput {
   notes: String
 }
 
+input UpdateTenantInput {
+  name: String!
+  plan: TenantPlan!
+  status: TenantStatus!
+}
+
 input UpdateUserInput {
   name: String!
   email: String!
-  isAdmin: Boolean
   personId: UUID
   isActive: Boolean!
+  isAdmin: Boolean!
   password: String
   roleIds: [UUID!]
 }
@@ -1741,6 +1831,7 @@ input UserFilterInput {
   passwordHash: StringOperationFilterInput
   name: StringOperationFilterInput
   isActive: BooleanOperationFilterInput
+  isAdmin: BooleanOperationFilterInput
   userRoles: ListFilterInputTypeOfUserRoleFilterInput
   personId: UuidOperationFilterInput
   tenantId: UuidOperationFilterInput
@@ -1774,6 +1865,7 @@ input UserSortInput {
   passwordHash: SortEnumType @cost(weight: "10")
   name: SortEnumType @cost(weight: "10")
   isActive: SortEnumType @cost(weight: "10")
+  isAdmin: SortEnumType @cost(weight: "10")
   personId: SortEnumType @cost(weight: "10")
   tenantId: SortEnumType @cost(weight: "10")
   id: SortEnumType @cost(weight: "10")

@@ -14,7 +14,11 @@ import {
   forgotPasswordSchema
 } from "@/features/auth/schema/forgot-password-schema";
 
-export function ForgotPasswordForm() {
+type ForgotPasswordFormProps = {
+  hideHeader?: boolean;
+};
+
+export function ForgotPasswordForm({ hideHeader = false }: ForgotPasswordFormProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const {
     register,
@@ -44,15 +48,17 @@ export function ForgotPasswordForm() {
 
   return (
     <div className="w-full">
-      <header className="space-y-2 text-center">
-        <h2 className="flex items-center justify-center gap-2 text-4xl font-bold tracking-tight text-[#0a2f68]">
-          <Mail className="size-7" />
-          Esqueci minha senha
-        </h2>
-        <p className="text-base text-slate-600">Informe seu e-mail para recuperar o acesso.</p>
-      </header>
+      {!hideHeader ? (
+        <header className="space-y-2 text-center">
+          <h2 className="flex items-center justify-center gap-2 text-4xl font-bold tracking-tight text-[#0a2f68]">
+            <Mail className="size-7" />
+            Esqueci minha senha
+          </h2>
+          <p className="text-base text-slate-600">Informe seu e-mail para recuperar o acesso.</p>
+        </header>
+      ) : null}
 
-      <form className="mx-auto mt-8 w-full max-w-[310px] space-y-5" onSubmit={handleSubmit(onSubmit)}>
+      <form className="mx-auto w-full max-w-[310px] space-y-5" onSubmit={handleSubmit(onSubmit)}>
         <Field>
           <FieldLabel
             className="text-xs font-bold uppercase tracking-[0.08em] text-slate-600"

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Lock, Mail, UserRoundPlus } from "lucide-react";
@@ -128,7 +128,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
       });
 
       setSuccessMessage(
-        "Conta criada com sucesso. Faça login para acessar sua nova organizacao."
+        "Conta criada com sucesso. FaÃ§a login para acessar sua nova organizacao."
       );
     } catch (error) {
       const code = (error as GraphQLRequestError).code;
@@ -504,15 +504,12 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
 
           {isLastStep ? (
             <Button
-              aria-label="Proximo"
-              className="h-auto gap-2 border-none bg-transparent p-0 text-sm font-semibold text-slate-700 shadow-none hover:bg-transparent hover:text-[#0a2f68]"
+              aria-label="Enviar cadastro"
+              className="h-12 rounded-none bg-[#0a2f68] px-8 text-sm font-semibold text-white hover:bg-[#09306f]"
               disabled={isSubmitting}
               type="submit"
             >
-              <span>Próximo</span>
-              <span className="inline-flex size-12 items-center justify-center rounded-full bg-[#0a2f68] text-white hover:bg-[#09306f]">
-                <ArrowRight className="size-4" />
-              </span>
+              {isSubmitting ? "Enviando..." : "Enviar"}
             </Button>
           ) : (
             <Button
@@ -521,7 +518,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
               onClick={handleNextStep}
               type="button"
             >
-              <span>Próximo</span>
+              <span>PrÃ³ximo</span>
               <span className="inline-flex size-12 items-center justify-center rounded-full bg-[#0a2f68] text-white hover:bg-[#09306f]">
                 <ArrowRight className="size-4" />
               </span>

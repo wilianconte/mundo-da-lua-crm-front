@@ -181,7 +181,8 @@ export const navigationItems: NavItem[] = [
       { label: "Tabelas de Preco", href: "/components" },
       { label: "Unidades / Enderecos", href: "/components" },
       { label: "Modelos de Contrato", href: "/components" },
-      { label: "Parametros Gerais", href: "/components" }
+      { label: "Parametros Gerais", href: "/components" },
+      { label: "Tenants", href: "/assinaturas/tenants/pesquisa" }
     ]
   },
   {
