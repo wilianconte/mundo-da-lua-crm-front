@@ -5,7 +5,7 @@ import { AUTH_COOKIE_KEYS } from "@/lib/auth/session-keys";
 import { isValidSessionSignature } from "@/lib/auth/server-session-signature";
 
 const LOGIN_ROUTE = "/login";
-const PUBLIC_ROUTES = new Set([LOGIN_ROUTE, "/esqueci-senha", "/criar-conta"]);
+const PUBLIC_ROUTES = new Set([LOGIN_ROUTE, "/esqueci-senha", "/criar-conta", "/redefinir-senha"]);
 const COOKIE_SECURITY_OPTIONS = {
   httpOnly: true,
   sameSite: "lax" as const,
