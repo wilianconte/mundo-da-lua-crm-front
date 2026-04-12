@@ -41,6 +41,7 @@ export function ForgotPasswordForm({ hideHeader = false }: ForgotPasswordFormPro
       await requestPasswordReset({
         email: values.email.trim().toLowerCase()
       });
+      sessionStorage.setItem("pw_reset_pending_email", values.email.trim().toLowerCase());
       setSuccessMessage(
         `Se o e-mail ${values.email} estiver cadastrado, enviaremos as instru\u00e7\u00f5es de recupera\u00e7\u00e3o.`
       );
