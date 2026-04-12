@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { requestPasswordReset } from "@/features/auth/api/request-password-reset";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ export function ForgotPasswordForm({ hideHeader = false }: ForgotPasswordFormPro
   const {
     register,
     handleSubmit,
+    clearErrors,
     setError,
     formState: { errors, isSubmitting }
   } = useForm<ForgotPasswordSchema>({
@@ -35,13 +37,16 @@ export function ForgotPasswordForm({ hideHeader = false }: ForgotPasswordFormPro
   async function onSubmit(values: ForgotPasswordSchema) {
     try {
       setSuccessMessage(null);
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      clearErrors("root");
+      await requestPasswordReset({
+        email: values.email.trim().toLowerCase()
+      });
       setSuccessMessage(
-        `Se o e-mail ${values.email} estiver cadastrado, enviaremos as instrucoes de recuperacao.`
+        `Se o e-mail ${values.email} estiver cadastrado, enviaremos as instru\u00e7\u00f5es de recupera\u00e7\u00e3o.`
       );
     } catch {
       setError("root", {
-        message: "Nao foi possivel enviar a solicitacao agora. Tente novamente."
+        message: "N\u00e3o foi poss\u00edvel enviar a solicita\u00e7\u00e3o agora. Tente novamente."
       });
     }
   }

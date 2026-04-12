@@ -322,16 +322,6 @@ type Mutation {
   updateCompany(id: UUID! input: UpdateCompanyInput!): CompanyDto! @authorize(policy: "companies:update") @cost(weight: "10")
   setCompanyAddress(input: SetCompanyAddressInput!): CompanyDto! @authorize(policy: "companies:update") @cost(weight: "10")
   deleteCompany(id: UUID!): Boolean! @authorize(policy: "companies:delete") @cost(weight: "10")
-  createUser(input: CreateUserInput!): UserDto! @authorize(policy: "users:manage") @cost(weight: "10")
-  updateUser(id: UUID! input: UpdateUserInput!): UserDto! @authorize(policy: "users:manage") @cost(weight: "10")
-  deleteUser(id: UUID!): Boolean! @authorize(policy: "users:manage") @cost(weight: "10")
-  login(input: LoginInput!): LoginDto! @allowAnonymous @cost(weight: "10")
-  loginByEmail(input: LoginByEmailInput!): LoginDto! @allowAnonymous @cost(weight: "10")
-  refreshToken(input: RefreshTokenInput!): LoginDto! @allowAnonymous @cost(weight: "10")
-  createRole(input: CreateRoleInput!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
-  updateRole(id: UUID! input: UpdateRoleInput!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
-  deleteRole(id: UUID!): Boolean! @authorize(policy: "roles:manage") @cost(weight: "10")
-  updateRolePermissions(roleId: UUID! permissionIds: [UUID!]!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
   createStudent(input: CreateStudentInput!): StudentPayload! @authorize(policy: "students:create") @cost(weight: "10")
   updateStudent(id: UUID! input: UpdateStudentInput!): StudentPayload! @authorize(policy: "students:update") @cost(weight: "10")
   deleteStudent(id: UUID!): Boolean! @authorize(policy: "students:delete") @cost(weight: "10")
@@ -347,6 +337,18 @@ type Mutation {
   createEmployee(input: CreateEmployeeInput!): EmployeePayload! @authorize(policy: "employees:create") @cost(weight: "10")
   updateEmployee(id: UUID! input: UpdateEmployeeInput!): EmployeePayload! @authorize(policy: "employees:update") @cost(weight: "10")
   deleteEmployee(id: UUID!): Boolean! @authorize(policy: "employees:delete") @cost(weight: "10")
+  createUser(input: CreateUserInput!): UserDto! @authorize(policy: "users:manage") @cost(weight: "10")
+  updateUser(id: UUID! input: UpdateUserInput!): UserDto! @authorize(policy: "users:manage") @cost(weight: "10")
+  deleteUser(id: UUID!): Boolean! @authorize(policy: "users:manage") @cost(weight: "10")
+  login(input: LoginInput!): LoginDto! @allowAnonymous @cost(weight: "10")
+  loginByEmail(input: LoginByEmailInput!): LoginDto! @allowAnonymous @cost(weight: "10")
+  refreshToken(input: RefreshTokenInput!): LoginDto! @allowAnonymous @cost(weight: "10")
+  requestPasswordReset(input: RequestPasswordResetInput!): Boolean! @allowAnonymous @cost(weight: "10")
+  resetPassword(input: ResetPasswordInput!): Boolean! @allowAnonymous @cost(weight: "10")
+  createRole(input: CreateRoleInput!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
+  updateRole(id: UUID! input: UpdateRoleInput!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
+  deleteRole(id: UUID!): Boolean! @authorize(policy: "roles:manage") @cost(weight: "10")
+  updateRolePermissions(roleId: UUID! permissionIds: [UUID!]!): RoleDto! @authorize(policy: "roles:manage") @cost(weight: "10")
   registerTenant(input: RegisterTenantInput!): TenantPayload! @allowAnonymous @cost(weight: "10")
   updateTenant(id: UUID! input: UpdateTenantInput!): TenantPayload! @authorize(policy: "tenants:manage") @cost(weight: "10")
   deleteTenant(id: UUID!): Boolean! @authorize(policy: "tenants:manage") @cost(weight: "10")
@@ -462,12 +464,6 @@ type Query {
   personById(id: UUID!): Person @authorize(policy: "people:read") @cost(weight: "10")
   companies("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: CompanyFilterInput @cost(weight: "10") order: [CompanySortInput!] @cost(weight: "10")): CompaniesConnection @authorize(policy: "companies:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
   companyById(id: UUID!): Company @authorize(policy: "companies:read") @cost(weight: "10")
-  users("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: UserFilterInput @cost(weight: "10") order: [UserSortInput!] @cost(weight: "10")): UsersConnection @authorize(policy: "users:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
-  userById(id: UUID!): User @authorize(policy: "users:manage") @cost(weight: "10")
-  roles("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: RoleFilterInput @cost(weight: "10") order: [RoleSortInput!] @cost(weight: "10")): RolesConnection @authorize(policy: "roles:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
-  roleById(id: UUID!): Role @authorize(policy: "roles:manage") @cost(weight: "10")
-  myPermissions: [String!]! @authorize @cost(weight: "10")
-  permissions: [PermissionDto!]! @authorize(policy: "roles:manage") @cost(weight: "10")
   students(enrollmentStatus: StudentEnrollmentStatus "Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: StudentFilterInput @cost(weight: "10") order: [StudentSortInput!] @cost(weight: "10")): StudentsConnection @authorize(policy: "students:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
   studentById(id: UUID!): Student @authorize(policy: "students:read") @cost(weight: "10")
   studentGuardians("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: StudentGuardianFilterInput @cost(weight: "10") order: [StudentGuardianSortInput!] @cost(weight: "10")): StudentGuardiansConnection @authorize(policy: "student_guardians:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
@@ -478,6 +474,12 @@ type Query {
   studentCourseById(id: UUID!): StudentCourse @authorize(policy: "student_courses:read") @cost(weight: "10")
   employees("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: EmployeeFilterInput @cost(weight: "10") order: [EmployeeSortInput!] @cost(weight: "10")): EmployeesConnection @authorize(policy: "employees:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
   employeeById(id: UUID!): Employee @authorize(policy: "employees:read") @cost(weight: "10")
+  users("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: UserFilterInput @cost(weight: "10") order: [UserSortInput!] @cost(weight: "10")): UsersConnection @authorize(policy: "users:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  userById(id: UUID!): User @authorize(policy: "users:manage") @cost(weight: "10")
+  roles("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: RoleFilterInput @cost(weight: "10") order: [RoleSortInput!] @cost(weight: "10")): RolesConnection @authorize(policy: "roles:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  roleById(id: UUID!): Role @authorize(policy: "roles:manage") @cost(weight: "10")
+  myPermissions: [String!]! @authorize @cost(weight: "10")
+  permissions: [PermissionDto!]! @authorize(policy: "roles:manage") @cost(weight: "10")
   tenants("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: TenantFilterInput @cost(weight: "10") order: [TenantSortInput!] @cost(weight: "10")): TenantsConnection @authorize(policy: "tenants:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
   tenantById(id: UUID!): Tenant @authorize(policy: "tenants:manage") @cost(weight: "10")
 }
@@ -788,6 +790,8 @@ type User {
   updatedBy: UUID
   personId: UUID
   roles: [Role!]! @cost(weight: "10")
+  passwordResetToken: String
+  passwordResetTokenExpiresAt: DateTime
 }
 
 type UserDto {
@@ -1443,6 +1447,16 @@ input RegisterTenantInput {
   passwordConfirmation: String!
 }
 
+input RequestPasswordResetInput {
+  email: String!
+}
+
+input ResetPasswordInput {
+  token: String!
+  newPassword: String!
+  newPasswordConfirmation: String!
+}
+
 input RoleFilterInput {
   and: [RoleFilterInput!]
   or: [RoleFilterInput!]
@@ -1834,6 +1848,8 @@ input UserFilterInput {
   isAdmin: BooleanOperationFilterInput
   userRoles: ListFilterInputTypeOfUserRoleFilterInput
   personId: UuidOperationFilterInput
+  passwordResetToken: StringOperationFilterInput
+  passwordResetTokenExpiresAt: DateTimeOperationFilterInput
   tenantId: UuidOperationFilterInput
   id: UuidOperationFilterInput
   isDeleted: BooleanOperationFilterInput
@@ -1867,6 +1883,8 @@ input UserSortInput {
   isActive: SortEnumType @cost(weight: "10")
   isAdmin: SortEnumType @cost(weight: "10")
   personId: SortEnumType @cost(weight: "10")
+  passwordResetToken: SortEnumType @cost(weight: "10")
+  passwordResetTokenExpiresAt: SortEnumType @cost(weight: "10")
   tenantId: SortEnumType @cost(weight: "10")
   id: SortEnumType @cost(weight: "10")
   isDeleted: SortEnumType @cost(weight: "10")
