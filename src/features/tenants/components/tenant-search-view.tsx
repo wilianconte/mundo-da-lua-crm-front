@@ -1,29 +1,30 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
+import {
+  getTenants,
+  type GetTenantsVariables,
+  type TenantFilterInput,
+  type TenantPlan,
+  type TenantRow,
+  type TenantStatus
+} from "@/features/tenants/api/get-tenants";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 import { GraphQLRequestError } from "@/lib/graphql/client";
-import {
-  getRoles,
-  type GetRolesVariables,
-  type RoleFilterInput,
-  type RoleNode
-} from "@/features/grupos/api/get-roles";
 
-type FilterFieldKey = "name" | "description" | "isActive";
+type FilterFieldKey = "name" | "companyId" | "status" | "plan";
 type FieldType = "text" | "category";
 type TextOperator = "contains" | "equals" | "startsWith";
 type CategoryOperator = "equals" | "notEquals";
 type FilterOperator = TextOperator | CategoryOperator;
-type SortableColumn = "name" | "isActive";
+type SortableColumn = "name" | "plan" | "createdAt";
 type SortDirection = "asc" | "desc";
-type CursorMode = "forward" | "backward";
 
 type FilterField = {
   key: FilterFieldKey;
@@ -38,12 +39,13 @@ type FilterChip = {
   value: string;
 };
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 
 const filterFields: FilterField[] = [
-  { key: "name", label: "Nome", type: "text" },
-  { key: "description", label: "Descricao", type: "text" },
-  { key: "isActive", label: "Status", type: "category" }
+  { key: "name", label: "Tenant", type: "text" },
+  { key: "companyId", label: "Company ID", type: "category" },
+  { key: "status", label: "Status", type: "category" },
+  { key: "plan", label: "Plano", type: "category" }
 ];
 
 const textOperators: Array<{ key: TextOperator; label: string }> = [
@@ -58,10 +60,10 @@ const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
 ];
 
 const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
-  { label: "Nome", sortKey: "name" },
-  { label: "Descricao" },
-  { label: "Usuarios" },
-  { label: "Status", sortKey: "isActive" },
+  { label: "Tenant", sortKey: "name" },
+  { label: "Empresa vinculada" },
+  { label: "Plano", sortKey: "plan" },
+  { label: "Data de cadastro", sortKey: "createdAt" },
   { label: "Acao" }
 ];
 
@@ -69,18 +71,40 @@ function normalize(value: string) {
   return value.trim().toLowerCase();
 }
 
-function toStatusBool(value: string): boolean | null {
+function toStatusEnum(value: string): TenantStatus | null {
   const normalized = normalize(value);
+  if (normalized === "trial" || normalized === "teste") return "TRIAL";
+  if (normalized === "active" || normalized === "ativo") return "ACTIVE";
+  if (normalized === "suspended" || normalized === "suspenso") return "SUSPENDED";
+  if (normalized === "cancelled" || normalized === "cancelado") return "CANCELLED";
+  return null;
+}
 
-  if (normalized === "active" || normalized === "ativo") return true;
-  if (normalized === "inactive" || normalized === "inativo") return false;
-
+function toPlanEnum(value: string): TenantPlan | null {
+  const normalized = normalize(value);
+  if (normalized === "free" || normalized === "gratis") return "FREE";
+  if (normalized === "basic" || normalized === "basico") return "BASIC";
+  if (normalized === "premium") return "PREMIUM";
   return null;
 }
 
 function mapSortColumn(column: SortableColumn) {
-  if (column === "isActive") return "isActive";
-  return "name";
+  if (column === "name") return "name";
+  if (column === "plan") return "plan";
+  return "createdAt";
+}
+
+function toPlanLabel(plan: TenantPlan) {
+  if (plan === "FREE") return "Free";
+  if (plan === "BASIC") return "Basic";
+  return "Premium";
+}
+
+function toDateTime(value?: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("pt-BR");
 }
 
 function mapTextOperator(operator: TextOperator): "contains" | "eq" | "startsWith" {
@@ -89,7 +113,13 @@ function mapTextOperator(operator: TextOperator): "contains" | "eq" | "startsWit
   return "contains";
 }
 
-export function GroupSearchView() {
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+type CursorMode = "forward" | "backward";
+
+export function TenantSearchView() {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [freeQuery, setFreeQuery] = useState("");
@@ -99,7 +129,7 @@ export function GroupSearchView() {
   const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortableColumn>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [rows, setRows] = useState<RoleNode[]>([]);
+  const [rows, setRows] = useState<TenantRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -110,53 +140,59 @@ export function GroupSearchView() {
   const [requestAfter, setRequestAfter] = useState<string | null>(null);
   const [requestBefore, setRequestBefore] = useState<string | null>(null);
   const [cursorMode, setCursorMode] = useState<CursorMode>("forward");
-
   const inputRef = useRef<HTMLInputElement | null>(null);
+
   const availableOperators = selectedField?.type === "category" ? categoryOperators : textOperators;
 
-  const where = useMemo<RoleFilterInput | null>(() => {
-    const nextWhere: RoleFilterInput = {};
+  const where = useMemo<TenantFilterInput | null>(() => {
+    const nextWhere: TenantFilterInput = {
+      isDeleted: { eq: false }
+    };
 
     if (freeQuery.trim()) {
-      nextWhere.or = [
-        { name: { contains: freeQuery.trim() } },
-        { description: { contains: freeQuery.trim() } }
-      ];
+      nextWhere.or = [{ name: { contains: freeQuery.trim() } }];
     }
 
     for (const chip of chips) {
-      if (chip.field.key === "isActive") {
-        const isActive = toStatusBool(chip.value);
-        if (isActive === null) {
-          continue;
-        }
+      const value = chip.value.trim();
+      if (!value) continue;
 
-        nextWhere.isActive = chip.operator === "notEquals" ? { neq: isActive } : { eq: isActive };
+      if (chip.field.key === "status") {
+        const status = toStatusEnum(value);
+        if (!status) continue;
+        nextWhere.status = chip.operator === "notEquals" ? { neq: status } : { eq: status };
         continue;
       }
 
-      const key = chip.field.key;
-      const value = chip.value.trim();
-      if (!value) {
+      if (chip.field.key === "plan") {
+        const plan = toPlanEnum(value);
+        if (!plan) continue;
+        nextWhere.plan = chip.operator === "notEquals" ? { neq: plan } : { eq: plan };
+        continue;
+      }
+
+      if (chip.field.key === "companyId") {
+        if (!isUuid(value)) continue;
+        nextWhere.companyId = chip.operator === "notEquals" ? { neq: value } : { eq: value };
         continue;
       }
 
       const operator = mapTextOperator(chip.operator as TextOperator);
-      nextWhere[key] = { [operator]: value };
+      nextWhere.name = { [operator]: value };
     }
 
-    return Object.keys(nextWhere).length ? nextWhere : null;
+    return nextWhere;
   }, [chips, freeQuery]);
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadRoles() {
+    async function loadTenants() {
       try {
         setIsLoading(true);
         setErrorMessage(null);
 
-        const variables: GetRolesVariables = {
+        const variables: GetTenantsVariables = {
           where,
           order: [{ [mapSortColumn(sortBy)]: sortDirection === "asc" ? "ASC" : "DESC" }]
         };
@@ -176,7 +212,7 @@ export function GroupSearchView() {
           delete variables.before;
         }
 
-        const response = await getRoles(variables);
+        const response = await getTenants(variables);
         if (!isMounted) return;
 
         setRows(response.nodes ?? []);
@@ -191,8 +227,7 @@ export function GroupSearchView() {
         const message =
           error instanceof GraphQLRequestError
             ? error.message
-            : "Nao foi possivel carregar a pesquisa de grupos.";
-
+            : "Nao foi possivel carregar a pesquisa de tenants.";
         setRows([]);
         setTotalCount(0);
         setErrorMessage(message);
@@ -203,7 +238,7 @@ export function GroupSearchView() {
       }
     }
 
-    loadRoles();
+    loadTenants();
 
     return () => {
       isMounted = false;
@@ -297,30 +332,24 @@ export function GroupSearchView() {
     return [...textOperators, ...categoryOperators].find((item) => item.key === operator)?.label ?? operator;
   }
 
-  function openEditGroup(role: RoleNode) {
+  function openCompany(tenant: TenantRow) {
     const params = new URLSearchParams({
       mode: "edit",
-      id: role.id
+      id: tenant.id
     });
 
-    router.push(`/grupos/cadastro?${params.toString()}`);
+    router.push(`/assinaturas/tenants/cadastro?${params.toString()}`);
   }
 
   return (
     <div className="space-y-6">
       <section className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-muted-foreground)]">Grupos</p>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Pesquisa de grupos</h2>
-            <p className="text-sm text-[var(--color-muted-foreground)]">
-              Omnisearch com filtros tokenizados por nome, descricao e status.
-            </p>
-          </div>
-          <Button className="min-w-40" leadingIcon={<Plus className="size-4" />} onClick={() => router.push("/grupos/cadastro")}>
-            Adicionar
-          </Button>
-        </div>
+        <FeatureViewHeader
+          backAriaLabel="Voltar para o dashboard"
+          backHref="/"
+          description="Listagem de tenants com dados principais e nome da empresa vinculada."
+          title="Pesquisa de tenants"
+        />
       </section>
 
       <section className="space-y-5">
@@ -358,9 +387,9 @@ export function GroupSearchView() {
           canGoNext={!isLoading && hasNextPage && Boolean(pageEndCursor)}
           canGoPrevious={!isLoading && hasPreviousPage && Boolean(pageStartCursor)}
           columns={tableColumns}
-          emptyText="Nenhum grupo encontrado com os filtros atuais."
+          emptyText="Nenhum tenant encontrado com os filtros atuais."
           isLoading={isLoading}
-          loadingText="Carregando grupos..."
+          loadingText="Carregando tenants..."
           onNextPage={() => {
             setCursorMode("forward");
             setRequestBefore(null);
@@ -372,19 +401,17 @@ export function GroupSearchView() {
             setRequestBefore(pageStartCursor);
           }}
           onToggleSort={toggleSort}
-          renderRow={(role) => (
+          renderRow={(tenant) => (
             <tr
               className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
-              key={role.id}
+              key={tenant.id}
             >
-              <td className="px-4 py-3">{role.name}</td>
-              <td className="px-4 py-3">{role.description || "-"}</td>
+              <td className="px-4 py-3">{tenant.name}</td>
+              <td className="px-4 py-3">{tenant.companyLegalName ?? "-"}</td>
+              <td className="px-4 py-3">{toPlanLabel(tenant.plan)}</td>
+              <td className="px-4 py-3">{toDateTime(tenant.createdAt)}</td>
               <td className="px-4 py-3">
-                <Badge variant={role.isActive ? "success" : "attention"}>{role.isActive ? "Ativo" : "Inativo"}</Badge>
-              </td>
-              <td className="px-4 py-3">{role.usersCount}</td>
-              <td className="px-4 py-3">
-                <Button onClick={() => openEditGroup(role)} size="sm" variant="outline">
+                <Button onClick={() => openCompany(tenant)} size="sm" variant="outline">
                   Editar
                 </Button>
               </td>
@@ -393,8 +420,7 @@ export function GroupSearchView() {
           renderSortIcon={renderSortIcon}
           rows={rows}
           sortBy={sortBy}
-          totalText={`${totalCount} grupos encontrados com os filtros atuais.`}
-          tableMinWidthClassName="min-w-[1080px]"
+          totalText={`${totalCount} tenants encontrados com os filtros atuais.`}
         />
       </section>
     </div>

@@ -1,15 +1,17 @@
-"use client";
+﻿"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Lock, Mail, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { registerTenant } from "@/features/auth/api/register-tenant";
 import { type SignUpSchema, signUpSchema } from "@/features/auth/schema/sign-up-schema";
+import { type GraphQLRequestError } from "@/lib/graphql/client";
 import { cn } from "@/lib/utils/cn";
 
 type WizardStep = {
@@ -82,7 +84,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
     handleSubmit,
     setError,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting }
   } = useForm<SignUpSchema>({
     resolver: zodResolver(signUpSchema),
@@ -106,19 +108,37 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === WIZARD_STEPS.length - 1;
   const current = WIZARD_STEPS[currentStep];
-  const personPhoneValue = watch("personPhone") ?? "";
-  const companyPhoneValue = watch("companyPhone") ?? "";
+  const personPhoneValue = useWatch({ control, name: "personPhone" }) ?? "";
+  const companyPhoneValue = useWatch({ control, name: "companyPhone" }) ?? "";
 
-  async function onSubmit() {
+  async function onSubmit(values: SignUpSchema) {
     try {
       setSuccessMessage(null);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await registerTenant({
+        companyLegalName: values.legalName,
+        companyCnpj: values.registrationNumber,
+        companyEmail: values.companyEmail,
+        companyPhone: values.companyPhone,
+        adminName: values.fullName,
+        adminEmail: values.personEmail.trim().toLowerCase(),
+        adminCpf: values.documentNumber,
+        adminPhone: values.personPhone,
+        password: values.password,
+        passwordConfirmation: values.confirmPassword
+      });
+
       setSuccessMessage(
-        "Solicitacao recebida. O time administrativo validara os dados de Pessoa e Empresa para liberar o acesso."
+        "Conta criada com sucesso. FaÃ§a login para acessar sua nova organizacao."
       );
-    } catch {
+    } catch (error) {
+      const code = (error as GraphQLRequestError).code;
+      const messageByCode: Record<string, string> = {
+        VALIDATION_ERROR: "Campos invalidos. Revise os dados e tente novamente.",
+        INVALID_CREDENTIALS: "Nao foi possivel concluir o cadastro com as credenciais informadas."
+      };
+
       setError("root", {
-        message: "Nao foi possivel concluir o cadastro agora. Tente novamente."
+        message: messageByCode[code ?? ""] ?? "Nao foi possivel concluir o cadastro agora. Tente novamente."
       });
     }
   }
@@ -484,15 +504,12 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
 
           {isLastStep ? (
             <Button
-              aria-label="Proximo"
-              className="h-auto gap-2 border-none bg-transparent p-0 text-sm font-semibold text-slate-700 shadow-none hover:bg-transparent hover:text-[#0a2f68]"
+              aria-label="Enviar cadastro"
+              className="h-12 rounded-none bg-[#0a2f68] px-8 text-sm font-semibold text-white hover:bg-[#09306f]"
               disabled={isSubmitting}
               type="submit"
             >
-              <span>Próximo</span>
-              <span className="inline-flex size-12 items-center justify-center rounded-full bg-[#0a2f68] text-white hover:bg-[#09306f]">
-                <ArrowRight className="size-4" />
-              </span>
+              {isSubmitting ? "Enviando..." : "Enviar"}
             </Button>
           ) : (
             <Button
@@ -501,7 +518,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
               onClick={handleNextStep}
               type="button"
             >
-              <span>Próximo</span>
+              <span>PrÃ³ximo</span>
               <span className="inline-flex size-12 items-center justify-center rounded-full bg-[#0a2f68] text-white hover:bg-[#09306f]">
                 <ArrowRight className="size-4" />
               </span>

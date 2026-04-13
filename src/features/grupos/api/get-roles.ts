@@ -29,8 +29,7 @@ const GET_ROLES_QUERY = `
         name
         description
         isActive
-        createdAt
-        updatedAt
+        usersCount
       }
     }
   }
@@ -41,8 +40,7 @@ export type RoleNode = {
   name: string;
   description?: string | null;
   isActive: boolean;
-  createdAt: string;
-  updatedAt?: string | null;
+  usersCount: number;
 };
 
 export type RolesConnection = {

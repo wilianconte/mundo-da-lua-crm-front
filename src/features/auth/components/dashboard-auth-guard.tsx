@@ -12,6 +12,30 @@ type DashboardAuthGuardProps = {
   children: React.ReactNode;
 };
 
+function parseBooleanClaim(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1 ? true : value === 0 ? false : null;
+  if (typeof value !== "string") return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") return true;
+  if (normalized === "false" || normalized === "0") return false;
+  return null;
+}
+
+function getJwtAdminClaim(token: string | null): boolean | null {
+  if (!token) return null;
+
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as Record<string, unknown>;
+    return parseBooleanClaim(decoded["is_admin"]);
+  } catch {
+    return null;
+  }
+}
+
 export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -38,9 +62,18 @@ export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
         return;
       }
 
+      const token = getValidToken();
+      const isAdminFromToken = getJwtAdminClaim(token);
+      const isAdmin = user.isAdmin || isAdminFromToken === true;
+
+      if (isAdmin) {
+        setIsAuthorized(true);
+        setIsCheckingAccess(false);
+        return;
+      }
+
       let permissions = user.permissions ?? [];
       if (permissions.length === 0) {
-        const token = getValidToken();
         if (!token) {
           router.replace("/login");
           return;
@@ -74,7 +107,7 @@ export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
         return;
       }
 
-      if (!canAccessPath(pathname, permissions)) {
+      if (!user.isAdmin && !canAccessPath(pathname, permissions)) {
         setIsAuthorized(false);
         router.replace(getFirstAccessiblePath(permissions));
         return;

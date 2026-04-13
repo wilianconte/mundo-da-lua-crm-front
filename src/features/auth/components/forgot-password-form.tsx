@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { requestPasswordReset } from "@/features/auth/api/request-password-reset";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +15,16 @@ import {
   forgotPasswordSchema
 } from "@/features/auth/schema/forgot-password-schema";
 
-export function ForgotPasswordForm() {
+type ForgotPasswordFormProps = {
+  hideHeader?: boolean;
+};
+
+export function ForgotPasswordForm({ hideHeader = false }: ForgotPasswordFormProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
+    clearErrors,
     setError,
     formState: { errors, isSubmitting }
   } = useForm<ForgotPasswordSchema>({
@@ -31,28 +37,34 @@ export function ForgotPasswordForm() {
   async function onSubmit(values: ForgotPasswordSchema) {
     try {
       setSuccessMessage(null);
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      clearErrors("root");
+      await requestPasswordReset({
+        email: values.email.trim().toLowerCase()
+      });
+      sessionStorage.setItem("pw_reset_pending_email", values.email.trim().toLowerCase());
       setSuccessMessage(
-        `Se o e-mail ${values.email} estiver cadastrado, enviaremos as instrucoes de recuperacao.`
+        `Se o e-mail ${values.email} estiver cadastrado, enviaremos as instru\u00e7\u00f5es de recupera\u00e7\u00e3o.`
       );
     } catch {
       setError("root", {
-        message: "Nao foi possivel enviar a solicitacao agora. Tente novamente."
+        message: "N\u00e3o foi poss\u00edvel enviar a solicita\u00e7\u00e3o agora. Tente novamente."
       });
     }
   }
 
   return (
     <div className="w-full">
-      <header className="space-y-2 text-center">
-        <h2 className="flex items-center justify-center gap-2 text-4xl font-bold tracking-tight text-[#0a2f68]">
-          <Mail className="size-7" />
-          Esqueci minha senha
-        </h2>
-        <p className="text-base text-slate-600">Informe seu e-mail para recuperar o acesso.</p>
-      </header>
+      {!hideHeader ? (
+        <header className="space-y-2 text-center">
+          <h2 className="flex items-center justify-center gap-2 text-4xl font-bold tracking-tight text-[#0a2f68]">
+            <Mail className="size-7" />
+            Esqueci minha senha
+          </h2>
+          <p className="text-base text-slate-600">Informe seu e-mail para recuperar o acesso.</p>
+        </header>
+      ) : null}
 
-      <form className="mx-auto mt-8 w-full max-w-[310px] space-y-5" onSubmit={handleSubmit(onSubmit)}>
+      <form className="mx-auto w-full max-w-[310px] space-y-5" onSubmit={handleSubmit(onSubmit)}>
         <Field>
           <FieldLabel
             className="text-xs font-bold uppercase tracking-[0.08em] text-slate-600"

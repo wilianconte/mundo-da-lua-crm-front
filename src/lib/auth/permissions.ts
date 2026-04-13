@@ -19,6 +19,7 @@ export const SYSTEM_PERMISSIONS = {
   companiesCreate: "companies:create",
   companiesUpdate: "companies:update",
   companiesDelete: "companies:delete",
+  tenantsManage: "tenants:manage",
   usersManage: "users:manage",
   rolesManage: "roles:manage"
 } as const;
@@ -83,6 +84,7 @@ const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
       SYSTEM_PERMISSIONS.companiesDelete
     ]
   },
+  { prefix: "/assinaturas/tenants", anyOf: [SYSTEM_PERMISSIONS.tenantsManage] },
   { prefix: "/usuarios", anyOf: [SYSTEM_PERMISSIONS.usersManage] },
   { prefix: "/grupos", anyOf: [SYSTEM_PERMISSIONS.rolesManage] }
 ];

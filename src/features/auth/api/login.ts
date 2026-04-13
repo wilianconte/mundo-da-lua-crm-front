@@ -10,6 +10,7 @@ const LOGIN_MUTATION = `
       userId
       name
       email
+      isAdmin
     }
   }
 `;
@@ -29,6 +30,7 @@ type LoginMutationResponse = {
     userId: string;
     name: string;
     email: string;
+    isAdmin: boolean;
   };
 };
 
