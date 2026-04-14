@@ -1,7 +1,6 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
-import packageJson from "../../../package.json";
 
 import {
   Bell,
@@ -21,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MobileSidebarTrigger, SidebarNav } from "@/components/layout/sidebar-nav";
 import { clearAuthSession, getAuthUser } from "@/lib/auth/session";
+import { APP_VERSION } from "@/lib/app-version";
 import { cn } from "@/lib/utils/cn";
 
 type AdminShellProps = {
@@ -317,7 +317,7 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
           Painel administrativo
         </span>
         <span className="mt-1 inline-flex py-0.5 text-[0.7rem] font-medium uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]">
-          v{packageJson.version}
+          v{APP_VERSION}
         </span>
       </Link>
     </div>
