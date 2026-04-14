@@ -50,6 +50,8 @@ jobs:
     name: Push
     runs-on: ubuntu-latest
     needs: build
+    outputs:
+      rollout_image: ${{ steps.rollout_image.outputs.value }}
 
     permissions:
       contents: read
@@ -67,6 +69,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Definir imagem de rollout
+        id: rollout_image
+        run: |
+          echo "value=${{ secrets.DOCKERHUB_USERNAME }}/mundo-da-lua-crm-front:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Extrair metadados da imagem
         id: meta
         uses: docker/metadata-action@v5
@@ -74,7 +81,7 @@ jobs:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/mundo-da-lua-crm-front
           tags: |
             type=raw,value=latest
-            type=sha,format=short
+            type=sha,format=short,prefix=sha-
 
       - name: Load, tag e push da imagem
         run: |
@@ -98,4 +105,8 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
+          kubectl set image deployment/mundo-da-lua-crm-front \
+            "*=${{ needs.push.outputs.rollout_image }}" \
+            -n mundo-da-lua-crm-prd
           kubectl rollout restart deployment/mundo-da-lua-crm-front -n mundo-da-lua-crm-prd
+          kubectl rollout status deployment/mundo-da-lua-crm-front -n mundo-da-lua-crm-prd --timeout=180s

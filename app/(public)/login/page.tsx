@@ -1,4 +1,5 @@
 import { LoginForm } from "@/features/auth/components/login-form";
+import { APP_VERSION } from "@/lib/app-version";
 
 export default function LoginPage() {
   return (
@@ -17,6 +18,9 @@ export default function LoginPage() {
 
         <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#7f92b8]">
           (c) 2026 MUNDO DA LUA
+        </p>
+        <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#6f84ae]">
+          v{APP_VERSION}
         </p>
       </div>
     </main>
