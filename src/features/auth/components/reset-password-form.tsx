@@ -121,7 +121,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
               <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
               <Input
                 autoComplete="new-password"
-                className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                 id="new-password"
                 placeholder="Digite sua nova senha"
                 type="password"
@@ -142,7 +142,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
               <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
               <Input
                 autoComplete="new-password"
-                className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                 id="new-password-confirmation"
                 placeholder="Digite novamente sua nova senha"
                 type="password"
@@ -155,7 +155,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           </Field>
 
           <Button
-            className="h-12 w-full rounded-none bg-[#0a2f68] text-white hover:bg-[#09306f]"
+            className="h-12 w-full rounded-[var(--radius-control)] bg-[#0a2f68] text-white hover:bg-[#09306f]"
             size="lg"
             type="submit"
           >

@@ -245,7 +245,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                 >
                   Nome completo <span className="text-[#c81e1e]">*</span>
                 </FieldLabel>
-              <Input className="h-12 rounded-none border-slate-300 bg-[#eef1f5]" id="signup-full-name" {...register("fullName")} />
+              <Input className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]" id="signup-full-name" {...register("fullName")} />
               <FieldMessage className={cn("min-h-5 text-red-600", !errors.fullName && "invisible")}>
                 {errors.fullName?.message ?? "."}
               </FieldMessage>
@@ -256,7 +256,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   CPF <span className="text-[#c81e1e]">*</span>
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-document"
                   inputMode="numeric"
                   placeholder="000.000.000-00"
@@ -275,7 +275,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   Data de nascimento
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-birth-date"
                   type="date"
                   {...register("birthDate")}
@@ -296,7 +296,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                   <Input
                     autoComplete="email"
-                    className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                    className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                     id="signup-person-email"
                     type="email"
                     {...register("personEmail")}
@@ -315,7 +315,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   Telefone
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-person-phone"
                   inputMode="numeric"
                   maxLength={15}
@@ -345,7 +345,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                 >
                   Razao social <span className="text-[#c81e1e]">*</span>
                 </FieldLabel>
-                <Input className="h-12 rounded-none border-slate-300 bg-[#eef1f5]" id="signup-legal-name" {...register("legalName")} />
+                <Input className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]" id="signup-legal-name" {...register("legalName")} />
                 <FieldMessage className={cn("min-h-5 text-red-600", !errors.legalName && "invisible")}>
                   {errors.legalName?.message ?? "."}
                 </FieldMessage>
@@ -358,7 +358,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                 >
                   Nome fantasia
                 </FieldLabel>
-                <Input className="h-12 rounded-none border-slate-300 bg-[#eef1f5]" id="signup-trade-name" {...register("tradeName")} />
+                <Input className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]" id="signup-trade-name" {...register("tradeName")} />
                 <FieldMessage className={cn("min-h-5 text-red-600", !errors.tradeName && "invisible")}>
                   {errors.tradeName?.message ?? "."}
                 </FieldMessage>
@@ -372,7 +372,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   CNPJ
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-registration-number"
                   {...register("registrationNumber")}
                 />
@@ -391,7 +391,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                 <div className="relative">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                   <Input
-                    className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                    className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                     id="signup-company-email"
                     type="email"
                     {...register("companyEmail")}
@@ -410,7 +410,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   Telefone da empresa
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-company-phone"
                   inputMode="numeric"
                   maxLength={15}
@@ -437,7 +437,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   Tipo de empresa
                 </FieldLabel>
                 <select
-                  className="flex h-12 w-full rounded-none border border-slate-300 bg-[#eef1f5] px-3 py-2 text-sm outline-none transition focus-visible:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-soft)]"
+                  className="flex h-12 w-full rounded-[var(--radius-control)] border border-slate-300 bg-[#eef1f5] px-3 py-2 text-sm outline-none transition focus-visible:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-soft)]"
                   id="signup-company-type"
                   {...register("companyType")}
                 >
@@ -465,7 +465,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                   <Input
                     autoComplete="new-password"
-                    className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                    className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                     id="signup-password"
                     type="password"
                     {...register("password")}
@@ -487,7 +487,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                   <Input
                     autoComplete="new-password"
-                    className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                    className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                     id="signup-confirm-password"
                     type="password"
                     {...register("confirmPassword")}
@@ -531,7 +531,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
               {isLastStep ? (
                 <Button
                   aria-label="Enviar cadastro"
-                  className="h-12 rounded-none bg-[#0a2f68] px-8 text-sm font-semibold text-white hover:bg-[#09306f]"
+                  className="h-12 rounded-[var(--radius-control)] bg-[#0a2f68] px-8 text-sm font-semibold text-white hover:bg-[#09306f]"
                   disabled={isSubmitting}
                   type="submit"
                 >

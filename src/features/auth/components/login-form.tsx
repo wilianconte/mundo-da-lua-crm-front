@@ -99,7 +99,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
             <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
             <Input
               autoComplete="username"
-              className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+              className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
               id="email"
               placeholder="seu@email.com"
               type="email"
@@ -117,7 +117,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
             <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
             <Input
               autoComplete="current-password"
-              className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+              className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
               id="password"
               placeholder="Digite sua senha"
               type="password"
@@ -128,7 +128,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
         </Field>
 
         <Button
-          className="mt-2 h-12 w-full rounded-none bg-[#0a2f68] text-white hover:bg-[#09306f]"
+          className="mt-2 h-12 w-full rounded-[var(--radius-control)] bg-[#0a2f68] text-white hover:bg-[#09306f]"
           leadingIcon={<ArrowRight className="size-4" />}
           size="lg"
           type="submit"
@@ -144,7 +144,7 @@ export function LoginForm({ embedded = false }: LoginFormProps) {
         </div>
 
         <Button
-          className="h-12 w-full justify-center gap-2 rounded-none border-slate-300 bg-[#f3f4f6] text-slate-700 hover:bg-slate-100"
+          className="h-12 w-full justify-center gap-2 rounded-[var(--radius-control)] border-slate-300 bg-[#f3f4f6] text-slate-700 hover:bg-slate-100"
           onClick={handleGoogleSocialLogin}
           type="button"
           variant="outline"
