@@ -28,7 +28,7 @@ Use esta skill sempre que uma feature envolver listagem, cadastro, alteracao ou 
 - Mapear erros GraphQL para mensagens amigaveis perto da feature.
 - Cobrir loading, empty, error, success e confirmacao de exclusao.
 - Excluir apenas em modo de edicao e sempre pedir confirmacao antes da mutation destrutiva.
-- Toda delecao deve ser confirmada via modal explicita de confirmacao; nao usar `window.confirm` ou exclusao direta sem modal.
+- Toda delecao deve ser confirmada via `src/components/ui/confirmation-dialog.tsx`; nao usar `window.confirm`, modal inline duplicada ou exclusao direta sem confirmacao.
 - Em atualizacao de cadastro, exibir modal de sucesso antes de redirecionar para a listagem (padrao de UX do projeto).
 - Em delecao bem-sucedida, exibir modal de sucesso antes de redirecionar para a listagem (nao redirecionar direto apos excluir).
 

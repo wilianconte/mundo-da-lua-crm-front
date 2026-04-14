@@ -88,11 +88,20 @@ Exclusao em CRUD de producao deve seguir estas regras:
 
 - aparecer apenas em modo de edicao
 - exigir confirmacao explicita antes da mutation
-- a confirmacao deve ser feita por modal dedicada (padrao do projeto), nunca por `window.confirm`
+- a confirmacao deve ser feita por `src/components/ui/confirmation-dialog.tsx`, nunca por `window.confirm` ou modal duplicada por feature
 - bloquear a UI durante a operacao
 - exibir modal de sucesso consistente
 - redirecionar para a listagem apos concluir
 - o redirecionamento deve acontecer apos a modal de sucesso (nao imediatamente apos a mutation)
+
+Padrao visual atual da confirmacao:
+
+- icone destrutivo no topo do dialog
+- titulo centralizado com hierarquia maior que a descricao
+- descricao curta e centralizada
+- CTA principal destrutivo em destaque
+- CTA secundaria de cancelamento separada visualmente
+- largura compacta e consistente entre CRUDs
 
 Evitar:
 

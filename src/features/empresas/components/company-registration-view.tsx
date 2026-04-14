@@ -10,6 +10,7 @@ import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import {
@@ -715,20 +716,12 @@ export function CompanyRegistrationView() {
         </form>
       </div>
 
-      {isDeleteConfirmOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
-            <h3 className="text-lg font-semibold">Confirmar exclusao</h3>
-            <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
-              Esta acao executa o soft delete da empresa. Ela deixara de aparecer nas listagens do CRM.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <Button leadingIcon={<X className="size-4" />} onClick={() => setIsDeleteConfirmOpen(false)} variant="outline">Cancelar</Button>
-              <Button leadingIcon={<Trash2 className="size-4" />} onClick={confirmDeleteCompany} variant="danger-outline">Excluir</Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmationDialog
+        description="Esta acao executa o soft delete da empresa. Ela deixara de aparecer nas listagens do CRM."
+        onCancel={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={confirmDeleteCompany}
+        open={isDeleteConfirmOpen}
+      />
 
       {isSuccessModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
