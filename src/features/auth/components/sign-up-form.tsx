@@ -1,8 +1,9 @@
 ﻿"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Lock, Mail, UserRoundPlus } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Lock, Loader2, Mail, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
@@ -76,6 +77,7 @@ type SignUpFormProps = {
 };
 
 export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const {
@@ -110,6 +112,8 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
   const current = WIZARD_STEPS[currentStep];
   const personPhoneValue = useWatch({ control, name: "personPhone" }) ?? "";
   const companyPhoneValue = useWatch({ control, name: "companyPhone" }) ?? "";
+  const hasCompletedSignup = Boolean(successMessage);
+  const isAwaitingSubmit = isSubmitting && !hasCompletedSignup;
 
   async function onSubmit(values: SignUpSchema) {
     try {
@@ -128,7 +132,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
       });
 
       setSuccessMessage(
-        "Conta criada com sucesso. FaÃ§a login para acessar sua nova organizacao."
+        "Conta criada com sucesso. Faça login para acessar sua nova organização."
       );
     } catch (error) {
       const code = (error as GraphQLRequestError).code;
@@ -169,46 +173,68 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
       ) : null}
 
       {!hideHeader ? <div className="mt-4 h-px w-full bg-slate-200" /> : null}
-
-      <div className={cn("relative", hideHeader ? "mt-0" : "mt-4")}>
-        <div aria-hidden="true" className="absolute left-[8%] right-[8%] top-5 h-px bg-slate-200" />
-        <ol aria-label="Etapas do cadastro" className="relative z-10 flex items-start justify-between gap-3">
-          {WIZARD_STEPS.map((step, index) => {
-            const isComplete = index < currentStep;
-            const isCurrent = index === currentStep;
-            return (
-              <li className="flex flex-1 flex-col items-center gap-2 text-center" key={step.id}>
-                <span
-                  className={cn(
-                    "flex size-10 items-center justify-center rounded-full border text-sm font-bold",
-                    isCurrent
-                      ? "border-[#0a2f68] bg-[#0a2f68] text-white"
-                      : isComplete
-                        ? "border-emerald-600 bg-emerald-600 text-white"
-                        : "border-slate-300 bg-white text-slate-500"
-                  )}
-                >
-                  {index + 1}
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-semibold uppercase tracking-[0.08em]",
-                    isCurrent ? "text-[#0a2f68]" : isComplete ? "text-emerald-700" : "text-slate-500"
-                  )}
-                >
-                  {step.label}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
-
-      <form className="mt-6 w-full space-y-4" onSubmit={handleSubmit(onSubmit)}>
-        <div className="space-y-1">
-          <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-slate-700">{current.label}</h3>
-          <p className="text-sm text-slate-500">{current.description}</p>
+      {isAwaitingSubmit ? (
+        <div className="mt-6 flex min-h-[340px] flex-col items-center justify-center gap-3 px-6 text-center">
+          <Loader2 aria-hidden="true" className="size-8 animate-spin text-[#0a2f68]" />
+          <p className="text-sm font-semibold text-slate-800">Criando conta...</p>
+          <p className="text-xs text-slate-600">Estamos finalizando seu cadastro. Isso pode levar alguns segundos.</p>
         </div>
+      ) : hasCompletedSignup ? (
+        <div className="mt-6 flex min-h-[340px] flex-col items-center justify-center gap-4 px-6 text-center">
+          <CheckCircle2 aria-hidden="true" className="size-10 text-emerald-600" />
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-slate-900">Conta criada com sucesso</p>
+            <p className="text-sm text-slate-600">{successMessage}</p>
+          </div>
+          <Button
+            className="bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white"
+            onClick={() => router.push("/login")}
+            type="button"
+          >
+            Ir para login
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className={cn("relative", hideHeader ? "mt-0" : "mt-4")}>
+            <div aria-hidden="true" className="absolute left-[8%] right-[8%] top-5 h-px bg-slate-200" />
+            <ol aria-label="Etapas do cadastro" className="relative z-10 flex items-start justify-between gap-3">
+              {WIZARD_STEPS.map((step, index) => {
+                const isComplete = index < currentStep;
+                const isCurrent = index === currentStep;
+                return (
+                  <li className="flex flex-1 flex-col items-center gap-2 text-center" key={step.id}>
+                    <span
+                      className={cn(
+                        "flex size-10 items-center justify-center rounded-full border text-sm font-bold",
+                        isCurrent
+                          ? "border-[#0a2f68] bg-[#0a2f68] text-white"
+                          : isComplete
+                            ? "border-emerald-600 bg-emerald-600 text-white"
+                            : "border-slate-300 bg-white text-slate-500"
+                      )}
+                    >
+                      {index + 1}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-xs font-semibold uppercase tracking-[0.08em]",
+                        isCurrent ? "text-[#0a2f68]" : isComplete ? "text-emerald-700" : "text-slate-500"
+                      )}
+                    >
+                      {step.label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          <form className="mt-6 w-full space-y-4" onSubmit={handleSubmit(onSubmit)}>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-slate-700">{current.label}</h3>
+              <p className="text-sm text-slate-500">{current.description}</p>
+            </div>
 
         {current.id === "person" ? (
           <div className="grid gap-3 md:grid-cols-2">
@@ -219,7 +245,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                 >
                   Nome completo <span className="text-[#c81e1e]">*</span>
                 </FieldLabel>
-              <Input className="h-12 rounded-none border-slate-300 bg-[#eef1f5]" id="signup-full-name" {...register("fullName")} />
+              <Input className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]" id="signup-full-name" {...register("fullName")} />
               <FieldMessage className={cn("min-h-5 text-red-600", !errors.fullName && "invisible")}>
                 {errors.fullName?.message ?? "."}
               </FieldMessage>
@@ -230,7 +256,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   CPF <span className="text-[#c81e1e]">*</span>
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-document"
                   inputMode="numeric"
                   placeholder="000.000.000-00"
@@ -249,7 +275,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   Data de nascimento
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-birth-date"
                   type="date"
                   {...register("birthDate")}
@@ -270,7 +296,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                   <Input
                     autoComplete="email"
-                    className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                    className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                     id="signup-person-email"
                     type="email"
                     {...register("personEmail")}
@@ -289,7 +315,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   Telefone
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-person-phone"
                   inputMode="numeric"
                   maxLength={15}
@@ -319,7 +345,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                 >
                   Razao social <span className="text-[#c81e1e]">*</span>
                 </FieldLabel>
-                <Input className="h-12 rounded-none border-slate-300 bg-[#eef1f5]" id="signup-legal-name" {...register("legalName")} />
+                <Input className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]" id="signup-legal-name" {...register("legalName")} />
                 <FieldMessage className={cn("min-h-5 text-red-600", !errors.legalName && "invisible")}>
                   {errors.legalName?.message ?? "."}
                 </FieldMessage>
@@ -332,7 +358,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                 >
                   Nome fantasia
                 </FieldLabel>
-                <Input className="h-12 rounded-none border-slate-300 bg-[#eef1f5]" id="signup-trade-name" {...register("tradeName")} />
+                <Input className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]" id="signup-trade-name" {...register("tradeName")} />
                 <FieldMessage className={cn("min-h-5 text-red-600", !errors.tradeName && "invisible")}>
                   {errors.tradeName?.message ?? "."}
                 </FieldMessage>
@@ -346,7 +372,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   CNPJ
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-registration-number"
                   {...register("registrationNumber")}
                 />
@@ -365,7 +391,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                 <div className="relative">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                   <Input
-                    className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                    className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                     id="signup-company-email"
                     type="email"
                     {...register("companyEmail")}
@@ -384,7 +410,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   Telefone da empresa
                 </FieldLabel>
                 <Input
-                  className="h-12 rounded-none border-slate-300 bg-[#eef1f5]"
+                  className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5]"
                   id="signup-company-phone"
                   inputMode="numeric"
                   maxLength={15}
@@ -411,7 +437,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   Tipo de empresa
                 </FieldLabel>
                 <select
-                  className="flex h-12 w-full rounded-none border border-slate-300 bg-[#eef1f5] px-3 py-2 text-sm outline-none transition focus-visible:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-soft)]"
+                  className="flex h-12 w-full rounded-[var(--radius-control)] border border-slate-300 bg-[#eef1f5] px-3 py-2 text-sm outline-none transition focus-visible:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-soft)]"
                   id="signup-company-type"
                   {...register("companyType")}
                 >
@@ -439,7 +465,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                   <Input
                     autoComplete="new-password"
-                    className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                    className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                     id="signup-password"
                     type="password"
                     {...register("password")}
@@ -461,7 +487,7 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
                   <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                   <Input
                     autoComplete="new-password"
-                    className="h-12 rounded-none border-slate-300 bg-[#eef1f5] pl-10"
+                    className="h-12 rounded-[var(--radius-control)] border-slate-300 bg-[#eef1f5] pl-10"
                     id="signup-confirm-password"
                     type="password"
                     {...register("confirmPassword")}
@@ -474,69 +500,70 @@ export function SignUpForm({ hideHeader = false }: SignUpFormProps) {
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between">
-          {isFirstStep ? (
+            <div className="flex items-center justify-between">
+              {isFirstStep ? (
+                <Link
+                  aria-label="Voltar para login"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition duration-200 hover:text-[#0a2f68]"
+                  href="/login"
+                >
+                  <span className="inline-flex size-12 items-center justify-center rounded-full border border-slate-300 hover:bg-slate-100">
+                    <ArrowLeft className="size-4" />
+                  </span>
+                  <span>Voltar</span>
+                </Link>
+              ) : (
+                <Button
+                  aria-label="Voltar etapa"
+                  className="h-auto gap-2 border-none bg-transparent p-0 text-sm font-semibold text-slate-700 shadow-none hover:bg-transparent hover:text-[#0a2f68]"
+                  disabled={isSubmitting}
+                  onClick={handlePreviousStep}
+                  type="button"
+                  variant="ghost"
+                >
+                  <span className="inline-flex size-12 items-center justify-center rounded-full border border-slate-300 hover:bg-slate-100">
+                    <ArrowLeft className="size-4" />
+                  </span>
+                  <span>Voltar</span>
+                </Button>
+              )}
+
+              {isLastStep ? (
+                <Button
+                  aria-label="Enviar cadastro"
+                  className="h-12 rounded-[var(--radius-control)] bg-[#0a2f68] px-8 text-sm font-semibold text-white hover:bg-[#09306f]"
+                  disabled={isSubmitting}
+                  type="submit"
+                >
+                  {isSubmitting ? "Enviando..." : "Enviar"}
+                </Button>
+              ) : (
+                <Button
+                  aria-label="Proximo"
+                  className="h-auto gap-2 border-none bg-transparent p-0 text-sm font-semibold text-slate-700 shadow-none hover:bg-transparent hover:text-[#0a2f68]"
+                  onClick={handleNextStep}
+                  type="button"
+                >
+                  <span>Próximo</span>
+                  <span className="inline-flex size-12 items-center justify-center rounded-full bg-[#0a2f68] text-white hover:bg-[#09306f]">
+                    <ArrowRight className="size-4" />
+                  </span>
+                </Button>
+              )}
+            </div>
+
             <Link
-              aria-label="Voltar para login"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition duration-200 hover:text-[#0a2f68]"
+              className="flex items-center justify-center gap-2 border-t border-slate-200 pt-4 text-sm font-semibold text-[#0a2f68] hover:text-[#061d41]"
               href="/login"
             >
-              <span className="inline-flex size-12 items-center justify-center rounded-full border border-slate-300 hover:bg-slate-100">
-                <ArrowLeft className="size-4" />
-              </span>
-              <span>Voltar</span>
+              <ArrowLeft className="size-4" />
+              Voltar para login
             </Link>
-          ) : (
-            <Button
-              aria-label="Voltar etapa"
-              className="h-auto gap-2 border-none bg-transparent p-0 text-sm font-semibold text-slate-700 shadow-none hover:bg-transparent hover:text-[#0a2f68]"
-              disabled={isSubmitting}
-              onClick={handlePreviousStep}
-              type="button"
-              variant="ghost"
-            >
-              <span className="inline-flex size-12 items-center justify-center rounded-full border border-slate-300 hover:bg-slate-100">
-                <ArrowLeft className="size-4" />
-              </span>
-              <span>Voltar</span>
-            </Button>
-          )}
 
-          {isLastStep ? (
-            <Button
-              aria-label="Enviar cadastro"
-              className="h-12 rounded-none bg-[#0a2f68] px-8 text-sm font-semibold text-white hover:bg-[#09306f]"
-              disabled={isSubmitting}
-              type="submit"
-            >
-              {isSubmitting ? "Enviando..." : "Enviar"}
-            </Button>
-          ) : (
-            <Button
-              aria-label="Proximo"
-              className="h-auto gap-2 border-none bg-transparent p-0 text-sm font-semibold text-slate-700 shadow-none hover:bg-transparent hover:text-[#0a2f68]"
-              onClick={handleNextStep}
-              type="button"
-            >
-              <span>PrÃ³ximo</span>
-              <span className="inline-flex size-12 items-center justify-center rounded-full bg-[#0a2f68] text-white hover:bg-[#09306f]">
-                <ArrowRight className="size-4" />
-              </span>
-            </Button>
-          )}
-        </div>
-
-        <Link
-          className="flex items-center justify-center gap-2 border-t border-slate-200 pt-4 text-sm font-semibold text-[#0a2f68] hover:text-[#061d41]"
-          href="/login"
-        >
-          <ArrowLeft className="size-4" />
-          Voltar para login
-        </Link>
-
-        {errors.root?.message ? <FieldMessage>{errors.root.message}</FieldMessage> : null}
-        {successMessage ? <FieldMessage className="text-emerald-700">{successMessage}</FieldMessage> : null}
-      </form>
+            {errors.root?.message ? <FieldMessage>{errors.root.message}</FieldMessage> : null}
+          </form>
+        </>
+      )}
     </div>
   );
 }

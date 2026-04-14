@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Loader2, Save, Trash2, X } from "lucide-react";
+import { CheckCircle2, Loader2, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import {
@@ -384,40 +385,13 @@ export function TenantRegistrationView() {
         </div>
       ) : null}
 
-      {isDeleteConfirmOpen ? (
-        <div
-          aria-live="polite"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
-          role="dialog"
-        >
-          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
-            <div className="space-y-2">
-              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                Deseja excluir este tenant? Esta acao nao podera ser desfeita.
-              </p>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                disabled={isDeletingTenant}
-                leadingIcon={<X className="size-4" />}
-                onClick={() => setIsDeleteConfirmOpen(false)}
-                variant="outline"
-              >
-                Cancelar
-              </Button>
-              <Button
-                disabled={isDeletingTenant}
-                leadingIcon={isDeletingTenant ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                onClick={confirmDeleteTenant}
-                variant="danger-outline"
-              >
-                {isDeletingTenant ? "Excluindo..." : "Excluir"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmationDialog
+        description="Deseja excluir este tenant? Esta acao nao podera ser desfeita."
+        isConfirming={isDeletingTenant}
+        onCancel={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={confirmDeleteTenant}
+        open={isDeleteConfirmOpen}
+      />
     </div>
   );
 }

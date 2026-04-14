@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Loader2, Save, Trash2, X } from "lucide-react";
+import { AlertCircle, Loader2, Save, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { cn } from "@/lib/utils/cn";
@@ -427,40 +428,13 @@ export function CourseRegistrationView() {
         </form>
       </div>
 
-      {isDeleteConfirmOpen ? (
-        <div
-          aria-live="polite"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
-          role="dialog"
-        >
-          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
-            <div className="space-y-2">
-              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                Tem certeza que deseja excluir este curso? Esta acao nao podera ser desfeita.
-              </p>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                disabled={isDeletingCourse}
-                leadingIcon={<X className="size-4" />}
-                onClick={() => setIsDeleteConfirmOpen(false)}
-                variant="outline"
-              >
-                Cancelar
-              </Button>
-              <Button
-                disabled={isDeletingCourse}
-                leadingIcon={isDeletingCourse ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                onClick={handleDelete}
-                variant="danger-outline"
-              >
-                {isDeletingCourse ? "Excluindo..." : "Excluir"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmationDialog
+        description="Tem certeza que deseja excluir este curso? Esta acao nao podera ser desfeita."
+        isConfirming={isDeletingCourse}
+        onCancel={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        open={isDeleteConfirmOpen}
+      />
 
       {isSuccessModalOpen ? (
         <div
@@ -488,4 +462,3 @@ export function CourseRegistrationView() {
     </div>
   );
 }
-

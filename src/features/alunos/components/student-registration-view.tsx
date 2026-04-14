@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import {
   deleteStudent,
@@ -929,76 +930,23 @@ export function StudentRegistrationView() {
         </div>
       ) : null}
 
-      {isDeleteStudentConfirmOpen ? (
-        <div
-          aria-live="polite"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
-          role="dialog"
-        >
-          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
-            <div className="space-y-2">
-              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                Deseja excluir este aluno? Esta acao nao podera ser desfeita.
-              </p>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                disabled={isDeletingStudent}
-                leadingIcon={<X className="size-4" />}
-                onClick={() => setIsDeleteStudentConfirmOpen(false)}
-                variant="outline"
-              >
-                Cancelar
-              </Button>
-              <Button
-                disabled={isDeletingStudent}
-                leadingIcon={isDeletingStudent ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                onClick={confirmDeleteStudent}
-                variant="danger-outline"
-              >
-                {isDeletingStudent ? "Excluindo..." : "Excluir"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmationDialog
+        description="Deseja excluir este aluno? Esta acao nao podera ser desfeita."
+        isConfirming={isDeletingStudent}
+        onCancel={() => setIsDeleteStudentConfirmOpen(false)}
+        onConfirm={confirmDeleteStudent}
+        open={isDeleteStudentConfirmOpen}
+      />
 
-      {courseToRemove ? (
-        <div
-          aria-live="polite"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
-          role="dialog"
-        >
-          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
-            <div className="space-y-2">
-              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                Deseja remover a matricula do curso <strong>{courseToRemove.course.name}</strong>?
-              </p>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                disabled={deletingCourseId === courseToRemove.id}
-                leadingIcon={<X className="size-4" />}
-                onClick={() => setCourseToRemove(null)}
-                variant="outline"
-              >
-                Cancelar
-              </Button>
-              <Button
-                disabled={deletingCourseId === courseToRemove.id}
-                leadingIcon={deletingCourseId === courseToRemove.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                onClick={confirmRemoveCourse}
-                variant="danger-outline"
-              >
-                {deletingCourseId === courseToRemove.id ? "Removendo..." : "Remover"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmationDialog
+        confirmLabel="Remover"
+        confirmPendingLabel="Removendo..."
+        description={courseToRemove ? <>Deseja remover a matricula do curso <strong>{courseToRemove.course.name}</strong>?</> : ""}
+        isConfirming={Boolean(courseToRemove && deletingCourseId === courseToRemove.id)}
+        onCancel={() => setCourseToRemove(null)}
+        onConfirm={confirmRemoveCourse}
+        open={Boolean(courseToRemove)}
+      />
     </div>
   );
 }
-

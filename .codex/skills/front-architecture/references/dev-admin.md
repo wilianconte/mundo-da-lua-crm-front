@@ -230,6 +230,8 @@ Rules:
 - shared components can compose common layout and visual behavior
 - feature components can consume domain hooks and contracts
 - pages should not carry large inline logic blocks
+- use `src/components/ui/button.tsx` as the official button primitive; the current project standard is square corners (`rounded-none`) for actionable buttons
+- use `src/components/ui/confirmation-dialog.tsx` as the official destructive-action confirmation modal
 
 Anti-patterns:
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Loader2, Save, Trash2, X } from "lucide-react";
+import { CheckCircle2, Loader2, Save, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Field, FieldLabel, FieldMessage } from "@/components/forms/field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import { getStudentPersonById } from "@/features/alunos/api/search-student-people";
 import { type MockPerson } from "@/features/alunos/api/student-mock-service";
@@ -553,40 +554,13 @@ export function UserRegistrationView() {
         </div>
       ) : null}
 
-      {isDeleteConfirmOpen ? (
-        <div
-          aria-live="polite"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4"
-          role="dialog"
-        >
-          <div className="w-full max-w-md rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
-            <div className="space-y-2">
-              <p className="text-base font-semibold text-[var(--color-foreground)]">Confirmar exclusao</p>
-              <p className="text-sm text-[var(--color-muted-foreground)]">
-                Tem certeza que deseja excluir este usuario? Esta acao nao podera ser desfeita.
-              </p>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                disabled={isDeletingUser}
-                leadingIcon={<X className="size-4" />}
-                onClick={() => setIsDeleteConfirmOpen(false)}
-                variant="outline"
-              >
-                Cancelar
-              </Button>
-              <Button
-                disabled={isDeletingUser}
-                leadingIcon={isDeletingUser ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                onClick={confirmDeleteUser}
-                variant="danger-outline"
-              >
-                {isDeletingUser ? "Excluindo..." : "Excluir"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmationDialog
+        description="Tem certeza que deseja excluir este usuario? Esta acao nao podera ser desfeita."
+        isConfirming={isDeletingUser}
+        onCancel={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={confirmDeleteUser}
+        open={isDeleteConfirmOpen}
+      />
 
       <PersonSearchModal
         onClose={() => setIsPersonModalOpen(false)}
