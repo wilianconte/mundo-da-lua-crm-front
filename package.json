@@ -8,6 +8,7 @@
     "build": "npm run graphql:contract:check && next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
+    "build:heartbeat": "node scripts/watch-build-requests.mjs",
     "graphql:contract:check": "node scripts/validate-graphql-contract.mjs",
     "graphql:contract:update": "node scripts/update-graphql-contract.mjs"
   },

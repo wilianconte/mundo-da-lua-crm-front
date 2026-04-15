@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import {
   getTenants,
   type GetTenantsVariables,
   type TenantFilterInput,
-  type TenantPlan,
   type TenantRow,
   type TenantStatus
 } from "@/features/tenants/api/get-tenants";
@@ -18,12 +18,12 @@ import { SearchResultsTable } from "@/features/shared/components/search-results-
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
 import { GraphQLRequestError } from "@/lib/graphql/client";
 
-type FilterFieldKey = "name" | "companyId" | "status" | "plan";
+type FilterFieldKey = "name" | "companyId" | "status";
 type FieldType = "text" | "category";
 type TextOperator = "contains" | "equals" | "startsWith";
 type CategoryOperator = "equals" | "notEquals";
 type FilterOperator = TextOperator | CategoryOperator;
-type SortableColumn = "name" | "plan" | "createdAt";
+type SortableColumn = "name" | "status" | "createdAt";
 type SortDirection = "asc" | "desc";
 
 type FilterField = {
@@ -44,8 +44,7 @@ const PAGE_SIZE = 8;
 const filterFields: FilterField[] = [
   { key: "name", label: "Tenant", type: "text" },
   { key: "companyId", label: "Company ID", type: "category" },
-  { key: "status", label: "Status", type: "category" },
-  { key: "plan", label: "Plano", type: "category" }
+  { key: "status", label: "Status", type: "category" }
 ];
 
 const textOperators: Array<{ key: TextOperator; label: string }> = [
@@ -62,7 +61,7 @@ const categoryOperators: Array<{ key: CategoryOperator; label: string }> = [
 const tableColumns: Array<{ label: string; sortKey?: SortableColumn }> = [
   { label: "Tenant", sortKey: "name" },
   { label: "Empresa vinculada" },
-  { label: "Plano", sortKey: "plan" },
+  { label: "Status", sortKey: "status" },
   { label: "Data de cadastro", sortKey: "createdAt" },
   { label: "Acao" }
 ];
@@ -73,31 +72,28 @@ function normalize(value: string) {
 
 function toStatusEnum(value: string): TenantStatus | null {
   const normalized = normalize(value);
-  if (normalized === "trial" || normalized === "teste") return "TRIAL";
   if (normalized === "active" || normalized === "ativo") return "ACTIVE";
   if (normalized === "suspended" || normalized === "suspenso") return "SUSPENDED";
   if (normalized === "cancelled" || normalized === "cancelado") return "CANCELLED";
   return null;
 }
 
-function toPlanEnum(value: string): TenantPlan | null {
-  const normalized = normalize(value);
-  if (normalized === "free" || normalized === "gratis") return "FREE";
-  if (normalized === "basic" || normalized === "basico") return "BASIC";
-  if (normalized === "premium") return "PREMIUM";
-  return null;
-}
-
 function mapSortColumn(column: SortableColumn) {
   if (column === "name") return "name";
-  if (column === "plan") return "plan";
+  if (column === "status") return "status";
   return "createdAt";
 }
 
-function toPlanLabel(plan: TenantPlan) {
-  if (plan === "FREE") return "Free";
-  if (plan === "BASIC") return "Basic";
-  return "Premium";
+function toStatusLabel(status: TenantStatus) {
+  if (status === "ACTIVE") return "Ativo";
+  if (status === "SUSPENDED") return "Suspenso";
+  return "Cancelado";
+}
+
+function toStatusVariant(status: TenantStatus): "success" | "attention" | "neutral" {
+  if (status === "ACTIVE") return "success";
+  if (status === "SUSPENDED") return "attention";
+  return "neutral";
 }
 
 function toDateTime(value?: string | null) {
@@ -161,13 +157,6 @@ export function TenantSearchView() {
         const status = toStatusEnum(value);
         if (!status) continue;
         nextWhere.status = chip.operator === "notEquals" ? { neq: status } : { eq: status };
-        continue;
-      }
-
-      if (chip.field.key === "plan") {
-        const plan = toPlanEnum(value);
-        if (!plan) continue;
-        nextWhere.plan = chip.operator === "notEquals" ? { neq: plan } : { eq: plan };
         continue;
       }
 
@@ -408,7 +397,9 @@ export function TenantSearchView() {
             >
               <td className="px-4 py-3">{tenant.name}</td>
               <td className="px-4 py-3">{tenant.companyLegalName ?? "-"}</td>
-              <td className="px-4 py-3">{toPlanLabel(tenant.plan)}</td>
+              <td className="px-4 py-3">
+                <Badge variant={toStatusVariant(tenant.status)}>{toStatusLabel(tenant.status)}</Badge>
+              </td>
               <td className="px-4 py-3">{toDateTime(tenant.createdAt)}</td>
               <td className="px-4 py-3">
                 <Button onClick={() => openCompany(tenant)} size="sm" variant="outline">

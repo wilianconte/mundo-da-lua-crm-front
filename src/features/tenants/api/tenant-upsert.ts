@@ -1,5 +1,5 @@
 import { GraphQLRequestError, gqlRequest } from "@/lib/graphql/client";
-import type { TenantPlan, TenantStatus } from "./get-tenants";
+import type { TenantStatus } from "./get-tenants";
 
 const GET_TENANT_BY_ID_QUERY = `
   query GetTenantById($id: UUID!) {
@@ -9,7 +9,6 @@ const GET_TENANT_BY_ID_QUERY = `
       companyId
       ownerPersonId
       status
-      plan
       createdAt
       updatedAt
     }
@@ -25,7 +24,6 @@ const UPDATE_TENANT_MUTATION = `
         companyId
         ownerPersonId
         status
-        plan
         createdAt
         updatedAt
       }
@@ -55,7 +53,6 @@ export type TenantRecord = {
   companyId: string;
   ownerPersonId?: string | null;
   status: TenantStatus;
-  plan: TenantPlan;
   createdAt: string;
   updatedAt?: string | null;
 };
@@ -69,7 +66,6 @@ export type TenantCompanyLink = {
 export type TenantUpdateInput = {
   name: string;
   status: TenantStatus;
-  plan: TenantPlan;
 };
 
 type GetTenantByIdResponse = {

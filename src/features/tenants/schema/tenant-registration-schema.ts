@@ -6,11 +6,8 @@ export const tenantRegistrationSchema = z.object({
     .trim()
     .min(2, "Informe ao menos 2 caracteres para o nome do tenant.")
     .max(120, "O nome do tenant deve ter no maximo 120 caracteres."),
-  status: z.enum(["TRIAL", "ACTIVE", "SUSPENDED", "CANCELLED"], {
+  status: z.enum(["ACTIVE", "SUSPENDED", "CANCELLED"], {
     required_error: "Selecione o status."
-  }),
-  plan: z.enum(["FREE", "BASIC", "PREMIUM"], {
-    required_error: "Selecione o plano."
   })
 });
 

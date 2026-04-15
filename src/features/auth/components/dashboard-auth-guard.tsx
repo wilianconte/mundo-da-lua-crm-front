@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { getMyTenant } from "@/features/assinaturas/api/subscription-management";
 import { getMyPermissionsWithToken } from "@/features/auth/api/get-my-permissions";
 import { canAccessPath, getFirstAccessiblePath } from "@/lib/auth/permissions";
 import { clearAuthSession, getAuthUser, getValidToken, isAuthenticated, updateAuthUser } from "@/lib/auth/session";
@@ -105,6 +106,17 @@ export function DashboardAuthGuard({ children }: DashboardAuthGuardProps) {
         setIsAuthorized(false);
         router.replace("/login");
         return;
+      }
+
+      try {
+        const tenant = await getMyTenant();
+        if (tenant?.status === "SUSPENDED" && pathname !== "/minha-assinatura/faturas") {
+          setIsAuthorized(false);
+          router.replace("/minha-assinatura/faturas");
+          return;
+        }
+      } catch {
+        // Melhor esforco: falha nesta consulta nao deve invalidar a sessao.
       }
 
       if (!user.isAdmin && !canAccessPath(pathname, permissions)) {

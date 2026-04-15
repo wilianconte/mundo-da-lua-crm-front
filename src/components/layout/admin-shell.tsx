@@ -19,6 +19,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MobileSidebarTrigger, SidebarNav } from "@/components/layout/sidebar-nav";
+import { getMyActivePlan } from "@/features/assinaturas/api/subscription-management";
 import { clearAuthSession, getAuthUser } from "@/lib/auth/session";
 import { APP_VERSION } from "@/lib/app-version";
 import { cn } from "@/lib/utils/cn";
@@ -43,6 +44,7 @@ export function AdminShell({ children }: AdminShellProps) {
   const [isDarkModeEnabled, setIsDarkModeEnabled] = useState(false);
   const [profileName, setProfileName] = useState("Operador");
   const [profileEmail, setProfileEmail] = useState("operador@mundodalua.com");
+  const [subscriptionLabel, setSubscriptionLabel] = useState("Conta");
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const isSidebarCompactForRender = isSidebarCollapsed && !isSidebarHoverExpanded;
   const profileInitials = profileName
@@ -66,6 +68,31 @@ export function AdminShell({ children }: AdminShellProps) {
 
     setProfileName(user.name);
     setProfileEmail(user.email);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSubscriptionLabel() {
+      try {
+        const activePlan = await getMyActivePlan();
+        if (!isMounted || !activePlan) {
+          return;
+        }
+
+        setSubscriptionLabel(activePlan.isTrial ? `${activePlan.plan.displayName} Trial` : activePlan.plan.displayName);
+      } catch {
+        if (isMounted) {
+          setSubscriptionLabel("Conta");
+        }
+      }
+    }
+
+    void loadSubscriptionLabel();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -170,13 +197,19 @@ export function AdminShell({ children }: AdminShellProps) {
                           </p>
                         </div>
                         <span className="rounded-md bg-[var(--color-primary-soft)] px-2 py-1 text-xs font-semibold text-[var(--color-primary)]">
-                          Pro
+                          {subscriptionLabel}
                         </span>
                       </div>
 
                       <div className="space-y-1 border-b border-[var(--color-border)] p-2">
                         <ProfileMenuItem icon={CircleUserRound} label="Meu perfil" />
-                        <ProfileMenuItem icon={Settings} label="Minha assinatura" trailingIcon={<ChevronRight className="size-4" />} />
+                        <ProfileMenuItem
+                          href="/minha-assinatura/resumo"
+                          icon={Settings}
+                          label="Minha assinatura"
+                          onNavigate={() => setIsProfileMenuOpen(false)}
+                          trailingIcon={<ChevronRight className="size-4" />}
+                        />
                         <ProfileMenuItem
                           icon={Languages}
                           label="Idioma"
@@ -326,20 +359,36 @@ function BrandBlock({ compact = false }: { compact?: boolean }) {
 
 function ProfileMenuItem({
   icon: Icon,
+  href,
   label,
+  onNavigate,
   trailingContent,
   trailingIcon
 }: {
   icon: ComponentType<{ className?: string }>;
+  href?: string;
   label: string;
+  onNavigate?: () => void;
   trailingContent?: ReactNode;
   trailingIcon?: ReactNode;
 }) {
+  const className =
+    "flex w-full items-center justify-between rounded-[var(--radius-md)] px-2 py-2 text-[0.95rem] font-medium text-[var(--color-foreground)] transition hover:bg-[var(--color-surface-muted)]";
+
+  if (href) {
+    return (
+      <Link className={className} href={href} onClick={onNavigate}>
+        <span className="flex items-center gap-3">
+          <Icon className="size-4 text-[var(--color-muted-foreground)]" />
+          {label}
+        </span>
+        {trailingContent ?? trailingIcon}
+      </Link>
+    );
+  }
+
   return (
-    <button
-      className="flex w-full items-center justify-between rounded-[var(--radius-md)] px-2 py-2 text-[0.95rem] font-medium text-[var(--color-foreground)] transition hover:bg-[var(--color-surface-muted)]"
-      type="button"
-    >
+    <button className={className} onClick={onNavigate} type="button">
       <span className="flex items-center gap-3">
         <Icon className="size-4 text-[var(--color-muted-foreground)]" />
         {label}

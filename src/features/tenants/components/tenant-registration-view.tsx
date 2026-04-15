@@ -24,26 +24,16 @@ import {
   tenantRegistrationSchema,
   type TenantRegistrationSchema
 } from "@/features/tenants/schema/tenant-registration-schema";
-import { cn } from "@/lib/utils/cn";
-
-type TenantTabKey = "general" | "plan";
+type TenantTabKey = "general";
 
 const tabs: Array<{ key: TenantTabKey; label: string; description: string }> = [
-  { key: "general", label: "Informacoes gerais", description: "Dados principais e empresa vinculada ao tenant." },
-  { key: "plan", label: "Plano", description: "Configuracao do plano e status comercial do tenant." }
+  { key: "general", label: "Informacoes gerais", description: "Dados principais e empresa vinculada ao tenant." }
 ];
 
 const statusOptions = [
-  { value: "TRIAL", label: "Teste" },
   { value: "ACTIVE", label: "Ativo" },
   { value: "SUSPENDED", label: "Suspenso" },
   { value: "CANCELLED", label: "Cancelado" }
-] as const;
-
-const planOptions = [
-  { value: "FREE", label: "Free" },
-  { value: "BASIC", label: "Basic" },
-  { value: "PREMIUM", label: "Premium" }
 ] as const;
 
 function toDateTime(value?: string | null) {
@@ -58,7 +48,7 @@ export function TenantRegistrationView() {
   const searchParams = useSearchParams();
   const isEditMode = searchParams.get("mode") === "edit";
   const tenantId = searchParams.get("id");
-  const [selectedTab, setSelectedTab] = useState<TenantTabKey>("general");
+  const [selectedTab] = useState<TenantTabKey>("general");
   const [isLoadingTenant, setIsLoadingTenant] = useState(isEditMode && Boolean(tenantId));
   const [company, setCompany] = useState<TenantCompanyLink | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
@@ -79,8 +69,7 @@ export function TenantRegistrationView() {
     resolver: zodResolver(tenantRegistrationSchema),
     defaultValues: {
       name: "",
-      status: "TRIAL",
-      plan: "FREE"
+      status: "ACTIVE"
     }
   });
 
@@ -109,8 +98,7 @@ export function TenantRegistrationView() {
 
         reset({
           name: tenant.name,
-          status: tenant.status,
-          plan: tenant.plan
+          status: tenant.status
         });
         setCompanyId(tenant.companyId);
         setCreatedAt(tenant.createdAt ?? null);
@@ -227,31 +215,23 @@ export function TenantRegistrationView() {
         </Card>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <form className="space-y-6" id="tenant-form" onSubmit={handleSubmit(onSubmit)}>
         <Card className="h-fit">
-          <CardContent className="p-3">
-            <div className="flex flex-col gap-2">
+          <CardContent className="p-4">
+            <div className="grid gap-3 md:grid-cols-3">
               {tabs.map((tab) => (
-                <button
-                  className={cn(
-                    "rounded-[var(--radius-md)] border px-4 py-3 text-left transition",
-                    selectedTab === tab.key
-                      ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
-                      : "border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-surface-muted)]"
-                  )}
+                <div
+                  className="rounded-[var(--radius-md)] border border-[var(--color-primary)] bg-[var(--color-primary-soft)] px-4 py-3 text-left text-[var(--color-primary-strong)]"
                   key={tab.key}
-                  onClick={() => setSelectedTab(tab.key)}
-                  type="button"
                 >
                   <p className="text-sm font-semibold">{tab.label}</p>
                   <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{tab.description}</p>
-                </button>
+                </div>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        <form className="space-y-6" id="tenant-form" onSubmit={handleSubmit(onSubmit)}>
           {isLoadingTenant ? (
             <Card>
               <CardContent className="flex items-center gap-3 p-6 text-sm text-[var(--color-muted-foreground)]">
@@ -322,34 +302,8 @@ export function TenantRegistrationView() {
                     value={toDateTime(createdAt)}
                   />
                 </Field>
-              </CardContent>
-            </Card>
-          ) : null}
 
-          {selectedTab === "plan" ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Plano</CardTitle>
-                <CardDescription>Gerencie o plano atual e acompanhe a ultima atualizacao.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="tenant-plan">Plano atual</FieldLabel>
-                  <select
-                    className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)]"
-                    id="tenant-plan"
-                    {...register("plan")}
-                  >
-                    {planOptions.map((plan) => (
-                      <option key={plan.value} value={plan.value}>
-                        {plan.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.plan ? <FieldMessage>{errors.plan.message}</FieldMessage> : null}
-                </Field>
-
-                <Field>
+                <Field className="md:col-span-2">
                   <FieldLabel htmlFor="tenant-updated-at">Ultima atualizacao</FieldLabel>
                   <Input
                     aria-readonly="true"
@@ -362,8 +316,7 @@ export function TenantRegistrationView() {
               </CardContent>
             </Card>
           ) : null}
-        </form>
-      </div>
+      </form>
 
       {isSuccessModalOpen ? (
         <div

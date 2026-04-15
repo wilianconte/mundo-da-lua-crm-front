@@ -19,6 +19,7 @@ export const SYSTEM_PERMISSIONS = {
   companiesCreate: "companies:create",
   companiesUpdate: "companies:update",
   companiesDelete: "companies:delete",
+  plansManage: "plans:manage",
   tenantsManage: "tenants:manage",
   usersManage: "users:manage",
   rolesManage: "roles:manage"

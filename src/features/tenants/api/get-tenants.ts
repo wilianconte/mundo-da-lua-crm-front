@@ -30,7 +30,6 @@ const GET_TENANTS_QUERY = `
         companyId
         ownerPersonId
         status
-        plan
         createdAt
       }
     }
@@ -49,8 +48,7 @@ const GET_COMPANIES_BY_IDS_QUERY = `
   }
 `;
 
-export type TenantStatus = "TRIAL" | "ACTIVE" | "SUSPENDED" | "CANCELLED";
-export type TenantPlan = "FREE" | "BASIC" | "PREMIUM";
+export type TenantStatus = "ACTIVE" | "SUSPENDED" | "CANCELLED";
 
 export type TenantNode = {
   id: string;
@@ -58,7 +56,6 @@ export type TenantNode = {
   companyId: string;
   ownerPersonId?: string | null;
   status: TenantStatus;
-  plan: TenantPlan;
   createdAt: string;
 };
 
@@ -111,7 +108,6 @@ export type TenantFilterInput = {
   name?: TenantStringFilter;
   companyId?: TenantUuidFilter;
   status?: TenantEnumFilter;
-  plan?: TenantEnumFilter;
   isDeleted?: TenantBooleanFilter;
 };
 

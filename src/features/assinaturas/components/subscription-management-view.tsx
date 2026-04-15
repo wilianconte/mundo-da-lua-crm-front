@@ -1,0 +1,879 @@
+"use client";
+
+import { AlertCircle, Check, CreditCard, Loader2, ShieldAlert, X } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureViewHeader } from "@/features/components/registration-view-header";
+import {
+  cancelTenantPlan,
+  getMyActivePlan,
+  getMyBillings,
+  getMyTenant,
+  getPlans,
+  mapSubscriptionApiError,
+  markBillingAsPaid,
+  revertCancellation,
+  startTrial,
+  terminateTrial,
+  upgradeTenantPlan,
+  type ActiveTenantPlan,
+  type BillingStatus,
+  type BillingsConnection,
+  type GetMyBillingsVariables,
+  type MyTenant,
+  type SubscriptionPlan,
+  type SubscriptionPlanFeature
+} from "@/features/assinaturas/api/subscription-management";
+import { hasPermission, SYSTEM_PERMISSIONS } from "@/lib/auth/permissions";
+import { getAuthUser } from "@/lib/auth/session";
+import { cn } from "@/lib/utils/cn";
+
+type SubscriptionSection = "summary" | "plans" | "billings";
+type DialogActionKind = "upgrade" | "trial" | "cancel" | "terminateTrial" | "revert" | "payBilling";
+
+type ActionDialogState = {
+  kind: DialogActionKind;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  targetPlanId?: string;
+  targetBillingId?: string;
+  requiresPlanSelection?: boolean;
+  planOptions?: SubscriptionPlan[];
+};
+
+const SUBSCRIPTION_NAV_ITEMS: Array<{ key: SubscriptionSection; href: string; label: string; description: string }> = [
+  { key: "summary", href: "/minha-assinatura/resumo", label: "Resumo", description: "Plano atual, vigencia e estado operacional." },
+  { key: "plans", href: "/minha-assinatura/planos", label: "Planos", description: "Comparacao, upgrade, trial e downgrade." },
+  { key: "billings", href: "/minha-assinatura/faturas", label: "Faturas", description: "Cobrancas, vencimentos e pagamento." }
+];
+
+function toDate(value?: string | null) {
+  if (!value) return null;
+
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDate(value?: string | null) {
+  const date = toDate(value);
+  return date ? date.toLocaleDateString("pt-BR") : "-";
+}
+
+function formatCurrency(value: string | number) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  }).format(Number.isFinite(numeric) ? numeric : 0);
+}
+
+function getDaysRemaining(endDate?: string | null) {
+  const parsedEndDate = toDate(endDate);
+  if (!parsedEndDate) return null;
+
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.ceil((parsedEndDate.getTime() - startOfToday.getTime()) / 86_400_000);
+}
+
+function formatFeatureValue(feature: SubscriptionPlanFeature) {
+  if (feature.feature.type === "BOOLEAN") {
+    return feature.value === 0 ? "Nao" : "Sim";
+  }
+
+  return feature.value == null ? "Ilimitado" : String(feature.value);
+}
+
+function toPlanStatusLabel(activePlan: ActiveTenantPlan) {
+  if (activePlan.isTrial) return "Trial";
+  if (activePlan.status === "PENDING_CANCELLATION") return "Cancelamento agendado";
+  if (activePlan.status === "ACTIVE" && Number(activePlan.plan.price) === 0) return "Plano gratuito";
+  return "Ativo";
+}
+
+function toPlanStatusVariant(activePlan: ActiveTenantPlan): "success" | "attention" | "neutral" {
+  if (activePlan.isTrial || activePlan.status === "PENDING_CANCELLATION") return "attention";
+  if (activePlan.status === "ACTIVE") return "success";
+  return "neutral";
+}
+
+function toTenantStatusMessage(tenant: MyTenant | null, activePlan: ActiveTenantPlan | null) {
+  if (!tenant || !activePlan) return null;
+
+  if (tenant.status === "SUSPENDED") {
+    return "Existe uma cobranca vencida vinculada a este tenant. Regularize o pagamento para liberar o acesso.";
+  }
+
+  if (activePlan.status === "PENDING_CANCELLATION") {
+    return `O plano segue ativo ate ${formatDate(activePlan.endDate)} e depois migra para ${activePlan.fallbackPlan?.displayName ?? "o plano de destino"}.`;
+  }
+
+  if (activePlan.isTrial) {
+    const remainingDays = getDaysRemaining(activePlan.endDate);
+    return remainingDays == null
+      ? "O tenant esta em trial."
+      : `O trial termina em ${remainingDays} dia(s). Ao encerrar, o tenant segue para ${activePlan.fallbackPlan?.displayName ?? "o plano configurado"}.`;
+  }
+
+  if (Number(activePlan.plan.price) === 0) {
+    return "O tenant esta no plano gratuito e pode contratar um plano pago a qualquer momento.";
+  }
+
+  return `O ciclo atual segue ate ${formatDate(activePlan.endDate)}. Qualquer upgrade proporcional sera calculado pelo backend.`;
+}
+
+function toBillingVariant(status: BillingStatus): "success" | "attention" | "neutral" {
+  if (status === "PAID") return "success";
+  if (status === "PENDING" || status === "OVERDUE") return "attention";
+  return "neutral";
+}
+
+function toBillingLabel(status: BillingStatus) {
+  if (status === "PENDING") return "Pendente";
+  if (status === "PAID") return "Pago";
+  if (status === "OVERDUE") return "Vencida";
+  if (status === "REFUNDED") return "Reembolsada";
+  return "Cancelada";
+}
+
+function getFeatureCatalog(plans: SubscriptionPlan[]) {
+  const features = new Map<string, SubscriptionPlanFeature["feature"]>();
+
+  plans.forEach((plan) => {
+    plan.planFeatures.forEach((planFeature) => {
+      features.set(planFeature.feature.key, planFeature.feature);
+    });
+  });
+
+  return Array.from(features.values()).sort((left, right) => left.description.localeCompare(right.description));
+}
+
+function getPlanFeature(plan: SubscriptionPlan, featureKey: string) {
+  return plan.planFeatures.find((planFeature) => planFeature.feature.key === featureKey);
+}
+
+function getSubscriptionBadge(activePlan: ActiveTenantPlan | null) {
+  if (!activePlan) return "Conta";
+  return activePlan.isTrial ? `${activePlan.plan.displayName} Trial` : activePlan.plan.displayName;
+}
+
+export function SubscriptionManagementView({ section }: { section: SubscriptionSection }) {
+  const router = useRouter();
+  const authUser = getAuthUser();
+  const canManagePlans = Boolean(authUser?.isAdmin || hasPermission(authUser?.permissions ?? [], SYSTEM_PERMISSIONS.plansManage));
+  const [activePlan, setActivePlan] = useState<ActiveTenantPlan | null>(null);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [tenant, setTenant] = useState<MyTenant | null>(null);
+  const [billingsConnection, setBillingsConnection] = useState<BillingsConnection | null>(null);
+  const [isLoadingBase, setIsLoadingBase] = useState(true);
+  const [isLoadingBillings, setIsLoadingBillings] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const [dialog, setDialog] = useState<ActionDialogState | null>(null);
+  const [selectedTargetPlanId, setSelectedTargetPlanId] = useState("");
+  const [reloadCounter, setReloadCounter] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBase() {
+      try {
+        setIsLoadingBase(true);
+        const [nextActivePlan, nextPlans, nextTenant] = await Promise.all([getMyActivePlan(), getPlans(), getMyTenant()]);
+
+        if (!isMounted) return;
+
+        setActivePlan(nextActivePlan);
+        setPlans(nextPlans);
+        setTenant(nextTenant);
+      } catch (error) {
+        if (!isMounted) return;
+        setFeedback({ tone: "error", message: mapSubscriptionApiError(error) });
+      } finally {
+        if (isMounted) setIsLoadingBase(false);
+      }
+    }
+
+    void loadBase();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadCounter]);
+
+  useEffect(() => {
+    if (!canManagePlans || (section !== "billings" && tenant?.status !== "SUSPENDED")) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadBillings() {
+      try {
+        setIsLoadingBillings(true);
+        const response = await getMyBillings({
+          first: 10,
+          order: [{ dueDate: "DESC" as const }]
+        });
+
+        if (!isMounted) return;
+        setBillingsConnection(response);
+      } catch (error) {
+        if (!isMounted) return;
+        setFeedback({ tone: "error", message: mapSubscriptionApiError(error) });
+      } finally {
+        if (isMounted) setIsLoadingBillings(false);
+      }
+    }
+
+    void loadBillings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [canManagePlans, section, tenant?.status, reloadCounter]);
+
+  useEffect(() => {
+    if (tenant?.status === "SUSPENDED" && section !== "billings" && canManagePlans) {
+      router.replace("/minha-assinatura/faturas");
+    }
+  }, [canManagePlans, router, section, tenant?.status]);
+
+  const featureCatalog = useMemo(() => getFeatureCatalog(plans), [plans]);
+  const currentPlanTag = useMemo(() => getSubscriptionBadge(activePlan), [activePlan]);
+  const outstandingBilling = useMemo(() => {
+    return billingsConnection?.nodes.find((billing) => billing.status === "OVERDUE" || billing.status === "PENDING") ?? null;
+  }, [billingsConnection]);
+  const availableTerminateTargets = useMemo(() => {
+    if (!activePlan) return [];
+    return plans.filter((plan) => plan.id !== activePlan.plan.id);
+  }, [activePlan, plans]);
+  const availableDowngradeTargets = useMemo(() => {
+    if (!activePlan) return [];
+    return plans.filter((plan) => plan.id !== activePlan.plan.id && plan.sortOrder <= activePlan.plan.sortOrder);
+  }, [activePlan, plans]);
+
+  function openDialog(nextDialog: ActionDialogState) {
+    setSelectedTargetPlanId(nextDialog.targetPlanId ?? nextDialog.planOptions?.[0]?.id ?? "");
+    setDialog(nextDialog);
+  }
+
+  function refreshAll() {
+    setReloadCounter((current) => current + 1);
+  }
+
+  async function confirmDialog() {
+    if (!dialog) return;
+
+    try {
+      setIsMutating(true);
+      setFeedback(null);
+
+      if (dialog.kind === "upgrade") await upgradeTenantPlan(dialog.targetPlanId ?? selectedTargetPlanId);
+      if (dialog.kind === "trial") await startTrial(dialog.targetPlanId ?? selectedTargetPlanId);
+      if (dialog.kind === "cancel") await cancelTenantPlan(selectedTargetPlanId);
+      if (dialog.kind === "terminateTrial") await terminateTrial(dialog.requiresPlanSelection ? selectedTargetPlanId : undefined);
+      if (dialog.kind === "revert") await revertCancellation();
+      if (dialog.kind === "payBilling") await markBillingAsPaid(dialog.targetBillingId ?? "");
+
+      setDialog(null);
+      setFeedback({ tone: "success", message: "Operacao concluida com sucesso." });
+      refreshAll();
+    } catch (error) {
+      setFeedback({ tone: "error", message: mapSubscriptionApiError(error) });
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  function renderSummaryActions() {
+    if (!activePlan) return null;
+
+    if (tenant?.status === "SUSPENDED" && canManagePlans) {
+      return <Button leadingIcon={<CreditCard className="size-4" />} onClick={() => router.push("/minha-assinatura/faturas")}>Abrir faturas</Button>;
+    }
+
+    if (activePlan.status === "PENDING_CANCELLATION" && canManagePlans) {
+      return (
+        <Button
+          onClick={() =>
+            openDialog({
+              kind: "revert",
+              title: "Reverter cancelamento",
+              description: "O tenant volta ao estado ativo e mantem o mesmo ciclo contratado.",
+              confirmLabel: "Reverter cancelamento"
+            })
+          }
+          variant="outline"
+        >
+          Reverter cancelamento
+        </Button>
+      );
+    }
+
+    if (activePlan.isTrial) {
+      return (
+        <>
+          {canManagePlans && Number(activePlan.plan.price) > 0 ? (
+            <Button
+              onClick={() =>
+                openDialog({
+                  kind: "upgrade",
+                  title: `Assinar ${activePlan.plan.displayName}`,
+                  description: `O tenant sai do trial e inicia um ciclo contratado em ${activePlan.plan.displayName}.`,
+                  confirmLabel: `Assinar ${activePlan.plan.displayName}`,
+                  targetPlanId: activePlan.plan.id
+                })
+              }
+            >
+              Assinar este plano
+            </Button>
+          ) : null}
+          {canManagePlans ? (
+            <Button
+              onClick={() =>
+                openDialog({
+                  kind: "terminateTrial",
+                  title: "Encerrar trial",
+                  description:
+                    activePlan.fallbackPlan && Number(activePlan.fallbackPlan.price) > 0
+                      ? `O sistema vai retomar ${activePlan.fallbackPlan.displayName} automaticamente.`
+                      : "Selecione o plano que deve assumir assim que o trial for encerrado.",
+                  confirmLabel: "Encerrar trial",
+                  requiresPlanSelection: !(activePlan.fallbackPlan && Number(activePlan.fallbackPlan.price) > 0),
+                  planOptions: availableTerminateTargets
+                })
+              }
+              variant="outline"
+            >
+              Encerrar trial
+            </Button>
+          ) : null}
+          <Button onClick={() => router.push("/minha-assinatura/planos")} variant="ghost">
+            Ver planos
+          </Button>
+        </>
+      );
+    }
+
+    if (Number(activePlan.plan.price) === 0) {
+      return <Button onClick={() => router.push("/minha-assinatura/planos")} variant="outline">Conhecer planos</Button>;
+    }
+
+    return (
+      <>
+        <Button onClick={() => router.push("/minha-assinatura/planos")}>Gerenciar planos</Button>
+        {canManagePlans ? (
+          <Button
+            onClick={() =>
+              openDialog({
+                kind: "cancel",
+                title: "Agendar mudanca de plano",
+                description: "O downgrade ocorre no fim do periodo atual. Escolha o plano que deve assumir depois disso.",
+                confirmLabel: "Agendar mudanca",
+                requiresPlanSelection: true,
+                planOptions: availableDowngradeTargets
+              })
+            }
+            variant="outline"
+          >
+            Cancelar plano
+          </Button>
+        ) : null}
+      </>
+    );
+  }
+
+  function renderPlanPrimaryAction(plan: SubscriptionPlan) {
+    if (!activePlan) return null;
+
+    if (plan.id === activePlan.plan.id) {
+      return <Button className="w-full" disabled variant="outline">Plano atual</Button>;
+    }
+
+    if (!canManagePlans) return null;
+
+    if (activePlan.status === "PENDING_CANCELLATION") {
+      return <Button className="w-full" disabled variant="outline">Reverta o cancelamento para trocar</Button>;
+    }
+
+    if (activePlan.isTrial) {
+      if (Number(plan.price) > 0) {
+        return (
+          <Button
+            className="w-full"
+            onClick={() =>
+              openDialog({
+                kind: "upgrade",
+                title: `Assinar ${plan.displayName}`,
+                description: `O tenant passa a usar ${plan.displayName} como plano contratado.`,
+                confirmLabel: `Assinar ${plan.displayName}`,
+                targetPlanId: plan.id
+              })
+            }
+          >
+            Assinar este plano
+          </Button>
+        );
+      }
+
+      return (
+        <Button
+          className="w-full"
+          onClick={() =>
+            openDialog({
+              kind: "terminateTrial",
+              title: "Encerrar trial no plano gratuito",
+              description: "O tenant encerrara o trial e passara a usar o plano gratuito imediatamente.",
+              confirmLabel: "Encerrar no Gratuito",
+              requiresPlanSelection: true,
+              planOptions: [plan]
+            })
+          }
+          variant="outline"
+        >
+          Encerrar trial aqui
+        </Button>
+      );
+    }
+
+    if (plan.sortOrder > activePlan.plan.sortOrder) {
+      return (
+        <Button
+          className="w-full"
+          onClick={() =>
+            openDialog({
+              kind: "upgrade",
+              title: `Fazer upgrade para ${plan.displayName}`,
+              description: "O backend calcula automaticamente a cobranca proporcional quando necessario.",
+              confirmLabel: `Fazer upgrade para ${plan.displayName}`,
+              targetPlanId: plan.id
+            })
+          }
+        >
+          Fazer upgrade
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        className="w-full"
+        onClick={() =>
+          openDialog({
+            kind: "cancel",
+            title: `Agendar mudanca para ${plan.displayName}`,
+            description: "O plano atual continua ativo ate o fim do periodo contratado. Depois disso, a mudanca e aplicada automaticamente.",
+            confirmLabel: `Agendar mudanca para ${plan.displayName}`,
+            requiresPlanSelection: true,
+            planOptions: [plan],
+            targetPlanId: plan.id
+          })
+        }
+        variant="outline"
+      >
+        Agendar mudanca
+      </Button>
+    );
+  }
+
+  function renderPlanSecondaryAction(plan: SubscriptionPlan) {
+    if (!activePlan || !canManagePlans || activePlan.isTrial || activePlan.status === "PENDING_CANCELLATION") return null;
+    if (Number(plan.price) === 0 || plan.id === activePlan.plan.id) return null;
+
+    return (
+      <Button
+        className="w-full"
+        onClick={() =>
+          openDialog({
+            kind: "trial",
+            title: `Iniciar trial de ${plan.displayName}`,
+            description: "Cada plano permite um unico trial por tenant. Se ele ja tiver sido usado, o backend retornara erro de negocio.",
+            confirmLabel: `Testar ${plan.displayName}`,
+            targetPlanId: plan.id
+          })
+        }
+        variant="ghost"
+      >
+        Testar 30 dias
+      </Button>
+    );
+  }
+
+  function renderSummary() {
+    if (!activePlan) {
+      return <Card><CardContent className="p-6 text-sm text-[var(--color-muted-foreground)]">Nenhum plano ativo foi retornado para o tenant autenticado.</CardContent></Card>;
+    }
+
+    const daysRemaining = getDaysRemaining(activePlan.endDate);
+
+    return (
+      <div className="space-y-6">
+        <section className="grid gap-4 xl:grid-cols-[1.35fr_0.95fr]">
+          <Card className="overflow-hidden bg-[linear-gradient(135deg,rgba(16,72,173,0.98),rgba(22,132,110,0.92))] text-white">
+            <CardContent className="flex flex-col gap-6 p-8 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-4">
+                <Badge className="bg-white/14 text-white" variant="neutral">{tenant?.status === "SUSPENDED" ? "Tenant suspenso" : toPlanStatusLabel(activePlan)}</Badge>
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-semibold tracking-tight">{activePlan.plan.displayName}</h2>
+                  <p className="max-w-2xl text-sm text-sky-50/90">{toTenantStatusMessage(tenant, activePlan)}</p>
+                </div>
+                <div className="flex flex-wrap gap-3">{renderSummaryActions()}</div>
+              </div>
+
+              <div className="grid min-w-[230px] gap-3 rounded-[var(--radius-lg)] bg-white/10 p-5 backdrop-blur-sm">
+                <div>
+                  <p className="text-sm text-sky-50/85">Valor do plano</p>
+                  <p className="text-3xl font-semibold">{formatCurrency(activePlan.plan.price)}</p>
+                </div>
+                <div className="text-sm text-sky-50/85">
+                  <p>Vigencia: {formatDate(activePlan.startDate)} - {activePlan.endDate ? formatDate(activePlan.endDate) : "Permanente"}</p>
+                  <p>{daysRemaining == null ? "Sem prazo de expiracao" : `${daysRemaining} dia(s) restantes`}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Estado operacional</CardTitle>
+              <CardDescription>Resumo rapido para decisao comercial e financeira.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium">Assinatura atual</p>
+                    <p className="text-sm text-[var(--color-muted-foreground)]">{activePlan.plan.displayName}</p>
+                  </div>
+                  <Badge variant={toPlanStatusVariant(activePlan)}>{toPlanStatusLabel(activePlan)}</Badge>
+                </div>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-4">
+                <p className="font-medium">Plano de fallback</p>
+                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{activePlan.fallbackPlan?.displayName ?? "Nao definido no contrato atual."}</p>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-4">
+                <p className="font-medium">Cobranca em aberto</p>
+                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
+                  {outstandingBilling ? `${toBillingLabel(outstandingBilling.status)} com vencimento em ${formatDate(outstandingBilling.dueDate)}` : "Nenhuma cobranca pendente encontrada."}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Features e limites do plano</CardTitle>
+            <CardDescription>Leitura direta do contrato do plano atualmente ativo no tenant.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            {activePlan.plan.planFeatures.map((planFeature) => (
+              <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-3" key={planFeature.id}>
+                <p className="text-sm font-medium text-[var(--color-foreground)]">{planFeature.feature.description}</p>
+                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{formatFeatureValue(planFeature)}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  function renderPlans() {
+    if (!plans.length) {
+      return <Card><CardContent className="p-6 text-sm text-[var(--color-muted-foreground)]">Nenhum plano ativo foi retornado pelo contrato.</CardContent></Card>;
+    }
+
+    return (
+      <section className="grid gap-4 xl:grid-cols-3">
+        {plans.map((plan) => {
+          const isCurrentPlan = activePlan?.plan.id === plan.id;
+
+          return (
+            <Card className={cn("flex h-full flex-col", isCurrentPlan ? "border-[var(--color-primary)] shadow-[var(--shadow-soft)]" : "")} key={plan.id}>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>{plan.displayName}</CardTitle>
+                    <CardDescription>{plan.name}</CardDescription>
+                  </div>
+                  {isCurrentPlan ? <Badge variant="success">Plano atual</Badge> : null}
+                </div>
+                <p className="text-3xl font-semibold text-[var(--color-foreground)]">{formatCurrency(plan.price)}</p>
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col gap-5">
+                <div className="space-y-3">
+                  {featureCatalog.map((feature) => {
+                    const planFeature = getPlanFeature(plan, feature.key);
+                    const isEnabled = feature.type === "BOOLEAN" ? planFeature?.value !== 0 : true;
+                    return (
+                      <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/70 pb-3" key={feature.key}>
+                        <div>
+                          <p className="text-sm font-medium text-[var(--color-foreground)]">{feature.description}</p>
+                          <p className="text-xs text-[var(--color-muted-foreground)]">{feature.key}</p>
+                        </div>
+                        {feature.type === "BOOLEAN" ? (
+                          isEnabled ? <Check className="size-4 text-emerald-600" /> : <X className="size-4 text-[var(--color-muted-foreground)]" />
+                        ) : (
+                          <span className="text-sm font-semibold text-[var(--color-foreground)]">{planFeature?.value == null ? "Ilimitado" : planFeature.value}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-auto space-y-3">
+                  {renderPlanPrimaryAction(plan)}
+                  {renderPlanSecondaryAction(plan)}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </section>
+    );
+  }
+
+  function loadBillingsPage(direction: "next" | "previous") {
+    if (!billingsConnection) return;
+
+    const variables: GetMyBillingsVariables =
+      direction === "next"
+        ? { first: 10, after: billingsConnection.pageInfo.endCursor, order: [{ dueDate: "DESC" }] }
+        : { last: 10, before: billingsConnection.pageInfo.startCursor, order: [{ dueDate: "DESC" }] };
+
+    if ((direction === "next" && !billingsConnection.pageInfo.endCursor) || (direction === "previous" && !billingsConnection.pageInfo.startCursor)) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        setIsLoadingBillings(true);
+        const response = await getMyBillings(variables);
+        setBillingsConnection(response);
+      } catch (error) {
+        setFeedback({ tone: "error", message: mapSubscriptionApiError(error) });
+      } finally {
+        setIsLoadingBillings(false);
+      }
+    })();
+  }
+
+  function renderBillings() {
+    if (!canManagePlans) {
+      return (
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-[var(--color-muted-foreground)]">
+            <ShieldAlert className="size-5 text-[var(--color-secondary)]" />
+            Esta area exige a permissao `plans:manage`.
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (isLoadingBillings && !billingsConnection) {
+      return <Card><CardContent className="flex items-center gap-3 p-6 text-sm text-[var(--color-muted-foreground)]"><Loader2 className="size-4 animate-spin" />Carregando cobrancas do tenant...</CardContent></Card>;
+    }
+
+    if (!billingsConnection?.nodes.length) {
+      return <Card><CardContent className="p-6 text-sm text-[var(--color-muted-foreground)]">Nenhuma cobranca foi encontrada para o tenant atual.</CardContent></Card>;
+    }
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Historico de faturas</CardTitle>
+          <CardDescription>As cobrancas usam o status real retornado pelo backend.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-separate border-spacing-0">
+              <thead>
+                <tr className="text-left text-sm text-[var(--color-muted-foreground)]">
+                  <th className="px-4 py-3">Plano</th>
+                  <th className="px-4 py-3">Referencia</th>
+                  <th className="px-4 py-3">Vencimento</th>
+                  <th className="px-4 py-3">Valor</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Acoes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {billingsConnection.nodes.map((billing) => (
+                  <tr className="border-t border-[var(--color-border)]" key={billing.id}>
+                    <td className="px-4 py-3">{billing.tenantPlan.plan.displayName}</td>
+                    <td className="px-4 py-3">{billing.referenceMonth}</td>
+                    <td className="px-4 py-3">{formatDate(billing.dueDate)}</td>
+                    <td className="px-4 py-3">{formatCurrency(billing.amount)}</td>
+                    <td className="px-4 py-3"><Badge variant={toBillingVariant(billing.status)}>{toBillingLabel(billing.status)}</Badge></td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        {(billing.status === "PENDING" || billing.status === "OVERDUE") ? (
+                          <Button
+                            onClick={() =>
+                              openDialog({
+                                kind: "payBilling",
+                                title: "Confirmar pagamento",
+                                description: "Ao marcar esta fatura como paga, o tenant pode voltar imediatamente ao estado ativo.",
+                                confirmLabel: "Marcar como paga",
+                                targetBillingId: billing.id
+                              })
+                            }
+                            size="sm"
+                          >
+                            Pagar
+                          </Button>
+                        ) : null}
+                        {billing.invoiceUrl ? (
+                          <Button onClick={() => window.open(billing.invoiceUrl ?? "#", "_blank", "noopener,noreferrer")} size="sm" variant="outline">
+                            Ver fatura
+                          </Button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-[var(--color-muted-foreground)]">{billingsConnection.totalCount} cobranca(s) encontradas.</p>
+            <div className="flex gap-2">
+              <Button disabled={!billingsConnection.pageInfo.hasPreviousPage || isLoadingBillings} onClick={() => loadBillingsPage("previous")} size="sm" variant="outline">Anterior</Button>
+              <Button disabled={!billingsConnection.pageInfo.hasNextPage || isLoadingBillings} onClick={() => loadBillingsPage("next")} size="sm" variant="outline">Proxima</Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <FeatureViewHeader
+        backAriaLabel="Voltar para o dashboard"
+        backHref="/"
+        description="Gerencie plano, trial, cobrancas e o estado comercial do tenant autenticado."
+        title="Minha assinatura"
+      />
+
+      <Card className="h-fit">
+        <CardContent className="grid gap-3 p-4 md:grid-cols-3">
+          {SUBSCRIPTION_NAV_ITEMS.map((item) => {
+            const isCurrent = item.key === section;
+            const isDisabled = item.key === "billings" && !canManagePlans;
+
+            return isDisabled ? (
+              <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] px-4 py-3 opacity-70" key={item.key}>
+                <p className="text-sm font-semibold">{item.label}</p>
+                <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{item.description}</p>
+                <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">Disponivel para `plans:manage`.</p>
+              </div>
+            ) : (
+              <Link
+                className={cn(
+                  "rounded-[var(--radius-md)] border px-4 py-3 transition",
+                  isCurrent
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
+                    : "border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-surface-muted)]"
+                )}
+                href={item.href}
+                key={item.key}
+              >
+                <p className="text-sm font-semibold">{item.label}</p>
+                <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{item.description}</p>
+              </Link>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden border-dashed">
+        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-[var(--color-foreground)]">Tenant autenticado</p>
+            <p className="text-sm text-[var(--color-muted-foreground)]">{tenant?.name ?? "Carregando..."}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant={activePlan ? toPlanStatusVariant(activePlan) : "neutral"}>{currentPlanTag}</Badge>
+            {section === "billings" && tenant?.status === "SUSPENDED" ? <Badge variant="attention">Pagamento prioritario</Badge> : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      {feedback ? (
+        <Card className={cn(feedback.tone === "error" ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50")}>
+          <CardContent className="flex items-start gap-3 p-4">
+            {feedback.tone === "error" ? <AlertCircle className="mt-0.5 size-5 text-red-600" /> : <Check className="mt-0.5 size-5 text-emerald-600" />}
+            <p className={cn("text-sm font-medium", feedback.tone === "error" ? "text-red-700" : "text-emerald-700")}>{feedback.message}</p>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isLoadingBase ? (
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6 text-sm text-[var(--color-muted-foreground)]">
+            <Loader2 className="size-4 animate-spin" />
+            Carregando dados da assinatura...
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {!isLoadingBase && section === "summary" ? renderSummary() : null}
+      {!isLoadingBase && section === "plans" ? renderPlans() : null}
+      {!isLoadingBase && section === "billings" ? renderBillings() : null}
+
+      {dialog ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4" role="dialog">
+          <div className="w-full max-w-lg rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="space-y-2">
+              <p className="text-xl font-semibold text-[var(--color-foreground)]">{dialog.title}</p>
+              <p className="text-sm text-[var(--color-muted-foreground)]">{dialog.description}</p>
+            </div>
+
+            {dialog.requiresPlanSelection ? (
+              <div className="mt-5 space-y-2">
+                <label className="text-sm font-medium text-[var(--color-foreground)]" htmlFor="target-plan">
+                  Plano de destino
+                </label>
+                <select
+                  className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 text-sm text-[var(--color-foreground)]"
+                  id="target-plan"
+                  onChange={(event) => setSelectedTargetPlanId(event.target.value)}
+                  value={selectedTargetPlanId}
+                >
+                  {(dialog.planOptions ?? []).map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.displayName} - {formatCurrency(plan.price)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <Button disabled={isMutating} onClick={() => setDialog(null)} variant="outline">
+                Cancelar
+              </Button>
+              <Button
+                disabled={isMutating || (dialog.requiresPlanSelection && !selectedTargetPlanId)}
+                leadingIcon={isMutating ? <Loader2 className="size-4 animate-spin" /> : undefined}
+                onClick={() => void confirmDialog()}
+              >
+                {dialog.confirmLabel}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
