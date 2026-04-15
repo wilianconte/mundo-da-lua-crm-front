@@ -204,7 +204,7 @@ export function AdminShell({ children }: AdminShellProps) {
                       <div className="space-y-1 border-b border-[var(--color-border)] p-2">
                         <ProfileMenuItem icon={CircleUserRound} label="Meu perfil" />
                         <ProfileMenuItem
-                          href="/minha-assinatura/resumo"
+                          href="/minha-assinatura/planos"
                           icon={Settings}
                           label="Minha assinatura"
                           onNavigate={() => setIsProfileMenuOpen(false)}

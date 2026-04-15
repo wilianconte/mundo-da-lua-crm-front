@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertCircle, Check, CreditCard, Loader2, ShieldAlert, X } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -33,8 +32,11 @@ import { hasPermission, SYSTEM_PERMISSIONS } from "@/lib/auth/permissions";
 import { getAuthUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
 
-type SubscriptionSection = "summary" | "plans" | "billings";
+type SubscriptionSection = "plans" | "billings";
 type DialogActionKind = "upgrade" | "trial" | "cancel" | "terminateTrial" | "revert" | "payBilling";
+type PlanDetailsState = {
+  plan: SubscriptionPlan;
+};
 
 type ActionDialogState = {
   kind: DialogActionKind;
@@ -46,12 +48,6 @@ type ActionDialogState = {
   requiresPlanSelection?: boolean;
   planOptions?: SubscriptionPlan[];
 };
-
-const SUBSCRIPTION_NAV_ITEMS: Array<{ key: SubscriptionSection; href: string; label: string; description: string }> = [
-  { key: "summary", href: "/minha-assinatura/resumo", label: "Resumo", description: "Plano atual, vigencia e estado operacional." },
-  { key: "plans", href: "/minha-assinatura/planos", label: "Planos", description: "Comparacao, upgrade, trial e downgrade." },
-  { key: "billings", href: "/minha-assinatura/faturas", label: "Faturas", description: "Cobrancas, vencimentos e pagamento." }
-];
 
 function toDate(value?: string | null) {
   if (!value) return null;
@@ -93,14 +89,7 @@ function formatFeatureValue(feature: SubscriptionPlanFeature) {
 function toPlanStatusLabel(activePlan: ActiveTenantPlan) {
   if (activePlan.isTrial) return "Trial";
   if (activePlan.status === "PENDING_CANCELLATION") return "Cancelamento agendado";
-  if (activePlan.status === "ACTIVE" && Number(activePlan.plan.price) === 0) return "Plano gratuito";
   return "Ativo";
-}
-
-function toPlanStatusVariant(activePlan: ActiveTenantPlan): "success" | "attention" | "neutral" {
-  if (activePlan.isTrial || activePlan.status === "PENDING_CANCELLATION") return "attention";
-  if (activePlan.status === "ACTIVE") return "success";
-  return "neutral";
 }
 
 function toTenantStatusMessage(tenant: MyTenant | null, activePlan: ActiveTenantPlan | null) {
@@ -142,27 +131,6 @@ function toBillingLabel(status: BillingStatus) {
   return "Cancelada";
 }
 
-function getFeatureCatalog(plans: SubscriptionPlan[]) {
-  const features = new Map<string, SubscriptionPlanFeature["feature"]>();
-
-  plans.forEach((plan) => {
-    plan.planFeatures.forEach((planFeature) => {
-      features.set(planFeature.feature.key, planFeature.feature);
-    });
-  });
-
-  return Array.from(features.values()).sort((left, right) => left.description.localeCompare(right.description));
-}
-
-function getPlanFeature(plan: SubscriptionPlan, featureKey: string) {
-  return plan.planFeatures.find((planFeature) => planFeature.feature.key === featureKey);
-}
-
-function getSubscriptionBadge(activePlan: ActiveTenantPlan | null) {
-  if (!activePlan) return "Conta";
-  return activePlan.isTrial ? `${activePlan.plan.displayName} Trial` : activePlan.plan.displayName;
-}
-
 export function SubscriptionManagementView({ section }: { section: SubscriptionSection }) {
   const router = useRouter();
   const authUser = getAuthUser();
@@ -176,6 +144,7 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
   const [isMutating, setIsMutating] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [dialog, setDialog] = useState<ActionDialogState | null>(null);
+  const [planDetails, setPlanDetails] = useState<PlanDetailsState | null>(null);
   const [selectedTargetPlanId, setSelectedTargetPlanId] = useState("");
   const [reloadCounter, setReloadCounter] = useState(0);
 
@@ -245,8 +214,6 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
     }
   }, [canManagePlans, router, section, tenant?.status]);
 
-  const featureCatalog = useMemo(() => getFeatureCatalog(plans), [plans]);
-  const currentPlanTag = useMemo(() => getSubscriptionBadge(activePlan), [activePlan]);
   const outstandingBilling = useMemo(() => {
     return billingsConnection?.nodes.find((billing) => billing.status === "OVERDUE" || billing.status === "PENDING") ?? null;
   }, [billingsConnection]);
@@ -296,12 +263,18 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
     if (!activePlan) return null;
 
     if (tenant?.status === "SUSPENDED" && canManagePlans) {
-      return <Button leadingIcon={<CreditCard className="size-4" />} onClick={() => router.push("/minha-assinatura/faturas")}>Abrir faturas</Button>;
+      return [
+        <Button className="w-full" key="open-billings" leadingIcon={<CreditCard className="size-4" />} onClick={() => router.push("/minha-assinatura/faturas")}>
+          Abrir faturas
+        </Button>
+      ];
     }
 
     if (activePlan.status === "PENDING_CANCELLATION" && canManagePlans) {
-      return (
+      return [
         <Button
+          className="w-full"
+          key="revert-cancellation"
           onClick={() =>
             openDialog({
               kind: "revert",
@@ -314,14 +287,16 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
         >
           Reverter cancelamento
         </Button>
-      );
+      ];
     }
 
     if (activePlan.isTrial) {
-      return (
-        <>
-          {canManagePlans && Number(activePlan.plan.price) > 0 ? (
+      return [
+        ...(canManagePlans && Number(activePlan.plan.price) > 0
+          ? [
             <Button
+              className="w-full"
+              key="subscribe-current-plan"
               onClick={() =>
                 openDialog({
                   kind: "upgrade",
@@ -334,9 +309,13 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
             >
               Assinar este plano
             </Button>
-          ) : null}
-          {canManagePlans ? (
+          ]
+          : []),
+        ...(canManagePlans
+          ? [
             <Button
+              className="w-full"
+              key="terminate-trial"
               onClick={() =>
                 openDialog({
                   kind: "terminateTrial",
@@ -354,23 +333,21 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
             >
               Encerrar trial
             </Button>
-          ) : null}
-          <Button onClick={() => router.push("/minha-assinatura/planos")} variant="ghost">
-            Ver planos
-          </Button>
-        </>
-      );
+          ]
+          : []),
+      ];
     }
 
     if (Number(activePlan.plan.price) === 0) {
-      return <Button onClick={() => router.push("/minha-assinatura/planos")} variant="outline">Conhecer planos</Button>;
+      return [];
     }
 
-    return (
-      <>
-        <Button onClick={() => router.push("/minha-assinatura/planos")}>Gerenciar planos</Button>
-        {canManagePlans ? (
+    return [
+      ...(canManagePlans
+        ? [
           <Button
+            className="w-full"
+            key="schedule-change"
             onClick={() =>
               openDialog({
                 kind: "cancel",
@@ -383,11 +360,11 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
             }
             variant="outline"
           >
-            Cancelar plano
+            Agendar mudanca
           </Button>
-        ) : null}
-      </>
-    );
+        ]
+        : [])
+    ];
   }
 
   function renderPlanPrimaryAction(plan: SubscriptionPlan) {
@@ -506,138 +483,78 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
     );
   }
 
-  function renderSummary() {
-    if (!activePlan) {
-      return <Card><CardContent className="p-6 text-sm text-[var(--color-muted-foreground)]">Nenhum plano ativo foi retornado para o tenant autenticado.</CardContent></Card>;
-    }
-
-    const daysRemaining = getDaysRemaining(activePlan.endDate);
-
-    return (
-      <div className="space-y-6">
-        <section className="grid gap-4 xl:grid-cols-[1.35fr_0.95fr]">
-          <Card className="overflow-hidden bg-[linear-gradient(135deg,rgba(16,72,173,0.98),rgba(22,132,110,0.92))] text-white">
-            <CardContent className="flex flex-col gap-6 p-8 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-4">
-                <Badge className="bg-white/14 text-white" variant="neutral">{tenant?.status === "SUSPENDED" ? "Tenant suspenso" : toPlanStatusLabel(activePlan)}</Badge>
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-semibold tracking-tight">{activePlan.plan.displayName}</h2>
-                  <p className="max-w-2xl text-sm text-sky-50/90">{toTenantStatusMessage(tenant, activePlan)}</p>
-                </div>
-                <div className="flex flex-wrap gap-3">{renderSummaryActions()}</div>
-              </div>
-
-              <div className="grid min-w-[230px] gap-3 rounded-[var(--radius-lg)] bg-white/10 p-5 backdrop-blur-sm">
-                <div>
-                  <p className="text-sm text-sky-50/85">Valor do plano</p>
-                  <p className="text-3xl font-semibold">{formatCurrency(activePlan.plan.price)}</p>
-                </div>
-                <div className="text-sm text-sky-50/85">
-                  <p>Vigencia: {formatDate(activePlan.startDate)} - {activePlan.endDate ? formatDate(activePlan.endDate) : "Permanente"}</p>
-                  <p>{daysRemaining == null ? "Sem prazo de expiracao" : `${daysRemaining} dia(s) restantes`}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Estado operacional</CardTitle>
-              <CardDescription>Resumo rapido para decisao comercial e financeira.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium">Assinatura atual</p>
-                    <p className="text-sm text-[var(--color-muted-foreground)]">{activePlan.plan.displayName}</p>
-                  </div>
-                  <Badge variant={toPlanStatusVariant(activePlan)}>{toPlanStatusLabel(activePlan)}</Badge>
-                </div>
-              </div>
-              <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-4">
-                <p className="font-medium">Plano de fallback</p>
-                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{activePlan.fallbackPlan?.displayName ?? "Nao definido no contrato atual."}</p>
-              </div>
-              <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-4">
-                <p className="font-medium">Cobranca em aberto</p>
-                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                  {outstandingBilling ? `${toBillingLabel(outstandingBilling.status)} com vencimento em ${formatDate(outstandingBilling.dueDate)}` : "Nenhuma cobranca pendente encontrada."}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Features e limites do plano</CardTitle>
-            <CardDescription>Leitura direta do contrato do plano atualmente ativo no tenant.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            {activePlan.plan.planFeatures.map((planFeature) => (
-              <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-3" key={planFeature.id}>
-                <p className="text-sm font-medium text-[var(--color-foreground)]">{planFeature.feature.description}</p>
-                <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{formatFeatureValue(planFeature)}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   function renderPlans() {
     if (!plans.length) {
       return <Card><CardContent className="p-6 text-sm text-[var(--color-muted-foreground)]">Nenhum plano ativo foi retornado pelo contrato.</CardContent></Card>;
     }
 
-    return (
-      <section className="grid gap-4 xl:grid-cols-3">
-        {plans.map((plan) => {
-          const isCurrentPlan = activePlan?.plan.id === plan.id;
+    const daysRemaining = getDaysRemaining(activePlan?.endDate);
 
-          return (
-            <Card className={cn("flex h-full flex-col", isCurrentPlan ? "border-[var(--color-primary)] shadow-[var(--shadow-soft)]" : "")} key={plan.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle>{plan.displayName}</CardTitle>
-                    <CardDescription>{plan.name}</CardDescription>
+    return (
+      <div className="space-y-6">
+        <section className="grid gap-4 xl:grid-cols-3">
+          {plans.map((plan) => {
+            const isCurrentPlan = activePlan?.plan.id === plan.id;
+            const currentPlanDetails = isCurrentPlan && activePlan
+              ? {
+                  statusLabel: tenant?.status === "SUSPENDED" ? "Suspenso" : toPlanStatusLabel(activePlan),
+                  summary: toTenantStatusMessage(tenant, activePlan),
+                  cycleLabel: `${formatDate(activePlan.startDate)} - ${activePlan.endDate ? formatDate(activePlan.endDate) : "Permanente"}`,
+                  remainingLabel: daysRemaining == null ? "Sem prazo de expiracao" : `${daysRemaining} dia(s) restantes`,
+                  billingLabel: outstandingBilling
+                    ? `${toBillingLabel(outstandingBilling.status)} com vencimento em ${formatDate(outstandingBilling.dueDate)}`
+                    : "Nenhuma pendencia encontrada."
+                }
+              : null;
+
+            return (
+              <Card className={cn("flex h-full flex-col", isCurrentPlan ? "border-[var(--color-primary)] shadow-[var(--shadow-soft)]" : "")} key={plan.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle>{plan.displayName}</CardTitle>
+                      <CardDescription>{plan.name}</CardDescription>
+                    </div>
+                    {isCurrentPlan ? (
+                      <Badge variant={tenant?.status === "SUSPENDED" ? "attention" : "success"}>
+                        {currentPlanDetails?.statusLabel ?? "Plano atual"}
+                      </Badge>
+                    ) : null}
                   </div>
-                  {isCurrentPlan ? <Badge variant="success">Plano atual</Badge> : null}
-                </div>
-                <p className="text-3xl font-semibold text-[var(--color-foreground)]">{formatCurrency(plan.price)}</p>
-              </CardHeader>
-              <CardContent className="flex flex-1 flex-col gap-5">
-                <div className="space-y-3">
-                  {featureCatalog.map((feature) => {
-                    const planFeature = getPlanFeature(plan, feature.key);
-                    const isEnabled = feature.type === "BOOLEAN" ? planFeature?.value !== 0 : true;
-                    return (
-                      <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)]/70 pb-3" key={feature.key}>
-                        <div>
-                          <p className="text-sm font-medium text-[var(--color-foreground)]">{feature.description}</p>
-                          <p className="text-xs text-[var(--color-muted-foreground)]">{feature.key}</p>
-                        </div>
-                        {feature.type === "BOOLEAN" ? (
-                          isEnabled ? <Check className="size-4 text-emerald-600" /> : <X className="size-4 text-[var(--color-muted-foreground)]" />
-                        ) : (
-                          <span className="text-sm font-semibold text-[var(--color-foreground)]">{planFeature?.value == null ? "Ilimitado" : planFeature.value}</span>
-                        )}
+                  <p className="text-3xl font-semibold text-[var(--color-foreground)]">{formatCurrency(plan.price)}</p>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col gap-5">
+                  {currentPlanDetails ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-[var(--color-muted-foreground)]">{currentPlanDetails.summary}</p>
+                      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-3">
+                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]">Vigencia</p>
+                        <p className="mt-2 text-sm font-medium text-[var(--color-foreground)]">{currentPlanDetails.cycleLabel}</p>
+                        <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{currentPlanDetails.remainingLabel}</p>
                       </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-auto space-y-3">
-                  {renderPlanPrimaryAction(plan)}
-                  {renderPlanSecondaryAction(plan)}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </section>
+                      <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-3">
+                        <p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--color-muted-foreground)]">Financeiro</p>
+                        <p className="mt-2 text-sm text-[var(--color-foreground)]">{currentPlanDetails.billingLabel}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--color-muted-foreground)]">
+                      Abra os detalhes para consultar limites e funcionalidades antes de confirmar a mudanca.
+                    </p>
+                  )}
+                  <div className="mt-auto space-y-3">
+                    {isCurrentPlan && renderSummaryActions()?.length ? renderSummaryActions() : renderPlanPrimaryAction(plan)}
+                    {!isCurrentPlan ? renderPlanSecondaryAction(plan) : null}
+                    <Button className="w-full" onClick={() => setPlanDetails({ plan })} variant="outline">
+                      Ver detalhes
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </section>
+      </div>
     );
   }
 
@@ -765,50 +682,6 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
         title="Minha assinatura"
       />
 
-      <Card className="h-fit">
-        <CardContent className="grid gap-3 p-4 md:grid-cols-3">
-          {SUBSCRIPTION_NAV_ITEMS.map((item) => {
-            const isCurrent = item.key === section;
-            const isDisabled = item.key === "billings" && !canManagePlans;
-
-            return isDisabled ? (
-              <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] px-4 py-3 opacity-70" key={item.key}>
-                <p className="text-sm font-semibold">{item.label}</p>
-                <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{item.description}</p>
-                <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">Disponivel para `plans:manage`.</p>
-              </div>
-            ) : (
-              <Link
-                className={cn(
-                  "rounded-[var(--radius-md)] border px-4 py-3 transition",
-                  isCurrent
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
-                    : "border-transparent hover:border-[var(--color-border)] hover:bg-[var(--color-surface-muted)]"
-                )}
-                href={item.href}
-                key={item.key}
-              >
-                <p className="text-sm font-semibold">{item.label}</p>
-                <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">{item.description}</p>
-              </Link>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      <Card className="overflow-hidden border-dashed">
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-[var(--color-foreground)]">Tenant autenticado</p>
-            <p className="text-sm text-[var(--color-muted-foreground)]">{tenant?.name ?? "Carregando..."}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge variant={activePlan ? toPlanStatusVariant(activePlan) : "neutral"}>{currentPlanTag}</Badge>
-            {section === "billings" && tenant?.status === "SUSPENDED" ? <Badge variant="attention">Pagamento prioritario</Badge> : null}
-          </div>
-        </CardContent>
-      </Card>
-
       {feedback ? (
         <Card className={cn(feedback.tone === "error" ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50")}>
           <CardContent className="flex items-start gap-3 p-4">
@@ -827,7 +700,6 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
         </Card>
       ) : null}
 
-      {!isLoadingBase && section === "summary" ? renderSummary() : null}
       {!isLoadingBase && section === "plans" ? renderPlans() : null}
       {!isLoadingBase && section === "billings" ? renderBillings() : null}
 
@@ -870,6 +742,34 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
               >
                 {dialog.confirmLabel}
               </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {planDetails ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.45)] p-4" role="dialog">
+          <div className="w-full max-w-3xl rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-soft)]">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <p className="text-xl font-semibold text-[var(--color-foreground)]">{planDetails.plan.displayName}</p>
+                <p className="text-sm text-[var(--color-muted-foreground)]">
+                  {planDetails.plan.name} · {formatCurrency(planDetails.plan.price)}
+                </p>
+              </div>
+              <Button onClick={() => setPlanDetails(null)} variant="outline">
+                Fechar
+              </Button>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {planDetails.plan.planFeatures.map((planFeature) => (
+                <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] p-4" key={planFeature.id}>
+                  <p className="text-sm font-medium text-[var(--color-foreground)]">{planFeature.feature.description}</p>
+                  <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{planFeature.feature.key}</p>
+                  <p className="mt-3 text-sm font-semibold text-[var(--color-foreground)]">{formatFeatureValue(planFeature)}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>

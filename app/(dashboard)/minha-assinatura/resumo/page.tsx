@@ -1,5 +1,5 @@
-import { SubscriptionManagementView } from "@/features/assinaturas/components/subscription-management-view";
+import { redirect } from "next/navigation";
 
 export default function MySubscriptionSummaryPage() {
-  return <SubscriptionManagementView section="summary" />;
+  redirect("/minha-assinatura/planos");
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Minus, Plus } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Menu, Minus, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -19,6 +19,10 @@ type SidebarNavProps = {
 
 function isUnimplementedMenuItem(href?: string) {
   return href === "/components" || href?.startsWith("/system-design") === true;
+}
+
+function isInternalAccountPath(pathname: string) {
+  return pathname === "/minha-assinatura" || pathname.startsWith("/minha-assinatura/");
 }
 
 function filterChildrenByPermissions(items: NavChildItem[], permissions: string[], isAdmin: boolean): NavChildItem[] {
@@ -212,7 +216,19 @@ function SidebarLink({
   const isActive = item.href ? isPathActive(pathname, item.href) : expanded;
 
   if (collapsed) {
-    const href = item.href ?? getFirstHref(item.children) ?? "#";
+    const href = item.href ?? getFirstHref(item.children);
+
+    if (!href) {
+      return (
+        <div
+          aria-label={item.label}
+          className="menu-item flex h-11 w-full items-center justify-center rounded-[var(--radius-md)] opacity-55"
+          title={item.badge ? `${item.label} - ${item.badge}` : item.label}
+        >
+          <Icon className="size-5 menu-item-icon" />
+        </div>
+      );
+    }
 
     return (
       <Link
@@ -265,6 +281,24 @@ function SidebarLink({
             ))}
           </div>
         ) : null}
+      </div>
+    );
+  }
+
+  if (!item.href && !item.children?.length) {
+    return (
+      <div className="menu-item flex items-center justify-between rounded-[var(--radius-md)] px-2 py-2 text-base font-bold opacity-65">
+        <span className="flex items-center gap-3">
+          <Icon className="size-[1.05rem] menu-item-icon" />
+          <span>{item.label}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          {item.badge ? (
+            <span className="rounded-md bg-[var(--color-surface-muted)] px-2 py-0.5 text-[0.68rem] font-semibold text-[var(--color-muted-foreground)]">
+              {item.badge}
+            </span>
+          ) : null}
+        </span>
       </div>
     );
   }
@@ -326,11 +360,56 @@ export function SidebarNav({ className, collapsed = false, onNavigate }: Sidebar
       }, []),
     [allowedNavigationItems]
   );
+  const internalAccountGroups = useMemo<Array<{ section?: string; items: NavItem[] }>>(
+    () => [
+      {
+        items: [
+          {
+            label: "Voltar ao painel",
+            href: "/",
+            icon: ArrowLeft
+          }
+        ]
+      },
+      {
+        section: "Minha Conta",
+        items: [
+          {
+            label: "Minha assinatura",
+            icon: LayoutDashboard,
+            defaultExpanded: true,
+            children: [
+              {
+                label: "Planos",
+                href: "/minha-assinatura/planos"
+              },
+              ...(isAdmin || (userPermissions ?? []).includes("plans:manage")
+                ? [
+                    {
+                      label: "Faturas",
+                      href: "/minha-assinatura/faturas"
+                    }
+                  ]
+                : [])
+            ]
+          },
+          {
+            label: "Meu perfil",
+            icon: Sparkles,
+            badge: "Em breve"
+          }
+        ]
+      }
+    ],
+    [isAdmin, userPermissions]
+  );
+  const shouldUseInternalAccountNav = isInternalAccountPath(pathname);
+  const resolvedGroups = shouldUseInternalAccountNav ? internalAccountGroups : groupedItems;
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   return (
     <nav className={cn("space-y-4", collapsed && "space-y-3", className)}>
-      {groupedItems.map((group, index) => (
+      {resolvedGroups.map((group, index) => (
         <div className={cn("space-y-1", collapsed && "space-y-3")} key={`${group.section ?? "root"}-${index}`}>
           {collapsed ? (
             <div className="h-px w-full bg-[var(--color-border)]/70" />

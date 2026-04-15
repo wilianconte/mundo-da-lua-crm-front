@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function MySubscriptionIndexPage() {
-  redirect("/minha-assinatura/resumo");
+  redirect("/minha-assinatura/planos");
 }
