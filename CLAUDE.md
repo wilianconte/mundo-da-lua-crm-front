@@ -16,5 +16,6 @@
 
 Ordem de prioridade quando mais de uma skill se aplicar: `dev-admin` → `vercel-react-best-practices` → `vercel-composition-patterns` → `web-design-guidelines` → `crud-front` → `mundo-da-lua-auth-graphql` → `review-front` → `auto-melhorar-front`.
 Cadência recomendada para `auto-melhorar-front`: executar após 5-10 tarefas relevantes ou quando houver retrabalho recorrente.
+Para processamento em lote de requisicoes na pasta `input`, acionar `processar-solicitacoes`.
 
 

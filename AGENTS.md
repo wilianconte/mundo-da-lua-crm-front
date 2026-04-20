@@ -63,6 +63,7 @@ Se a validação falhar, o processo é interrompido com a lista de operações i
 - Autenticação, sessão e rotas protegidas: `mundo-da-lua-auth-graphql`
 - Revisão técnica de PR/diff front: `review-front`
 - Melhoria contínua das instruções do agente: `auto-melhorar-front`
+- Processamento em lote de requisicoes na pasta `input`: `processar-solicitacoes`
 
 ## Validação mínima por tipo de tarefa
 
