@@ -19,6 +19,24 @@ export const SYSTEM_PERMISSIONS = {
   companiesCreate: "companies:create",
   companiesUpdate: "companies:update",
   companiesDelete: "companies:delete",
+  walletsRead: "wallets:read",
+  walletsCreate: "wallets:create",
+  walletsUpdate: "wallets:update",
+  walletsDelete: "wallets:delete",
+  categoriesRead: "categories:read",
+  categoriesCreate: "categories:create",
+  categoriesUpdate: "categories:update",
+  categoriesDelete: "categories:delete",
+  paymentMethodsRead: "payment_methods:read",
+  paymentMethodsCreate: "payment_methods:create",
+  paymentMethodsUpdate: "payment_methods:update",
+  paymentMethodsDelete: "payment_methods:delete",
+  transactionsRead: "transactions:read",
+  transactionsCreate: "transactions:create",
+  transactionsUpdate: "transactions:update",
+  transactionsDelete: "transactions:delete",
+  transactionsReconcile: "transactions:reconcile",
+  transactionsTransfer: "transactions:transfer",
   plansManage: "plans:manage",
   tenantsManage: "tenants:manage",
   usersManage: "users:manage",
@@ -85,6 +103,15 @@ const ROUTE_PERMISSION_RULES: RoutePermissionRule[] = [
       SYSTEM_PERMISSIONS.companiesDelete
     ]
   },
+  {
+    prefix: "/financeiro",
+    anyOf: [
+      SYSTEM_PERMISSIONS.walletsRead,
+      SYSTEM_PERMISSIONS.transactionsRead,
+      SYSTEM_PERMISSIONS.categoriesRead,
+      SYSTEM_PERMISSIONS.paymentMethodsRead
+    ]
+  },
   { prefix: "/assinaturas/tenants", anyOf: [SYSTEM_PERMISSIONS.tenantsManage] },
   { prefix: "/usuarios", anyOf: [SYSTEM_PERMISSIONS.usersManage] },
   { prefix: "/grupos", anyOf: [SYSTEM_PERMISSIONS.rolesManage] }
@@ -96,6 +123,7 @@ const DASHBOARD_FALLBACK_PATHS = [
   "/pessoas/pesquisa",
   "/empresas/pesquisa",
   "/cursos/pesquisa",
+  "/financeiro",
   "/usuarios/pesquisa",
   "/grupos/pesquisa"
 ];

@@ -89,13 +89,15 @@ export const navigationItems: NavItem[] = [
     section: "Operacao",
     label: "Financeiro",
     icon: Banknote,
+    defaultExpanded: false,
     children: [
-      { label: "Recebimentos", href: "/components", showPlus: true },
-      { label: "Cobrancas", href: "/components" },
-      { label: "Mensalidades", href: "/components" },
-      { label: "Contas a Pagar", href: "/components" },
-      { label: "Fluxo de Caixa", href: "/components" },
-      { label: "Relatorios Financeiros", href: "/components" }
+      { label: "Painel", href: "/financeiro" },
+      { label: "Carteiras", href: "/financeiro/carteiras/pesquisa", showPlus: true },
+      { label: "Transacoes", href: "/financeiro/transacoes/pesquisa", showPlus: true },
+      { label: "Transferencias", href: "/financeiro/transferencias/cadastro" },
+      { label: "Categorias", href: "/financeiro/categorias/pesquisa" },
+      { label: "Metodos de Pagamento", href: "/financeiro/metodos-pagamento/pesquisa" },
+      { label: "Conciliacao", href: "/financeiro/conciliacao" }
     ]
   },
   {

@@ -5,21 +5,23 @@ description: Processa solicitacoes em lote a partir dos arquivos na pasta input 
 
 # Processar Solicitacoes
 
-Use esta skill para executar pedidos colocados em arquivos dentro de `input/`.
+Use esta skill para executar pedidos colocados em arquivos dentro de `build/input/`.
 
 ## Fluxo
 
-1. Verifique se a pasta `input/` existe na raiz do workspace.
-2. Liste os arquivos de requisicao em `input/`, ordenados por nome.
+1. Verifique se a pasta `build/input/` existe na raiz do workspace.
+2. Liste os arquivos de requisicao em `build/input/`, ordenados por nome.
 3. Leia cada arquivo e extraia a solicitacao.
 4. Execute a solicitacao no projeto seguindo os contratos e validacoes locais.
 5. Registre o resultado por arquivo com status: `concluido`, `erro` ou `ignorado`.
-6. Se `input/` nao existir ou estiver vazia, informe claramente que nao ha requisicoes para processar.
-7. Ao final da implementacao/processamento, apresente o resultado na pasta `output/`.
+6. Remova de `build/input/` os arquivos que foram processados com status `concluido` ou `ignorado` (nao remover itens com `erro`).
+7. Se `build/input/` nao existir ou estiver vazia, informe claramente que nao ha requisicoes para processar.
+8. Ao final da implementacao/processamento, apresente o resultado na pasta `build/output/`.
 
 ## Regras
 
 - Nao ignore arquivos silenciosamente.
 - Se um item falhar, continue os demais quando for seguro.
 - Ao final, apresente resumo com arquivos processados, falhas e pendencias.
-- Garanta que a entrega final fique registrada em `output/`.
+- Garanta que a entrega final fique registrada em `build/output/`.
+- Remocao pos-processamento deve ser explicita no resumo final (quais arquivos sairam de `build/input/`).

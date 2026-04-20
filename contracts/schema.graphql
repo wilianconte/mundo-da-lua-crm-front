@@ -25,6 +25,122 @@ type AddressDto {
   country: String!
 }
 
+type Appointment {
+  id: UUID!
+  professionalId: UUID!
+  patientId: UUID!
+  serviceId: UUID!
+  startDateTime: DateTime!
+  endDateTime: DateTime!
+  type: AppointmentType!
+  price: Decimal!
+  address: Address
+  meetingLink: String
+  paymentReceiver: PaymentReceiverType!
+  paymentMethodId: UUID!
+  status: AppointmentStatus!
+  recurrenceId: UUID
+  confirmedBy: String
+  confirmedAt: DateTime
+  cancellationReason: String
+  cancelledAt: DateTime
+  cancelledWithLateNotice: Boolean!
+  noShowAt: DateTime
+  completedAt: DateTime
+  rescheduledFrom: UUID
+  rescheduledAt: DateTime
+  transactionId: UUID
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+  tasks: [AppointmentTask!]! @cost(weight: "10")
+  transaction: Transaction @cost(weight: "10")
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type AppointmentConflictWarning {
+  id: UUID!
+  professionalId: UUID!
+  patientId: UUID!
+  serviceId: UUID!
+  startDateTime: DateTime!
+  endDateTime: DateTime!
+  status: AppointmentStatus!
+  tenantId: UUID!
+  type: AppointmentType!
+  price: Decimal!
+  address: AddressDto
+  meetingLink: String
+  paymentReceiver: PaymentReceiverType!
+  paymentMethodId: UUID!
+  recurrenceId: UUID
+  confirmedBy: String
+  confirmedAt: DateTime
+  cancellationReason: String
+  cancelledAt: DateTime
+  cancelledWithLateNotice: Boolean!
+  noShowAt: DateTime
+  completedAt: DateTime
+  rescheduledFrom: UUID
+  rescheduledAt: DateTime
+  transactionId: UUID
+  notes: String
+  warnings: [String!]!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type AppointmentPayload {
+  appointment: AppointmentConflictWarning!
+}
+
+type AppointmentRecurrence {
+  id: UUID!
+  parentAppointmentId: UUID!
+  frequency: RecurrenceFrequency!
+  endDate: LocalDate
+  maxOccurrences: Int
+  createdOccurrences: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type AppointmentTask {
+  id: UUID!
+  appointmentId: UUID!
+  type: AppointmentTaskType!
+  assignedToUserId: UUID
+  assignedToRole: String
+  status: AppointmentTaskStatus!
+  result: String
+  resolvedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type AppointmentTaskDto {
+  id: UUID!
+  tenantId: UUID!
+  appointmentId: UUID!
+  type: AppointmentTaskType!
+  assignedToUserId: UUID
+  assignedToRole: String
+  status: AppointmentTaskStatus!
+  result: String
+  resolvedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type AppointmentTaskPayload {
+  appointmentTask: AppointmentTaskDto!
+}
+
 type Billing {
   tenantId: UUID!
   tenantPlanId: UUID!
@@ -42,6 +158,75 @@ type Billing {
   deletedAt: DateTime
   createdBy: UUID
   updatedBy: UUID
+}
+
+"A connection to a list of items."
+type CategoriesConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [CategoriesEdge!]
+  "A flattened list of the nodes."
+  nodes: [Category!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type CategoriesEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Category!
+}
+
+type Category {
+  name: String!
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type CategoryDto {
+  id: UUID!
+  tenantId: UUID!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type CategoryPayload {
+  category: CategoryDto!
+}
+
+type CommissionRule {
+  id: UUID!
+  professionalId: UUID
+  serviceId: UUID
+  companyPercentage: Decimal!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type CommissionRuleDto {
+  id: UUID!
+  tenantId: UUID!
+  professionalId: UUID
+  serviceId: UUID
+  companyPercentage: Decimal!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type CommissionRulePayload {
+  commissionRule: CommissionRuleDto!
 }
 
 "A connection to a list of items."
@@ -187,6 +372,12 @@ type CoursesEdge {
   cursor: String!
   "The item at the end of the edge."
   node: Course!
+}
+
+type CreateAppointmentPayload {
+  appointment: AppointmentConflictWarning!
+  recurringAppointments: [AppointmentConflictWarning!]!
+  warnings: [String!]!
 }
 
 type Customer {
@@ -370,6 +561,37 @@ type Mutation {
   createEmployee(input: CreateEmployeeInput!): EmployeePayload! @authorize(policy: "employees:create") @cost(weight: "10")
   updateEmployee(id: UUID! input: UpdateEmployeeInput!): EmployeePayload! @authorize(policy: "employees:update") @cost(weight: "10")
   deleteEmployee(id: UUID!): Boolean! @authorize(policy: "employees:delete") @cost(weight: "10")
+  createWallet(input: CreateWalletInput!): WalletPayload! @authorize(policy: "wallets:create") @cost(weight: "10")
+  updateWallet(id: UUID! input: UpdateWalletInput!): WalletPayload! @authorize(policy: "wallets:update") @cost(weight: "10")
+  deleteWallet(id: UUID!): Boolean! @authorize(policy: "wallets:delete") @cost(weight: "10")
+  createCategory(input: CreateCategoryInput!): CategoryPayload! @authorize(policy: "categories:create") @cost(weight: "10")
+  updateCategory(id: UUID! input: UpdateCategoryInput!): CategoryPayload! @authorize(policy: "categories:update") @cost(weight: "10")
+  deleteCategory(id: UUID!): Boolean! @authorize(policy: "categories:delete") @cost(weight: "10")
+  createPaymentMethod(input: CreatePaymentMethodInput!): PaymentMethodPayload! @authorize(policy: "payment_methods:create") @cost(weight: "10")
+  updatePaymentMethod(id: UUID! input: UpdatePaymentMethodInput!): PaymentMethodPayload! @authorize(policy: "payment_methods:update") @cost(weight: "10")
+  deletePaymentMethod(id: UUID!): Boolean! @authorize(policy: "payment_methods:delete") @cost(weight: "10")
+  createTransaction(input: CreateTransactionInput!): TransactionPayload! @authorize(policy: "transactions:create") @cost(weight: "10")
+  updateTransaction(id: UUID! input: UpdateTransactionInput!): TransactionPayload! @authorize(policy: "transactions:update") @cost(weight: "10")
+  deleteTransaction(id: UUID!): Boolean! @authorize(policy: "transactions:delete") @cost(weight: "10")
+  reconcileTransaction(input: ReconcileTransactionInput!): ReconciliationPayload! @authorize(policy: "transactions:reconcile") @cost(weight: "10")
+  createTransfer(input: CreateTransferInput!): TransferPayload! @authorize(policy: "transactions:transfer") @cost(weight: "10")
+  createProfessional(input: CreateProfessionalInput!): ProfessionalPayload! @authorize(policy: "professionals:create") @cost(weight: "10")
+  updateProfessionalStatus(input: UpdateProfessionalStatusInput!): ProfessionalPayload! @authorize(policy: "professionals:update") @cost(weight: "10")
+  createPatient(input: CreatePatientInput!): PatientPayload! @authorize(policy: "patients:create") @cost(weight: "10")
+  updatePatientStatus(input: UpdatePatientStatusInput!): PatientPayload! @authorize(policy: "patients:update") @cost(weight: "10")
+  createService(input: CreateServiceInput!): ServicePayload! @authorize(policy: "services:create") @cost(weight: "10")
+  updateService(input: UpdateServiceInput!): ServicePayload! @authorize(policy: "services:update") @cost(weight: "10")
+  deactivateService(input: DeactivateServiceInput!): ServicePayload! @authorize(policy: "services:update") @cost(weight: "10")
+  createProfessionalService(input: CreateProfessionalServiceInput!): ProfessionalServicePayload! @authorize(policy: "professional_services:create") @cost(weight: "10")
+  createCommissionRule(input: CreateCommissionRuleInput!): CommissionRulePayload! @authorize(policy: "commission_rules:create") @cost(weight: "10")
+  updateProfessionalSchedule(input: UpdateProfessionalScheduleInput!): ProfessionalSchedulePayload! @authorize(policy: "professional_schedules:update") @cost(weight: "10")
+  createAppointment(input: CreateAppointmentInput!): CreateAppointmentPayload! @authorize(policy: "appointments:create") @cost(weight: "10")
+  confirmAppointment(input: ConfirmAppointmentInput!): AppointmentPayload! @authorize(policy: "appointments:update") @cost(weight: "10")
+  cancelAppointment(input: CancelAppointmentInput!): AppointmentPayload! @authorize(policy: "appointments:update") @cost(weight: "10")
+  rescheduleAppointment(input: RescheduleAppointmentInput!): AppointmentPayload! @authorize(policy: "appointments:update") @cost(weight: "10")
+  completeAppointment(input: CompleteAppointmentInput!): AppointmentPayload! @authorize(policy: "appointments:update") @cost(weight: "10")
+  markNoShow(input: MarkNoShowInput!): AppointmentPayload! @authorize(policy: "appointments:update") @cost(weight: "10")
+  resolveAppointmentTask(input: ResolveAppointmentTaskInput!): AppointmentTaskPayload! @authorize(policy: "appointment_tasks:manage") @cost(weight: "10")
   createUser(input: CreateUserInput!): UserDto! @authorize(policy: "users:manage") @cost(weight: "10")
   updateUser(id: UUID! input: UpdateUserInput!): UserDto! @authorize(policy: "users:manage") @cost(weight: "10")
   deleteUser(id: UUID!): Boolean! @authorize(policy: "users:manage") @cost(weight: "10")
@@ -423,6 +645,79 @@ type PageInfo {
   startCursor: String
   "When paginating forwards, the cursor to continue."
   endCursor: String
+}
+
+type Patient {
+  id: UUID!
+  personId: UUID!
+  status: PatientStatus!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+  appointments: [Appointment!]! @cost(weight: "10")
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type PatientDto {
+  id: UUID!
+  tenantId: UUID!
+  personId: UUID!
+  status: PatientStatus!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type PatientPayload {
+  patient: PatientDto!
+}
+
+type PaymentMethod {
+  name: String!
+  walletId: UUID!
+  wallet: Wallet
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type PaymentMethodDto {
+  id: UUID!
+  tenantId: UUID!
+  name: String!
+  walletId: UUID!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type PaymentMethodPayload {
+  paymentMethod: PaymentMethodDto!
+}
+
+"A connection to a list of items."
+type PaymentMethodsConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [PaymentMethodsEdge!]
+  "A flattened list of the nodes."
+  nodes: [PaymentMethod!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type PaymentMethodsEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: PaymentMethod!
 }
 
 "A connection to a list of items."
@@ -547,6 +842,123 @@ type PlanFeature {
   updatedBy: UUID
 }
 
+type Professional {
+  id: UUID!
+  personId: UUID!
+  status: ProfessionalStatus!
+  bio: String
+  licenseNumber: String
+  commissionPercentage: Decimal
+  walletId: UUID
+  createdAt: DateTime!
+  updatedAt: DateTime
+  specialties: [ProfessionalSpecialtyLink!]! @cost(weight: "10")
+  services: [ProfessionalService!]! @cost(weight: "10")
+  schedule: [ProfessionalSchedule!]! @cost(weight: "10")
+  appointments: [Appointment!]! @cost(weight: "10")
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type ProfessionalDto {
+  id: UUID!
+  tenantId: UUID!
+  personId: UUID!
+  status: ProfessionalStatus!
+  bio: String
+  licenseNumber: String
+  commissionPercentage: Decimal
+  walletId: UUID
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type ProfessionalPayload {
+  professional: ProfessionalDto!
+}
+
+type ProfessionalSchedule {
+  id: UUID!
+  professionalId: UUID!
+  dayOfWeek: Int!
+  startTime: TimeSpan!
+  endTime: TimeSpan!
+  isAvailable: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type ProfessionalScheduleDto {
+  id: UUID!
+  tenantId: UUID!
+  professionalId: UUID!
+  dayOfWeek: Int!
+  startTime: TimeSpan!
+  endTime: TimeSpan!
+  isAvailable: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type ProfessionalSchedulePayload {
+  professionalSchedule: ProfessionalScheduleDto!
+}
+
+type ProfessionalService {
+  id: UUID!
+  professionalId: UUID!
+  serviceId: UUID!
+  customPrice: Decimal
+  customDurationInMinutes: Int
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type ProfessionalServiceDto {
+  id: UUID!
+  tenantId: UUID!
+  professionalId: UUID!
+  serviceId: UUID!
+  customPrice: Decimal
+  customDurationInMinutes: Int
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type ProfessionalServicePayload {
+  professionalService: ProfessionalServiceDto!
+}
+
+type ProfessionalSpecialty {
+  id: UUID!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  description: String
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type ProfessionalSpecialtyLink {
+  id: UUID!
+  professionalId: UUID!
+  specialtyId: UUID!
+  specialty: ProfessionalSpecialty @cost(weight: "10")
+  professional: Professional
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
 type Query {
   customers("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: CustomerFilterInput @cost(weight: "10") order: [CustomerSortInput!] @cost(weight: "10")): CustomersConnection @authorize(policy: "customers:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
   customerById(id: UUID!): Customer @authorize(policy: "customers:read") @cost(weight: "10")
@@ -564,6 +976,22 @@ type Query {
   studentCourseById(id: UUID!): StudentCourse @authorize(policy: "student_courses:read") @cost(weight: "10")
   employees("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: EmployeeFilterInput @cost(weight: "10") order: [EmployeeSortInput!] @cost(weight: "10")): EmployeesConnection @authorize(policy: "employees:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
   employeeById(id: UUID!): Employee @authorize(policy: "employees:read") @cost(weight: "10")
+  wallets("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: WalletFilterInput @cost(weight: "10") order: [WalletSortInput!] @cost(weight: "10")): WalletsConnection @authorize(policy: "wallets:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  walletsWithBalance: [WalletDto!]! @authorize(policy: "wallets:read") @cost(weight: "10")
+  categories("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: CategoryFilterInput @cost(weight: "10") order: [CategorySortInput!] @cost(weight: "10")): CategoriesConnection @authorize(policy: "categories:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  paymentMethods("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: PaymentMethodFilterInput @cost(weight: "10") order: [PaymentMethodSortInput!] @cost(weight: "10")): PaymentMethodsConnection @authorize(policy: "payment_methods:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  transactions("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: TransactionFilterInput @cost(weight: "10") order: [TransactionSortInput!] @cost(weight: "10")): TransactionsConnection @authorize(policy: "transactions:read") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+  transactionById(id: UUID!): TransactionDto @authorize(policy: "transactions:read") @cost(weight: "10")
+  transactionsFiltered(walletId: UUID startDate: DateTime endDate: DateTime type: TransactionType categoryId: UUID paymentMethodId: UUID): [TransactionDto!]! @authorize(policy: "transactions:read") @cost(weight: "10")
+  professionals(status: ProfessionalStatus): [ProfessionalDto!]! @authorize(policy: "professionals:read") @cost(weight: "10")
+  professional(id: UUID!): ProfessionalDto @authorize(policy: "professionals:read") @cost(weight: "10")
+  patients(status: PatientStatus): [PatientDto!]! @authorize(policy: "patients:read") @cost(weight: "10")
+  patient(id: UUID!): PatientDto @authorize(policy: "patients:read") @cost(weight: "10")
+  services(isActive: Boolean): [ServiceDto!]! @authorize(policy: "services:read") @cost(weight: "10")
+  service(id: UUID!): ServiceDto @authorize(policy: "services:read") @cost(weight: "10")
+  appointments(professionalId: UUID patientId: UUID status: Int date: LocalDate): [AppointmentConflictWarning!]! @authorize(policy: "appointments:read") @cost(weight: "10")
+  appointment(id: UUID!): AppointmentConflictWarning @authorize(policy: "appointments:read") @cost(weight: "10")
+  appointmentTasks(appointmentId: UUID status: Int): [AppointmentTaskDto!]! @authorize(policy: "appointment_tasks:read") @cost(weight: "10")
   users("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: UserFilterInput @cost(weight: "10") order: [UserSortInput!] @cost(weight: "10")): UsersConnection @authorize(policy: "users:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
   userById(id: UUID!): User @authorize(policy: "users:manage") @cost(weight: "10")
   roles("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: RoleFilterInput @cost(weight: "10") order: [RoleSortInput!] @cost(weight: "10")): RolesConnection @authorize(policy: "roles:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
@@ -576,6 +1004,22 @@ type Query {
   plans(order: [PlanSortInput!] @cost(weight: "10")): [Plan!]! @authorize @cost(weight: "10")
   myTenant: Tenant @authorize @cost(weight: "10")
   myBillings("Returns the first _n_ elements from the list." first: Int "Returns the elements in the list that come after the specified cursor." after: String "Returns the last _n_ elements from the list." last: Int "Returns the elements in the list that come before the specified cursor." before: String where: BillingFilterInput @cost(weight: "10") order: [BillingSortInput!] @cost(weight: "10")): MyBillingsConnection @authorize(policy: "plans:manage") @listSize(assumedSize: 50, slicingArguments: [ "first", "last" ], slicingArgumentDefaultValue: 10, sizedFields: [ "edges", "nodes" ], requireOneSlicingArgument: false) @cost(weight: "10")
+}
+
+type ReconciliationDto {
+  id: UUID!
+  tenantId: UUID!
+  walletId: UUID!
+  transactionId: UUID!
+  externalId: String!
+  externalAmount: Decimal!
+  externalDate: DateTime!
+  matchedAt: DateTime!
+  createdAt: DateTime!
+}
+
+type ReconciliationPayload {
+  reconciliation: ReconciliationDto!
 }
 
 type Role {
@@ -637,6 +1081,35 @@ type RolesEdge {
   cursor: String!
   "The item at the end of the edge."
   node: Role!
+}
+
+type Service {
+  id: UUID!
+  name: String!
+  description: String
+  defaultPrice: Decimal!
+  defaultDurationInMinutes: Int!
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type ServiceDto {
+  id: UUID!
+  tenantId: UUID!
+  name: String!
+  description: String
+  defaultPrice: Decimal!
+  defaultDurationInMinutes: Int!
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type ServicePayload {
+  service: ServiceDto!
 }
 
 type Student {
@@ -891,6 +1364,72 @@ type TenantsEdge {
   node: Tenant!
 }
 
+type Transaction {
+  walletId: UUID!
+  type: TransactionType!
+  amount: Decimal!
+  description: String!
+  categoryId: UUID!
+  paymentMethodId: UUID!
+  transactionDate: DateTime!
+  isReconciled: Boolean!
+  wallet: Wallet
+  category: Category
+  paymentMethod: PaymentMethod
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type TransactionDto {
+  id: UUID!
+  tenantId: UUID!
+  walletId: UUID!
+  categoryId: UUID!
+  paymentMethodId: UUID!
+  type: TransactionType!
+  amount: Decimal!
+  description: String!
+  transactionDate: DateTime!
+  isReconciled: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type TransactionPayload {
+  transaction: TransactionDto!
+}
+
+"A connection to a list of items."
+type TransactionsConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [TransactionsEdge!]
+  "A flattened list of the nodes."
+  nodes: [Transaction!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type TransactionsEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Transaction!
+}
+
+type TransferPayload {
+  expenseTransaction: TransactionDto!
+  incomeTransaction: TransactionDto!
+}
+
 type User {
   id: UUID!
   name: String!
@@ -941,6 +1480,57 @@ type UsersEdge {
   node: User!
 }
 
+type Wallet {
+  recalculateBalance(incomeTotal: Decimal! expenseTotal: Decimal!): Decimal!
+  name: String!
+  initialBalance: Decimal!
+  isActive: Boolean!
+  transactions: [Transaction!]!
+  tenantId: UUID!
+  id: UUID!
+  isDeleted: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+  deletedAt: DateTime
+  createdBy: UUID
+  updatedBy: UUID
+}
+
+type WalletDto {
+  id: UUID!
+  tenantId: UUID!
+  name: String!
+  balance: Decimal!
+  initialBalance: Decimal!
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+type WalletPayload {
+  wallet: WalletDto!
+}
+
+"A connection to a list of items."
+type WalletsConnection {
+  "Information to aid in pagination."
+  pageInfo: PageInfo!
+  "A list of edges."
+  edges: [WalletsEdge!]
+  "A flattened list of the nodes."
+  nodes: [Wallet!]
+  "Identifies the total count of items in the connection."
+  totalCount: Int! @cost(weight: "10")
+}
+
+"An edge in a connection."
+type WalletsEdge {
+  "A cursor for use in pagination."
+  cursor: String!
+  "The item at the end of the edge."
+  node: Wallet!
+}
+
 input AddressFilterInput {
   and: [AddressFilterInput!]
   or: [AddressFilterInput!]
@@ -952,6 +1542,17 @@ input AddressFilterInput {
   state: StringOperationFilterInput
   zipCode: StringOperationFilterInput
   country: StringOperationFilterInput
+}
+
+input AddressInput {
+  street: String!
+  number: String
+  complement: String
+  neighborhood: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  country: String! = "BR"
 }
 
 input AddressSortInput {
@@ -1017,8 +1618,39 @@ input BooleanOperationFilterInput {
   neq: Boolean @cost(weight: "10")
 }
 
+input CancelAppointmentInput {
+  id: UUID!
+  reason: String
+}
+
 input CancelTenantPlanInput {
   downgradeToPlanId: UUID!
+}
+
+input CategoryFilterInput {
+  and: [CategoryFilterInput!]
+  or: [CategoryFilterInput!]
+  name: StringOperationFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input CategorySortInput {
+  name: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
 }
 
 input CompanyFilterInput {
@@ -1090,6 +1722,16 @@ input CompanyStatusOperationFilterInput {
   nin: [CompanyStatus!] @cost(weight: "10")
 }
 
+input CompleteAppointmentInput {
+  id: UUID!
+  categoryId: UUID!
+}
+
+input ConfirmAppointmentInput {
+  id: UUID!
+  confirmedBy: String!
+}
+
 input CourseFilterInput {
   and: [CourseFilterInput!]
   or: [CourseFilterInput!]
@@ -1155,6 +1797,31 @@ input CourseTypeOperationFilterInput {
   nin: [CourseType!] @cost(weight: "10")
 }
 
+input CreateAppointmentInput {
+  professionalId: UUID!
+  patientId: UUID!
+  serviceId: UUID!
+  startDateTime: DateTime!
+  type: AppointmentType!
+  overridePrice: Decimal
+  paymentReceiver: PaymentReceiverType!
+  paymentMethodId: UUID!
+  address: AddressInput
+  meetingLink: String
+  notes: String
+  recurrence: RecurrenceInput
+}
+
+input CreateCategoryInput {
+  name: String!
+}
+
+input CreateCommissionRuleInput {
+  companyPercentage: Decimal!
+  professionalId: UUID
+  serviceId: UUID
+}
+
 input CreateCompanyInput {
   legalName: String!
   tradeName: String
@@ -1214,6 +1881,16 @@ input CreateEmployeeInput {
   notes: String
 }
 
+input CreatePatientInput {
+  personId: UUID!
+  notes: String
+}
+
+input CreatePaymentMethodInput {
+  name: String!
+  walletId: UUID!
+}
+
 input CreatePersonInput {
   fullName: String!
   preferredName: String
@@ -1231,8 +1908,30 @@ input CreatePersonInput {
   notes: String
 }
 
+input CreateProfessionalInput {
+  personId: UUID!
+  specialtyIds: [UUID!]!
+  bio: String
+  licenseNumber: String
+  commissionPercentage: Decimal
+}
+
+input CreateProfessionalServiceInput {
+  professionalId: UUID!
+  serviceId: UUID!
+  customPrice: Decimal
+  customDurationInMinutes: Int
+}
+
 input CreateRoleInput {
   name: String!
+  description: String
+}
+
+input CreateServiceInput {
+  name: String!
+  defaultPrice: Decimal!
+  defaultDurationInMinutes: Int!
   description: String
 }
 
@@ -1266,12 +1965,37 @@ input CreateStudentInput {
   notes: String
 }
 
+input CreateTransactionInput {
+  walletId: UUID!
+  type: TransactionType!
+  amount: Decimal!
+  description: String!
+  categoryId: UUID!
+  paymentMethodId: UUID!
+  transactionDate: DateTime!
+}
+
+input CreateTransferInput {
+  fromWalletId: UUID!
+  toWalletId: UUID!
+  amount: Decimal!
+  description: String!
+  categoryId: UUID!
+  paymentMethodId: UUID!
+  transactionDate: DateTime!
+}
+
 input CreateUserInput {
   name: String!
   email: String!
   password: String!
   personId: UUID
   roleIds: [UUID!]
+}
+
+input CreateWalletInput {
+  name: String!
+  initialBalance: Decimal! = 0
 }
 
 input CustomerFilterInput {
@@ -1341,6 +2065,10 @@ input DateTimeOperationFilterInput {
   nlt: DateTime @cost(weight: "10")
   lte: DateTime @cost(weight: "10")
   nlte: DateTime @cost(weight: "10")
+}
+
+input DeactivateServiceInput {
+  id: UUID!
 }
 
 input DecimalOperationFilterInput {
@@ -1491,6 +2219,13 @@ input ListFilterInputTypeOfStudentCourseFilterInput {
   any: Boolean @cost(weight: "10")
 }
 
+input ListFilterInputTypeOfTransactionFilterInput {
+  all: TransactionFilterInput @cost(weight: "10")
+  none: TransactionFilterInput @cost(weight: "10")
+  some: TransactionFilterInput @cost(weight: "10")
+  any: Boolean @cost(weight: "10")
+}
+
 input ListFilterInputTypeOfUserRoleFilterInput {
   all: UserRoleFilterInput @cost(weight: "10")
   none: UserRoleFilterInput @cost(weight: "10")
@@ -1528,6 +2263,10 @@ input MarkBillingAsPaidInput {
   billingId: UUID!
 }
 
+input MarkNoShowInput {
+  id: UUID!
+}
+
 input NullableOfCompanyTypeOperationFilterInput {
   eq: CompanyType @cost(weight: "10")
   neq: CompanyType @cost(weight: "10")
@@ -1547,6 +2286,36 @@ input NullableOfMaritalStatusOperationFilterInput {
   neq: MaritalStatus @cost(weight: "10")
   in: [MaritalStatus] @cost(weight: "10")
   nin: [MaritalStatus] @cost(weight: "10")
+}
+
+input PaymentMethodFilterInput {
+  and: [PaymentMethodFilterInput!]
+  or: [PaymentMethodFilterInput!]
+  name: StringOperationFilterInput
+  walletId: UuidOperationFilterInput
+  wallet: WalletFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input PaymentMethodSortInput {
+  name: SortEnumType @cost(weight: "10")
+  walletId: SortEnumType @cost(weight: "10")
+  wallet: WalletSortInput @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
 }
 
 input PermissionFilterInput {
@@ -1677,6 +2446,19 @@ input PlanSortInput {
   updatedBy: SortEnumType @cost(weight: "10")
 }
 
+input ReconcileTransactionInput {
+  transactionId: UUID!
+  externalId: String!
+  externalAmount: Decimal!
+  externalDate: DateTime!
+}
+
+input RecurrenceInput {
+  frequency: RecurrenceFrequency!
+  endDate: LocalDate
+  maxOccurrences: Int
+}
+
 input RefreshTokenInput {
   tenantId: UUID!
   refreshToken: String!
@@ -1699,10 +2481,24 @@ input RequestPasswordResetInput {
   email: String!
 }
 
+input RescheduleAppointmentInput {
+  id: UUID!
+  newStartDateTime: DateTime!
+  overridePrice: Decimal
+}
+
 input ResetPasswordInput {
   token: String!
   newPassword: String!
   newPasswordConfirmation: String!
+}
+
+input ResolveAppointmentTaskInput {
+  taskId: UUID!
+  applyPenalty: Boolean!
+  penaltyAmount: Decimal!
+  categoryId: UUID!
+  paymentMethodId: UUID!
 }
 
 input RoleFilterInput {
@@ -2012,6 +2808,63 @@ input TerminateTrialInput {
   downgradeToPlanId: UUID
 }
 
+input TransactionFilterInput {
+  and: [TransactionFilterInput!]
+  or: [TransactionFilterInput!]
+  walletId: UuidOperationFilterInput
+  type: TransactionTypeOperationFilterInput
+  amount: DecimalOperationFilterInput
+  description: StringOperationFilterInput
+  categoryId: UuidOperationFilterInput
+  paymentMethodId: UuidOperationFilterInput
+  transactionDate: DateTimeOperationFilterInput
+  isReconciled: BooleanOperationFilterInput
+  wallet: WalletFilterInput
+  category: CategoryFilterInput
+  paymentMethod: PaymentMethodFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input TransactionSortInput {
+  walletId: SortEnumType @cost(weight: "10")
+  type: SortEnumType @cost(weight: "10")
+  amount: SortEnumType @cost(weight: "10")
+  description: SortEnumType @cost(weight: "10")
+  categoryId: SortEnumType @cost(weight: "10")
+  paymentMethodId: SortEnumType @cost(weight: "10")
+  transactionDate: SortEnumType @cost(weight: "10")
+  isReconciled: SortEnumType @cost(weight: "10")
+  wallet: WalletSortInput @cost(weight: "10")
+  category: CategorySortInput @cost(weight: "10")
+  paymentMethod: PaymentMethodSortInput @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
+input TransactionTypeOperationFilterInput {
+  eq: TransactionType @cost(weight: "10")
+  neq: TransactionType @cost(weight: "10")
+  in: [TransactionType!] @cost(weight: "10")
+  nin: [TransactionType!] @cost(weight: "10")
+}
+
+input UpdateCategoryInput {
+  name: String!
+}
+
 input UpdateCompanyInput {
   legalName: String!
   tradeName: String
@@ -2071,6 +2924,15 @@ input UpdateEmployeeInput {
   notes: String
 }
 
+input UpdatePatientStatusInput {
+  id: UUID!
+  targetStatus: PatientStatus!
+}
+
+input UpdatePaymentMethodInput {
+  name: String!
+}
+
 input UpdatePersonInput {
   fullName: String!
   preferredName: String
@@ -2088,10 +2950,30 @@ input UpdatePersonInput {
   notes: String
 }
 
+input UpdateProfessionalScheduleInput {
+  id: UUID!
+  startTime: TimeSpan!
+  endTime: TimeSpan!
+  isAvailable: Boolean!
+}
+
+input UpdateProfessionalStatusInput {
+  id: UUID!
+  targetStatus: ProfessionalStatus!
+}
+
 input UpdateRoleInput {
   name: String!
   description: String
   isActive: Boolean
+}
+
+input UpdateServiceInput {
+  id: UUID!
+  name: String!
+  defaultPrice: Decimal!
+  defaultDurationInMinutes: Int!
+  description: String
 }
 
 input UpdateStudentCourseInput {
@@ -2125,6 +3007,14 @@ input UpdateTenantInput {
   status: TenantStatus!
 }
 
+input UpdateTransactionInput {
+  amount: Decimal!
+  description: String!
+  categoryId: UUID!
+  paymentMethodId: UUID!
+  transactionDate: DateTime!
+}
+
 input UpdateUserInput {
   name: String!
   email: String!
@@ -2133,6 +3023,11 @@ input UpdateUserInput {
   isAdmin: Boolean!
   password: String
   roleIds: [UUID!]
+}
+
+input UpdateWalletInput {
+  name: String!
+  initialBalance: Decimal!
 }
 
 input UpgradeTenantPlanInput {
@@ -2211,6 +3106,37 @@ input UuidOperationFilterInput {
   nlte: UUID @cost(weight: "10")
 }
 
+input WalletFilterInput {
+  and: [WalletFilterInput!]
+  or: [WalletFilterInput!]
+  name: StringOperationFilterInput
+  initialBalance: DecimalOperationFilterInput
+  isActive: BooleanOperationFilterInput
+  transactions: ListFilterInputTypeOfTransactionFilterInput
+  tenantId: UuidOperationFilterInput
+  id: UuidOperationFilterInput
+  isDeleted: BooleanOperationFilterInput
+  createdAt: DateTimeOperationFilterInput
+  updatedAt: DateTimeOperationFilterInput
+  deletedAt: DateTimeOperationFilterInput
+  createdBy: UuidOperationFilterInput
+  updatedBy: UuidOperationFilterInput
+}
+
+input WalletSortInput {
+  name: SortEnumType @cost(weight: "10")
+  initialBalance: SortEnumType @cost(weight: "10")
+  isActive: SortEnumType @cost(weight: "10")
+  tenantId: SortEnumType @cost(weight: "10")
+  id: SortEnumType @cost(weight: "10")
+  isDeleted: SortEnumType @cost(weight: "10")
+  createdAt: SortEnumType @cost(weight: "10")
+  updatedAt: SortEnumType @cost(weight: "10")
+  deletedAt: SortEnumType @cost(weight: "10")
+  createdBy: SortEnumType @cost(weight: "10")
+  updatedBy: SortEnumType @cost(weight: "10")
+}
+
 "Defines when a policy shall be executed."
 enum ApplyPolicy {
   "Before the resolver was executed."
@@ -2219,6 +3145,33 @@ enum ApplyPolicy {
   AFTER_RESOLVER
   "The policy is applied in the validation step before the execution."
   VALIDATION
+}
+
+enum AppointmentStatus {
+  SUGGESTED
+  CONFIRMED
+  RESCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum AppointmentTaskStatus {
+  PENDING
+  COMPLETED
+  ESCALATED
+  EXPIRED
+}
+
+enum AppointmentTaskType {
+  NO_SHOW_DECISION
+  ESCALATION
+}
+
+enum AppointmentType {
+  PRESENCIAL
+  REMOTO
+  DOMICILIO
 }
 
 enum BillingStatus {
@@ -2314,10 +3267,35 @@ enum MaritalStatus {
   STABLE_UNION
 }
 
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum PaymentReceiverType {
+  COMPANY
+  PROFESSIONAL
+}
+
 enum PersonStatus {
   ACTIVE
   INACTIVE
   BLOCKED
+}
+
+enum ProfessionalStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum RecurrenceFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
 }
 
 enum SortEnumType {
@@ -2353,6 +3331,11 @@ enum TenantStatus {
   CANCELLED
 }
 
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
 directive @allowAnonymous repeatable on FIELD_DEFINITION
 
 "The authorize directive."
@@ -2375,5 +3358,8 @@ scalar Decimal
 
 "The `LocalDate` scalar type represents a ISO date string, represented as UTF-8 character sequences YYYY-MM-DD. The scalar follows the specification defined in RFC3339"
 scalar LocalDate
+
+"The `TimeSpan` scalar represents an ISO-8601 compliant duration type."
+scalar TimeSpan
 
 scalar UUID @specifiedBy(url: "https:\/\/tools.ietf.org\/html\/rfc4122")
