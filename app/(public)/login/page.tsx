@@ -3,7 +3,7 @@ import { APP_VERSION } from "@/lib/app-version";
 
 export default function LoginPage() {
   return (
-    <main className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#133d86_0%,#082247_42%,#05162d_100%)] px-4 py-6 md:py-8">
+    <main className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#133d86_0%,#082247_42%,#05162d_100%)] px-4 py-6 md:py-8" id="main-content">
       <div className="relative mx-auto flex h-full w-full max-w-[380px] flex-col items-center justify-center gap-6">
         <header className="text-center">
           <h1 className="text-4xl font-semibold tracking-tight text-white">Mundo da Lua CRM</h1>

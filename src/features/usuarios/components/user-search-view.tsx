@@ -1,8 +1,8 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 } from "@/features/usuarios/api/get-users";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
+import { useTokenizedSearch } from "@/features/shared/hooks/use-tokenized-search";
 import { GraphQLRequestError } from "@/lib/graphql/client";
 
 type FilterFieldKey = "name" | "email" | "isActive" | "personId";
@@ -29,13 +30,6 @@ type FilterField = {
   key: FilterFieldKey;
   label: string;
   type: FieldType;
-};
-
-type FilterChip = {
-  id: string;
-  field: FilterField;
-  operator: FilterOperator;
-  value: string;
 };
 
 const PAGE_SIZE = 8;
@@ -122,13 +116,6 @@ function mapTextOperator(operator: TextOperator): "contains" | "eq" | "startsWit
 }
 
 export function UserSearchView() {
-  const router = useRouter();
-  const [searchInput, setSearchInput] = useState("");
-  const [freeQuery, setFreeQuery] = useState("");
-  const [selectedField, setSelectedField] = useState<FilterField | null>(null);
-  const [selectedOperator, setSelectedOperator] = useState<FilterOperator>("contains");
-  const [chips, setChips] = useState<FilterChip[]>([]);
-  const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortableColumn>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [rows, setRows] = useState<UserNode[]>([]);
@@ -144,6 +131,31 @@ export function UserSearchView() {
   const [cursorMode, setCursorMode] = useState<CursorMode>("forward");
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  function resetToFirstPage() {
+    setCursorMode("forward");
+    setRequestAfter(null);
+    setRequestBefore(null);
+  }
+  const {
+    searchInput,
+    freeQuery,
+    selectedField,
+    selectedOperator,
+    chips,
+    isFieldDropdownOpen,
+    setSelectedOperator,
+    openFieldDropdown,
+    selectField,
+    clearSelectedField,
+    handleInputChange,
+    handleInputKeyDown,
+    addChip,
+    removeChip
+  } = useTokenizedSearch<FilterField, FilterOperator>({
+    textOperator: "contains",
+    categoryOperator: "equals",
+    onFiltersChanged: resetToFirstPage
+  });
   const availableOperators = selectedField?.type === "category" ? categoryOperators : textOperators;
 
   const where = useMemo<UserFilterInput | null>(() => {
@@ -260,12 +272,6 @@ export function UserSearchView() {
     };
   }, [where, sortBy, sortDirection, cursorMode, requestAfter, requestBefore]);
 
-  function resetToFirstPage() {
-    setCursorMode("forward");
-    setRequestAfter(null);
-    setRequestBefore(null);
-  }
-
   function toggleSort(column: SortableColumn) {
     if (sortBy !== column) {
       setSortBy(column);
@@ -283,80 +289,12 @@ export function UserSearchView() {
     return sortDirection === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
   }
 
-  function openFieldDropdown() {
-    setIsFieldDropdownOpen(true);
-  }
-
-  function selectField(field: FilterField) {
-    setSelectedField(field);
-    setSelectedOperator(field.type === "category" ? "equals" : "contains");
-    setIsFieldDropdownOpen(false);
-    setSearchInput("");
-    setFreeQuery("");
-    inputRef.current?.focus();
-  }
-
-  function addChip() {
-    if (!selectedField) return;
-    const value = searchInput.trim();
-    if (!value) return;
-
-    const chip: FilterChip = {
-      id: `${selectedField.key}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      field: selectedField,
-      operator: selectedOperator,
-      value
-    };
-
-    setChips((current) => [...current, chip]);
-    setSearchInput("");
-    setIsFieldDropdownOpen(false);
-    resetToFirstPage();
-  }
-
-  function handleInputChange(value: string) {
-    setSearchInput(value);
-
-    if (selectedField) return;
-
-    if (value.includes("@")) {
-      setIsFieldDropdownOpen(true);
-      setFreeQuery("");
-      return;
-    }
-
-    setIsFieldDropdownOpen(false);
-    setFreeQuery(value);
-    resetToFirstPage();
-  }
-
-  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!selectedField) return;
-    if (event.key !== "Enter" && event.key !== "Tab") return;
-
-    event.preventDefault();
-    addChip();
-  }
-
-  function removeChip(id: string) {
-    setChips((current) => current.filter((chip) => chip.id !== id));
-    resetToFirstPage();
-  }
-
   function getOperatorLabel(operator: FilterOperator) {
     return (
       [...textOperators, ...categoryOperators].find((item) => item.key === operator)?.label ?? operator
     );
   }
 
-  function openEditUser(user: UserNode) {
-    const params = new URLSearchParams({
-      mode: "edit",
-      id: user.id
-    });
-
-    router.push(`/usuarios/cadastro?${params.toString()}`);
-  }
   return (
     <div className="space-y-6">
       <section className="space-y-2">
@@ -368,12 +306,8 @@ export function UserSearchView() {
               Omnisearch com filtros tokenizados e busca livre global por nome e email.
             </p>
           </div>
-          <Button
-            className="min-w-40"
-            leadingIcon={<Plus className="size-4" />}
-            onClick={() => router.push("/usuarios/cadastro")}
-          >
-            Adicionar
+          <Button asChild className="min-w-40" leadingIcon={<Plus className="size-4" />}>
+            <Link href="/usuarios/cadastro">Adicionar</Link>
           </Button>
         </div>
       </section>
@@ -387,9 +321,7 @@ export function UserSearchView() {
           inputRef={inputRef}
           isFieldDropdownOpen={isFieldDropdownOpen}
           onClearSelectedField={() => {
-            setSelectedField(null);
-            setSearchInput("");
-            inputRef.current?.focus();
+            clearSelectedField(inputRef);
           }}
           onFilterClick={() => {
             if (selectedField) addChip();
@@ -399,7 +331,7 @@ export function UserSearchView() {
           onOpenFieldDropdown={openFieldDropdown}
           onOperatorChange={(operator) => setSelectedOperator(operator)}
           onRemoveChip={removeChip}
-          onSelectField={selectField}
+          onSelectField={(field) => selectField(field, inputRef)}
           searchInput={searchInput}
           selectedField={selectedField}
           selectedOperator={selectedOperator}
@@ -447,8 +379,8 @@ export function UserSearchView() {
               <td className="px-4 py-3">{toDateTime(user.createdAt)}</td>
               <td className="px-4 py-3">{toDateTime(user.updatedAt)}</td>
               <td className="px-4 py-3">
-                <Button onClick={() => openEditUser(user)} size="sm" variant="outline">
-                  Editar
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/usuarios/cadastro?mode=edit&id=${user.id}`}>Editar</Link>
                 </Button>
               </td>
             </tr>

@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Children, cloneElement, isValidElement, type ButtonHTMLAttributes, type ReactElement, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils/cn";
 
@@ -9,6 +9,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
   leadingIcon?: ReactNode;
+  asChild?: boolean;
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -36,17 +37,43 @@ export function Button({
   variant = "primary",
   size = "md",
   leadingIcon,
+  asChild = false,
   type = "button",
   ...props
 }: ButtonProps) {
+  const buttonClassName = cn(
+    "inline-flex items-center justify-center gap-2 font-medium transition duration-200 ease-[var(--ease-standard)] hover:-translate-y-px active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-menu)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:pointer-events-none disabled:opacity-60",
+    variantClasses[variant],
+    sizeClasses[size],
+    className
+  );
+
+  if (asChild) {
+    const child = Children.only(children);
+    if (!isValidElement(child)) {
+      return null;
+    }
+
+    const element = child as ReactElement<{
+      className?: string;
+      children?: ReactNode;
+    }>;
+
+    return cloneElement(element, {
+      className: cn(buttonClassName, element.props.className),
+      children: (
+        <>
+          {leadingIcon}
+          {element.props.children}
+        </>
+      ),
+      ...props
+    });
+  }
+
   return (
     <button
-      className={cn(
-        "inline-flex items-center justify-center gap-2 font-medium transition duration-200 ease-[var(--ease-standard)] hover:-translate-y-px active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-menu)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:pointer-events-none disabled:opacity-60",
-        variantClasses[variant],
-        sizeClasses[size],
-        className
-      )}
+      className={buttonClassName}
       type={type}
       {...props}
     >

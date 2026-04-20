@@ -1,14 +1,15 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Check, Plus, X } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
+import { useTokenizedSearch } from "@/features/shared/hooks/use-tokenized-search";
 import { GraphQLRequestError } from "@/lib/graphql/client";
 import {
   getCourses,
@@ -31,13 +32,6 @@ type FilterField = {
   key: FilterFieldKey;
   label: string;
   type: FieldType;
-};
-
-type FilterChip = {
-  id: string;
-  field: FilterField;
-  operator: FilterOperator;
-  value: string;
 };
 
 const PAGE_SIZE = 10;
@@ -163,13 +157,6 @@ function toDate(value?: string | null) {
 }
 
 export function CourseSearchView() {
-  const router = useRouter();
-  const [searchInput, setSearchInput] = useState("");
-  const [freeQuery, setFreeQuery] = useState("");
-  const [selectedField, setSelectedField] = useState<FilterField | null>(null);
-  const [selectedOperator, setSelectedOperator] = useState<FilterOperator>("contains");
-  const [chips, setChips] = useState<FilterChip[]>([]);
-  const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortableColumn>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [rows, setRows] = useState<CourseNode[]>([]);
@@ -182,6 +169,30 @@ export function CourseSearchView() {
   const [cursorHistory, setCursorHistory] = useState<Array<string | null>>([]);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  function resetToFirstPage() {
+    setAfterCursor(null);
+    setCursorHistory([]);
+  }
+  const {
+    searchInput,
+    freeQuery,
+    selectedField,
+    selectedOperator,
+    chips,
+    isFieldDropdownOpen,
+    setSelectedOperator,
+    openFieldDropdown,
+    selectField,
+    clearSelectedField,
+    handleInputChange,
+    handleInputKeyDown,
+    addChip,
+    removeChip
+  } = useTokenizedSearch<FilterField, FilterOperator>({
+    textOperator: "contains",
+    categoryOperator: "equals",
+    onFiltersChanged: resetToFirstPage
+  });
   const availableOperators = selectedField?.type === "category" ? categoryOperators : textOperators;
 
   const where = useMemo<CourseFilterInput | null>(() => {
@@ -261,11 +272,6 @@ export function CourseSearchView() {
     };
   }, [where, sortBy, sortDirection, afterCursor]);
 
-  function resetToFirstPage() {
-    setAfterCursor(null);
-    setCursorHistory([]);
-  }
-
   function toggleSort(column: SortableColumn) {
     if (sortBy !== column) {
       setSortBy(column);
@@ -283,66 +289,6 @@ export function CourseSearchView() {
     return sortDirection === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
   }
 
-  function openFieldDropdown() {
-    setIsFieldDropdownOpen(true);
-  }
-
-  function selectField(field: FilterField) {
-    setSelectedField(field);
-    setSelectedOperator(field.type === "category" ? "equals" : "contains");
-    setIsFieldDropdownOpen(false);
-    setSearchInput("");
-    setFreeQuery("");
-    inputRef.current?.focus();
-  }
-
-  function addChip() {
-    if (!selectedField) return;
-    const value = searchInput.trim();
-    if (!value) return;
-
-    const chip: FilterChip = {
-      id: `${selectedField.key}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      field: selectedField,
-      operator: selectedOperator,
-      value
-    };
-
-    setChips((current) => [...current, chip]);
-    setSearchInput("");
-    setIsFieldDropdownOpen(false);
-    resetToFirstPage();
-  }
-
-  function handleInputChange(value: string) {
-    setSearchInput(value);
-
-    if (selectedField) return;
-
-    if (value.includes("@")) {
-      setIsFieldDropdownOpen(true);
-      setFreeQuery("");
-      return;
-    }
-
-    setIsFieldDropdownOpen(false);
-    setFreeQuery(value);
-    resetToFirstPage();
-  }
-
-  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!selectedField) return;
-    if (event.key !== "Enter" && event.key !== "Tab") return;
-
-    event.preventDefault();
-    addChip();
-  }
-
-  function removeChip(id: string) {
-    setChips((current) => current.filter((chip) => chip.id !== id));
-    resetToFirstPage();
-  }
-
   function getOperatorLabel(operator: FilterOperator) {
     return [...textOperators, ...categoryOperators].find((item) => item.key === operator)?.label ?? operator;
   }
@@ -354,8 +300,8 @@ export function CourseSearchView() {
       <section className="space-y-2">
         <FeatureViewHeader
           actions={
-            <Button className="min-w-40" leadingIcon={<Plus className="size-4" />} onClick={() => router.push("/cursos/cadastro")}>
-              Adicionar
+            <Button asChild className="min-w-40" leadingIcon={<Plus className="size-4" />}>
+              <Link href="/cursos/cadastro">Adicionar</Link>
             </Button>
           }
           backAriaLabel="Voltar para o dashboard"
@@ -374,9 +320,7 @@ export function CourseSearchView() {
           inputRef={inputRef}
           isFieldDropdownOpen={isFieldDropdownOpen}
           onClearSelectedField={() => {
-            setSelectedField(null);
-            setSearchInput("");
-            inputRef.current?.focus();
+            clearSelectedField(inputRef);
           }}
           onFilterClick={() => {
             if (selectedField) addChip();
@@ -386,7 +330,7 @@ export function CourseSearchView() {
           onOpenFieldDropdown={openFieldDropdown}
           onOperatorChange={(operator) => setSelectedOperator(operator)}
           onRemoveChip={removeChip}
-          onSelectField={selectField}
+          onSelectField={(field) => selectField(field, inputRef)}
           searchInput={searchInput}
           selectedField={selectedField}
           selectedOperator={selectedOperator}
@@ -399,8 +343,8 @@ export function CourseSearchView() {
         {isEmpty ? (
           <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border-strong)] p-8 text-center">
             <p className="text-sm text-[var(--color-muted-foreground)]">Nenhum curso encontrado.</p>
-            <Button className="mt-4" onClick={() => router.push("/cursos/cadastro")} size="sm">
-              Criar primeiro curso
+            <Button asChild className="mt-4" size="sm">
+              <Link href="/cursos/cadastro">Criar primeiro curso</Link>
             </Button>
           </div>
         ) : (
@@ -446,12 +390,8 @@ export function CourseSearchView() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={() => router.push(`/cursos/cadastro?mode=edit&id=${course.id}`)}
-                      size="sm"
-                      variant="outline"
-                    >
-                      Editar
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/cursos/cadastro?mode=edit&id=${course.id}`}>Editar</Link>
                     </Button>
                   </div>
                 </td>

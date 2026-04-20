@@ -157,7 +157,7 @@ export function AdminShell({ children }: AdminShellProps) {
           <SidebarNav onNavigate={() => setIsOpen(false)} />
         </aside>
 
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden" id="main-content">
           <header className="sticky top-0 z-30 border-b border-[var(--color-border)]/70 bg-[var(--color-surface)]">
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 md:px-6">
               <div className="flex min-w-0 flex-1 items-center gap-3">

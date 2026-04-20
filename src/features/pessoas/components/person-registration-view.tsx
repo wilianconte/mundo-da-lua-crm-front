@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Save, Trash2, UserPlus } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -508,11 +509,13 @@ export function PersonRegistrationView() {
                 <Field className="md:col-span-2">
                   <FieldLabel>Preview da foto</FieldLabel>
                   <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                       alt="Preview da foto de perfil"
                       className="h-36 w-36 rounded-[var(--radius-md)] border border-[var(--color-border)] object-cover"
-                      src={profileImageUrl}
+                      height={144}
+                      src={profileImageUrl ?? ""}
+                      unoptimized
+                      width={144}
                     />
                   </div>
                 </Field>

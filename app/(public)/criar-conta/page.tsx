@@ -2,7 +2,7 @@ import { SignUpForm } from "@/features/auth/components/sign-up-form";
 
 export default function SignUpPage() {
   return (
-    <main className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#133d86_0%,#082247_42%,#05162d_100%)] px-4 py-5 md:py-6">
+    <main className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#133d86_0%,#082247_42%,#05162d_100%)] px-4 py-5 md:py-6" id="main-content">
       <div className="relative mx-auto flex h-full w-full max-w-[760px] flex-col items-center justify-center gap-4">
         <header className="space-y-1.5 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">Criar conta</h1>

@@ -68,6 +68,7 @@ type SortableHeaderCellProps<TSortKey extends string> = {
   renderSortIcon: (column: TSortKey) => ReactNode;
   onToggleSort: (column: TSortKey) => void;
   onOpenContextMenu: (event: ReactMouseEvent<HTMLTableCellElement>, index: number, label: ReactNode) => void;
+  onOpenContextMenuByKeyboard: (index: number, label: ReactNode, target: HTMLElement) => void;
   compact: boolean;
 };
 
@@ -79,6 +80,7 @@ function SortableHeaderCell<TSortKey extends string>({
   renderSortIcon,
   onToggleSort,
   onOpenContextMenu,
+  onOpenContextMenuByKeyboard,
   compact
 }: SortableHeaderCellProps<TSortKey>) {
   const {
@@ -108,11 +110,22 @@ function SortableHeaderCell<TSortKey extends string>({
         transform: CSS.Transform.toString(transform),
         transition
       }}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+        event.preventDefault();
+        onOpenContextMenuByKeyboard(index, column.label, event.currentTarget);
+      }}
     >
       {column.sortKey ? (
         <button
           className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
           onClick={() => onToggleSort(column.sortKey as TSortKey)}
+          onKeyDown={(event) => {
+            if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+            event.preventDefault();
+            onOpenContextMenuByKeyboard(index, column.label, event.currentTarget);
+          }}
           type="button"
         >
           {column.label}
@@ -228,6 +241,10 @@ export function SearchResultsTable<TRow, TSortKey extends string>({
   function openContextMenu(event: ReactMouseEvent<HTMLTableCellElement>, index: number, label: ReactNode) {
     event.preventDefault();
     const rect = event.currentTarget.getBoundingClientRect();
+    openContextMenuByRect(rect, index, label);
+  }
+
+  function openContextMenuByRect(rect: DOMRect, index: number, label: ReactNode) {
     const isLastColumn = index === columns.length - 1;
     const selectedColumn = columns[index];
     setMenuState({
@@ -239,6 +256,11 @@ export function SearchResultsTable<TRow, TSortKey extends string>({
       columnId: selectedColumn?.id ?? null,
       hideable: selectedColumn?.hideable !== false
     });
+  }
+
+  function openContextMenuByKeyboard(index: number, label: ReactNode, target: HTMLElement) {
+    const rect = target.getBoundingClientRect();
+    openContextMenuByRect(rect, index, label);
   }
 
   return (
@@ -266,6 +288,7 @@ export function SearchResultsTable<TRow, TSortKey extends string>({
                           isActive={activeColumnId === currentId}
                           key={currentId}
                           onOpenContextMenu={openContextMenu}
+                          onOpenContextMenuByKeyboard={openContextMenuByKeyboard}
                           onToggleSort={onToggleSort}
                           renderSortIcon={renderSortIcon}
                           sortBy={sortBy}
@@ -278,11 +301,22 @@ export function SearchResultsTable<TRow, TSortKey extends string>({
                         className={headerCellClassName}
                         key={currentId}
                         onContextMenu={(event) => openContextMenu(event, index, column.label)}
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+                          event.preventDefault();
+                          openContextMenuByKeyboard(index, column.label, event.currentTarget);
+                        }}
                       >
                         {column.sortKey ? (
                           <button
                             className="inline-flex items-center gap-1 text-left transition hover:text-[var(--color-foreground)]"
                             onClick={() => onToggleSort(column.sortKey as TSortKey)}
+                            onKeyDown={(event) => {
+                              if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+                              event.preventDefault();
+                              openContextMenuByKeyboard(index, column.label, event.currentTarget);
+                            }}
                             type="button"
                           >
                             {column.label}

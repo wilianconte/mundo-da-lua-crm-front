@@ -1,8 +1,8 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { SearchResultsTable } from "@/features/shared/components/search-results-table";
 import { TokenizedSearchFilters } from "@/features/shared/components/tokenized-search-filters";
+import { useTokenizedSearch } from "@/features/shared/hooks/use-tokenized-search";
 import { GraphQLRequestError } from "@/lib/graphql/client";
 
 type FilterFieldKey = "fullName" | "documentNumber" | "email" | "primaryPhone" | "status" | "occupation";
@@ -31,13 +32,6 @@ type FilterField = {
   key: FilterFieldKey;
   label: string;
   type: FieldType;
-};
-
-type FilterChip = {
-  id: string;
-  field: FilterField;
-  operator: FilterOperator;
-  value: string;
 };
 
 const PAGE_SIZE = 8;
@@ -164,13 +158,6 @@ export function PersonSearchView({
   emptyText = "Nenhuma pessoa encontrada com os filtros atuais.",
   totalText = (totalCount) => `${totalCount} pessoas encontradas com os filtros atuais.`
 }: PersonSearchViewProps = {}) {
-  const router = useRouter();
-  const [searchInput, setSearchInput] = useState("");
-  const [freeQuery, setFreeQuery] = useState("");
-  const [selectedField, setSelectedField] = useState<FilterField | null>(null);
-  const [selectedOperator, setSelectedOperator] = useState<FilterOperator>("contains");
-  const [chips, setChips] = useState<FilterChip[]>([]);
-  const [isFieldDropdownOpen, setIsFieldDropdownOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortableColumn>("fullName");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [rows, setRows] = useState<PersonNode[]>([]);
@@ -189,6 +176,31 @@ export function PersonSearchView({
   const [orderedColumnIds, setOrderedColumnIds] = useState<PersonColumnId[]>(DEFAULT_ORDERED_COLUMN_IDS);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  function resetToFirstPage() {
+    setCursorMode("forward");
+    setRequestAfter(null);
+    setRequestBefore(null);
+  }
+  const {
+    searchInput,
+    freeQuery,
+    selectedField,
+    selectedOperator,
+    chips,
+    isFieldDropdownOpen,
+    setSelectedOperator,
+    openFieldDropdown,
+    selectField,
+    clearSelectedField,
+    handleInputChange,
+    handleInputKeyDown,
+    addChip,
+    removeChip
+  } = useTokenizedSearch<FilterField, FilterOperator>({
+    textOperator: "contains",
+    categoryOperator: "equals",
+    onFiltersChanged: resetToFirstPage
+  });
 
   const availableOperators = selectedField?.type === "category" ? categoryOperators : textOperators;
 
@@ -335,12 +347,6 @@ export function PersonSearchView({
     };
   }, [where, sortBy, sortDirection, cursorMode, requestAfter, requestBefore]);
 
-  function resetToFirstPage() {
-    setCursorMode("forward");
-    setRequestAfter(null);
-    setRequestBefore(null);
-  }
-
   function toggleSort(column: SortableColumn) {
     if (sortBy !== column) {
       setSortBy(column);
@@ -358,79 +364,10 @@ export function PersonSearchView({
     return sortDirection === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />;
   }
 
-  function openFieldDropdown() {
-    setIsFieldDropdownOpen(true);
-  }
-
-  function selectField(field: FilterField) {
-    setSelectedField(field);
-    setSelectedOperator(field.type === "category" ? "equals" : "contains");
-    setIsFieldDropdownOpen(false);
-    setSearchInput("");
-    setFreeQuery("");
-    inputRef.current?.focus();
-  }
-
-  function addChip() {
-    if (!selectedField) return;
-    const value = searchInput.trim();
-    if (!value) return;
-
-    const chip: FilterChip = {
-      id: `${selectedField.key}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      field: selectedField,
-      operator: selectedOperator,
-      value
-    };
-
-    setChips((current) => [...current, chip]);
-    setSearchInput("");
-    setIsFieldDropdownOpen(false);
-    resetToFirstPage();
-  }
-
-  function handleInputChange(value: string) {
-    setSearchInput(value);
-
-    if (selectedField) return;
-
-    if (value.includes("@")) {
-      setIsFieldDropdownOpen(true);
-      setFreeQuery("");
-      return;
-    }
-
-    setIsFieldDropdownOpen(false);
-    setFreeQuery(value);
-    resetToFirstPage();
-  }
-
-  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!selectedField) return;
-    if (event.key !== "Enter" && event.key !== "Tab") return;
-
-    event.preventDefault();
-    addChip();
-  }
-
-  function removeChip(id: string) {
-    setChips((current) => current.filter((chip) => chip.id !== id));
-    resetToFirstPage();
-  }
-
   function getOperatorLabel(operator: FilterOperator) {
     return (
       [...textOperators, ...categoryOperators].find((item) => item.key === operator)?.label ?? operator
     );
-  }
-
-  function openEditPerson(person: PersonNode) {
-    const params = new URLSearchParams({
-      mode: "edit",
-      id: person.id
-    });
-
-    router.push(`${basePath}/cadastro?${params.toString()}`);
   }
 
   function toDateOnly(value?: string | null) {
@@ -480,8 +417,8 @@ export function PersonSearchView({
     if (columnId === "action") {
       return (
         <td className="px-3 py-2.5" key={cellKey}>
-          <Button onClick={() => openEditPerson(person)} size="sm" variant="outline">
-            Editar
+          <Button asChild size="sm" variant="outline">
+            <Link href={`${basePath}/cadastro?mode=edit&id=${person.id}`}>Editar</Link>
           </Button>
         </td>
       );
@@ -525,12 +462,8 @@ export function PersonSearchView({
         <span className="sr-only">{sectionLabel}</span>
         <FeatureViewHeader
           actions={
-            <Button
-              className="min-w-40"
-              leadingIcon={<Plus className="size-4" />}
-              onClick={() => router.push(`${basePath}/cadastro`)}
-            >
-              Adicionar
+            <Button asChild className="min-w-40" leadingIcon={<Plus className="size-4" />}>
+              <Link href={`${basePath}/cadastro`}>Adicionar</Link>
             </Button>
           }
           backAriaLabel="Voltar para o dashboard"
@@ -549,9 +482,7 @@ export function PersonSearchView({
           inputRef={inputRef}
           isFieldDropdownOpen={isFieldDropdownOpen}
           onClearSelectedField={() => {
-            setSelectedField(null);
-            setSearchInput("");
-            inputRef.current?.focus();
+            clearSelectedField(inputRef);
           }}
           onFilterClick={() => {
             if (selectedField) addChip();
@@ -561,7 +492,7 @@ export function PersonSearchView({
           onOpenFieldDropdown={openFieldDropdown}
           onOperatorChange={(operator) => setSelectedOperator(operator)}
           onRemoveChip={removeChip}
-          onSelectField={selectField}
+          onSelectField={(field) => selectField(field, inputRef)}
           searchInput={searchInput}
           selectedField={selectedField}
           selectedOperator={selectedOperator}
@@ -681,4 +612,3 @@ export function PersonSearchView({
     </div>
   );
 }
-
