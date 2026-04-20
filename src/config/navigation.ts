@@ -87,6 +87,19 @@ export const navigationItems: NavItem[] = [
   },
   {
     section: "Operacao",
+    label: "Financeiro",
+    icon: Banknote,
+    children: [
+      { label: "Recebimentos", href: "/components", showPlus: true },
+      { label: "Cobrancas", href: "/components" },
+      { label: "Mensalidades", href: "/components" },
+      { label: "Contas a Pagar", href: "/components" },
+      { label: "Fluxo de Caixa", href: "/components" },
+      { label: "Relatorios Financeiros", href: "/components" }
+    ]
+  },
+  {
+    section: "Operacao",
     label: "Contraturno",
     icon: CalendarDays,
     children: [
@@ -120,19 +133,6 @@ export const navigationItems: NavItem[] = [
       { label: "Inscricoes", href: "/components" },
       { label: "Participantes", href: "/components" },
       { label: "Check-in", href: "/components" }
-    ]
-  },
-  {
-    section: "Operacao",
-    label: "Financeiro",
-    icon: Banknote,
-    children: [
-      { label: "Recebimentos", href: "/components", showPlus: true },
-      { label: "Cobrancas", href: "/components" },
-      { label: "Mensalidades", href: "/components" },
-      { label: "Contas a Pagar", href: "/components" },
-      { label: "Fluxo de Caixa", href: "/components" },
-      { label: "Relatorios Financeiros", href: "/components" }
     ]
   },
   {

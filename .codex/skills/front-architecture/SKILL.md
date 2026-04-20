@@ -5,90 +5,107 @@ description: Enforce the official front-end architecture for Mundo da Lua CRM. U
 
 # Dev Admin
 
-Use this skill as the default implementation guide for front-end work in Mundo da Lua CRM.
+Use esta skill como guia padrao de implementacao para o front-end do Mundo da Lua CRM.
+
+## Quando usar
+
+- criar ou alterar estrutura de features, rotas e componentes no front
+- revisar conformidade arquitetural (Next.js, App Router, GraphQL, acessibilidade, performance)
+- decidir padrao de organizacao entre camadas e modulos
+
+## Quando nao usar
+
+- tarefa estritamente de autenticacao/sessao sem mudanca arquitetural (usar `mundo-da-lua-auth-graphql`)
+- tarefa estritamente de fluxo CRUD sem mudanca estrutural (usar `crud-front`)
+
+## Dependencias com outras skills
+
+- usar junto com `crud-front` quando houver listagem/cadastro/edicao/exclusao
+- usar junto com `mundo-da-lua-auth-graphql` quando houver rotas autenticadas ou token
 
 ## Quick Start
 
-1. Read `references/dev-admin.md` before making architectural or structural decisions.
-2. Treat the reference as the source of truth when local opinions conflict.
-3. Align authenticated flows with `../auth-graphql/references/auth-graphql.md`.
-4. Align CRUD screens and flows with `../crud-front/references/crud-front.md` when the task involves listing, create, edit, or delete.
-5. Keep new work aligned with the official stack:
+1. Ler `references/dev-admin.md` antes de decisoes arquiteturais ou estruturais.
+2. Tratar a referencia como fonte de verdade quando houver conflito de opiniao local.
+3. Alinhar fluxos autenticados com `../auth-graphql/references/auth-graphql.md`.
+4. Alinhar telas e fluxos de CRUD com `../crud-front/references/crud-front.md` quando houver listagem, create, edit ou delete.
+5. Manter o trabalho alinhado com a stack oficial:
    - `Next.js`
    - `App Router`
    - `TypeScript`
    - `Tailwind CSS`
-   - `GraphQL` as the only data interface
-   - `Server Components` by default
-   - `React Hook Form` + `Zod` for forms
-6. Prefer existing design-system patterns over inventing new visual conventions.
+   - `GraphQL` como unica interface de dados
+   - `Server Components` por padrao
+   - `React Hook Form` + `Zod` para formularios
+6. Preferir padroes existentes do design system em vez de criar novas convencoes visuais.
 
-## Execution Rules
+## Regras de execucao
 
-- Default to `Server Components`; move to `Client Components` only for real interactivity or browser-only APIs.
-- Organize by business domain, not only by technical layer.
-- Keep GraphQL operations close to their feature.
-- Do not place GraphQL or business rules inside generic `ui` components.
-- Treat accessibility, loading, error, empty, responsive behavior, and performance as implementation requirements.
-- Avoid introducing duplicate state layers, visual systems, or overlapping UI libraries.
+- Usar `Server Components` por padrao; migrar para `Client Components` apenas quando houver interatividade real ou API exclusiva do browser.
+- Organizar por dominio de negocio, nao apenas por camada tecnica.
+- Manter operacoes GraphQL proximas da feature.
+- Nao colocar GraphQL ou regras de negocio dentro de componentes genericos de `ui`.
+- Tratar acessibilidade, loading, error, empty, responsividade e performance como requisitos obrigatorios.
+- Evitar camadas de estado duplicadas, sistemas visuais paralelos ou bibliotecas de UI sobrepostas.
 
-## What To Check Before Implementing
+## O que verificar antes de implementar
 
-Confirm:
+Confirmar:
 
-- which module or business domain is being changed
-- whether the route should be a `Server Component` or `Client Component`
-- which GraphQL contract or schema fragment will be used
-- whether the design system already has a reusable component for the job
-- which tenant and permission rules affect the flow
-- which `loading`, `empty`, `error`, and `success` states are needed
-- what the mobile/tablet/desktop behavior should be
+- qual modulo ou dominio de negocio sera alterado
+- se a rota deve ser `Server Component` ou `Client Component`
+- qual contrato GraphQL ou fragmento de schema sera usado
+- se ja existe componente reutilizavel no design system
+- quais regras de tenant e permissao afetam o fluxo
+- quais estados de `loading`, `empty`, `error` e `success` sao necessarios
+- qual sera o comportamento em mobile/tablet/desktop
 
-## What To Check Before Finishing
+## O que verificar antes de finalizar
 
-Confirm:
+Confirmar:
 
-- no parallel design pattern was introduced
-- no unnecessary global state was added
-- no business rule was duplicated in the front end
-- accessibility basics are covered
-- loading, empty, and error states exist where needed
-- feature structure follows the domain-oriented model
-- performance impact is still reasonable
+- nao foi introduzido padrao de design paralelo
+- nao foi adicionado estado global desnecessario
+- nao houve duplicacao de regra de negocio no front
+- basicos de acessibilidade estao cobertos
+- estados de loading, empty e error existem onde necessario
+- estrutura da feature segue modelo orientado a dominio
+- impacto de performance permanece razoavel
 
-## Reference Guide
+## Guia de referencia
 
-Read `references/dev-admin.md` for:
+Ler `references/dev-admin.md` para:
 
-- mandatory architectural decisions
-- project structure and feature organization
-- component layering rules
-- design system and UX rules
-- responsive behavior
-- GraphQL, auth, authorization, and multi-tenant rules
-- current GraphQL client and auth-session conventions used in this repository
-- Next.js implementation standards
-- code conventions
-- performance, accessibility, testing, and quality gates
-- forbidden anti-patterns
-## Bootstrap Directives
+- decisoes arquiteturais obrigatorias
+- estrutura de projeto e organizacao por feature
+- regras de camadas de componentes
+- regras de design system e UX
+- comportamento responsivo
+- GraphQL, auth, autorizacao e regras multi-tenant
+- convencoes atuais de cliente GraphQL e sessao de auth do repositorio
+- padroes de implementacao Next.js
+- convencoes de codigo
+- performance, acessibilidade, testes e quality gates
+- anti-padroes proibidos
 
-When bootstrapping a new admin front for Mundo da Lua CRM:
+## Diretrizes de bootstrap
 
-- create the project in a dedicated front-end folder and keep it isolated from the backend solution
-- use a configurable token-based theme from the first commit
-- define at least `--color-primary` and `--color-secondary` plus surface, border, text, radius, shadow, and motion tokens
-- treat the initial product as an admin panel, not a marketing site
-- implement a responsive sidebar with support for nested navigation levels
-- provide a polished login screen and an authenticated home/dashboard as the first two routes
-- include a `/components` or equivalent showcase area to document the first reusable UI primitives
-- prefer light-theme operational density with modern surfaces, strong hierarchy, and fast scanning
-- keep the first shell ready for future tenant branding without allowing arbitrary visual drift
+Quando iniciar um novo admin front para o Mundo da Lua CRM:
 
-## Knowledge To Preserve
+- criar o projeto em pasta dedicada de front-end e manter isolado do backend
+- usar tema configuravel por tokens desde o primeiro commit
+- definir no minimo `--color-primary` e `--color-secondary`, alem de surface, border, text, radius, shadow e motion tokens
+- tratar o produto inicial como painel administrativo, nao site de marketing
+- implementar sidebar responsiva com suporte a niveis de navegacao
+- entregar login polido e home/dashboard autenticado como primeiras duas rotas
+- incluir `/components` (ou equivalente) para documentar os primeiros componentes reutilizaveis
+- preferir tema claro com densidade operacional, hierarquia forte e leitura rapida
+- manter o shell inicial preparado para branding por tenant sem permitir deriva visual arbitraria
 
-- the first front-end bootstrap lives in `mundo-da-lua-front`
-- the initial theme palette uses blue as primary and teal as secondary through CSS tokens
-- the admin shell already establishes sidebar, mobile drawer, topbar, and reusable cards, buttons, inputs, and badges
-- login currently uses `React Hook Form` + `Zod` and routes to the dashboard shell
-- the dashboard home and components showcase are the reference starting points for future front-end expansion
+## Conhecimento a preservar
+
+- o primeiro bootstrap do front-end vive em `mundo-da-lua-front`
+- a paleta inicial do tema usa azul como primaria e teal como secundaria por tokens CSS
+- o admin shell ja define sidebar, drawer mobile, topbar e componentes reutilizaveis (cards, buttons, inputs e badges)
+- o login usa `React Hook Form` + `Zod` e redireciona para o dashboard
+- dashboard home e showcase de componentes sao a base para futuras expansoes

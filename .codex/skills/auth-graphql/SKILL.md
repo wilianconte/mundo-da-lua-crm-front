@@ -3,7 +3,7 @@ name: mundo-da-lua-auth-graphql
 description: Padrao oficial de autenticacao GraphQL do Mundo da Lua CRM front. Use para login, sessao, logout, injecao de Bearer token, tratamento de AUTH_NOT_AUTHORIZED e protecao de rotas.
 ---
 
-# Mundo Da Lua Auth GraphQL
+# Mundo da Lua Auth GraphQL
 
 Use esta skill sempre que houver alteracoes relacionadas a autenticacao no front-end.
 
@@ -14,7 +14,17 @@ Use esta skill sempre que houver alteracoes relacionadas a autenticacao no front
 - proteger rotas autenticadas
 - implementar logout
 - tratar sessao expirada
-- revisar se uma feature esta obedecendo o fluxo de auth oficial
+- revisar se uma feature esta obedecendo o fluxo oficial de auth
+
+## Quando nao usar
+
+- mudancas de arquitetura geral sem foco em autenticacao (usar `dev-admin`)
+- CRUD de dominio sem alteracao de login/sessao/token (usar `crud-front`)
+
+## Dependencias com outras skills
+
+- usar junto com `crud-front` quando o CRUD exigir autenticacao/autorizacao
+- usar junto com `dev-admin` quando houver impacto de arquitetura/roteamento
 
 ## Quick Start
 
@@ -46,7 +56,7 @@ Use esta skill sempre que houver alteracoes relacionadas a autenticacao no front
 - `proxy.ts`: gate server-side da area autenticada.
 - `src/lib/auth/session.ts`: armazenamento e validacao da sessao no browser + sincronizacao com servidor.
 - `src/lib/auth/server-session-signature.ts`: assinatura e validacao de integridade da sessao.
-- `src/lib/graphql/client.ts`: request centralizado, auth header, tratamento de erros.
+- `src/lib/graphql/client.ts`: request centralizado, auth header e tratamento de erros.
 - `src/features/auth/api/login.ts`: mutation de login.
 - `src/features/auth/components/*`: formulario de login, guard e fluxos de UI.
 

@@ -7,6 +7,22 @@ description: Padrao oficial para desenvolver e revisar CRUDs no Mundo da Lua CRM
 
 Use esta skill sempre que uma feature envolver listagem, cadastro, alteracao ou exclusao.
 
+## Quando usar
+
+- criar ou alterar telas de pesquisa e cadastro de dominio
+- implementar create, update, delete e listagem com GraphQL por feature
+- padronizar UX de CRUD com base no modulo `pessoas`
+
+## Quando nao usar
+
+- mudancas focadas somente em autenticacao/sessao (usar `mundo-da-lua-auth-graphql`)
+- mudancas de arquitetura geral sem fluxo CRUD (usar `dev-admin`)
+
+## Dependencias com outras skills
+
+- usar junto com `dev-admin` para garantir arquitetura e padrao de UI
+- usar junto com `mundo-da-lua-auth-graphql` quando o CRUD exigir sessao/autorizacao
+
 ## Quick Start
 
 1. Ler `references/crud-front.md`.

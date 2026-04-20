@@ -342,36 +342,14 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
       return [];
     }
 
-    return [
-      ...(canManagePlans
-        ? [
-          <Button
-            className="w-full"
-            key="schedule-change"
-            onClick={() =>
-              openDialog({
-                kind: "cancel",
-                title: "Agendar mudanca de plano",
-                description: "O downgrade ocorre no fim do periodo atual. Escolha o plano que deve assumir depois disso.",
-                confirmLabel: "Agendar mudanca",
-                requiresPlanSelection: true,
-                planOptions: availableDowngradeTargets
-              })
-            }
-            variant="outline"
-          >
-            Agendar mudanca
-          </Button>
-        ]
-        : [])
-    ];
+    return [];
   }
 
   function renderPlanPrimaryAction(plan: SubscriptionPlan) {
     if (!activePlan) return null;
 
     if (plan.id === activePlan.plan.id) {
-      return <Button className="w-full" disabled variant="outline">Plano atual</Button>;
+      return null;
     }
 
     if (!canManagePlans) return null;
@@ -445,9 +423,12 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
         onClick={() =>
           openDialog({
             kind: "cancel",
-            title: `Agendar mudanca para ${plan.displayName}`,
-            description: "O plano atual continua ativo ate o fim do periodo contratado. Depois disso, a mudanca e aplicada automaticamente.",
-            confirmLabel: `Agendar mudanca para ${plan.displayName}`,
+            title: Number(plan.price) === 0 ? "Fazer downgrade para o plano gratuito" : `Fazer downgrade para ${plan.displayName}`,
+            description:
+              Number(plan.price) === 0
+                ? "O plano atual continua ativo ate o fim do periodo contratado. Depois disso, o tenant volta automaticamente para o plano gratuito."
+                : "O plano atual continua ativo ate o fim do periodo contratado. Depois disso, o downgrade para o plano de destino e aplicado automaticamente.",
+            confirmLabel: Number(plan.price) === 0 ? "Fazer downgrade para o Gratuito" : `Fazer downgrade para ${plan.displayName}`,
             requiresPlanSelection: true,
             planOptions: [plan],
             targetPlanId: plan.id
@@ -455,7 +436,7 @@ export function SubscriptionManagementView({ section }: { section: SubscriptionS
         }
         variant="outline"
       >
-        Agendar mudanca
+        {Number(plan.price) === 0 ? "Fazer downgrade" : "Agendar downgrade"}
       </Button>
     );
   }

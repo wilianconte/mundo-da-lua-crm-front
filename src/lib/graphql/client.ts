@@ -105,13 +105,15 @@ async function executeGraphQLRequest<TData>(
   variables?: Record<string, unknown>,
   headers?: Record<string, string>
 ) {
+  const requestBody = variables === undefined ? { query } : { query, variables };
+
   const response = await fetch(GRAPHQL_ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(headers ?? {})
     },
-    body: JSON.stringify({ query, variables: variables ?? {} })
+    body: JSON.stringify(requestBody)
   });
 
   const json = (await response.json()) as GraphQLResponse<TData>;
