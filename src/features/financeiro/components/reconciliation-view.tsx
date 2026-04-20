@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
 import { EntityAutocomplete } from "@/features/shared/components/entity-autocomplete";
-import { getTransactionsFiltered, type TransactionDto, type TransactionType } from "../api/get-transactions";
+import { getTransactions, type TransactionNode, type TransactionType } from "../api/get-transactions";
 import { getWallets, type WalletNode } from "../api/get-wallets";
 import { mapReconciliationApiError, reconcileTransaction } from "../api/reconcile";
 import { reconciliationSchema, type ReconciliationSchema } from "../schema/reconciliation-schema";
@@ -36,8 +36,8 @@ function toTypeLabel(type: TransactionType) {
 
 export function ReconciliationView() {
   const [selectedWallet, setSelectedWallet] = useState<WalletNode | null>(null);
-  const [transactions, setTransactions] = useState<TransactionDto[]>([]);
-  const [selectedTransaction, setSelectedTransaction] = useState<TransactionDto | null>(null);
+  const [transactions, setTransactions] = useState<TransactionNode[]>([]);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionNode | null>(null);
   const [typeFilter, setTypeFilter] = useState<"ALL" | TransactionType>("ALL");
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
@@ -97,19 +97,27 @@ export function ReconciliationView() {
         setListError(null);
         setSuccessMessage(null);
 
-        const data = await getTransactionsFiltered({
-          walletId,
-          startDate: startDate ? `${startDate}T00:00:00.000Z` : null,
-          endDate: endDate ? `${endDate}T23:59:59.999Z` : null,
-          type: typeFilter === "ALL" ? null : typeFilter
+        const transactionDateFilter = {
+          ...(startDate ? { gte: `${startDate}T00:00:00.000Z` } : {}),
+          ...(endDate ? { lte: `${endDate}T23:59:59.999Z` } : {})
+        };
+
+        const response = await getTransactions({
+          first: 200,
+          where: {
+            isReconciled: { eq: false },
+            isDeleted: { eq: false },
+            walletId: { eq: walletId },
+            ...(typeFilter === "ALL" ? {} : { type: { eq: typeFilter } }),
+            ...(Object.keys(transactionDateFilter).length ? { transactionDate: transactionDateFilter } : {})
+          },
+          order: [{ transactionDate: "DESC" }]
         });
 
         if (!active) return;
+        setTransactions(response.nodes);
 
-        const pending = data.filter((item) => !item.isReconciled);
-        setTransactions(pending);
-
-        if (selectedTransaction && !pending.some((item) => item.id === selectedTransaction.id)) {
+        if (selectedTransaction && !response.nodes.some((item) => item.id === selectedTransaction.id)) {
           setSelectedTransaction(null);
           setValue("transactionId", "00000000-0000-0000-0000-000000000000");
         }

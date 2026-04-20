@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FeatureViewHeader } from "@/features/components/registration-view-header";
-import { getMonthlySummary, getWalletsWithBalance, type MonthlySummary, type WalletWithBalance } from "../api/dashboard";
+import { getMonthlySummary, type MonthlySummary } from "../api/dashboard";
+import { getWalletsWithBalance, type WalletWithBalance } from "../api/get-wallets";
 
 function toCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value ?? 0);
@@ -74,7 +75,7 @@ export function FinancialDashboardView() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          detail={`${activeWallets.length} carteiras ativas`}
+          detail={`Soma de ${activeWallets.length} carteira(s) ativa(s)`}
           icon={Wallet}
           title="Saldo Total"
           value={isLoading ? "..." : toCurrency(totalBalance)}
@@ -102,7 +103,10 @@ export function FinancialDashboardView() {
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3">
-            <CardTitle>Carteiras</CardTitle>
+            <div>
+              <CardTitle>Carteiras</CardTitle>
+              <p className="text-xs text-[var(--color-muted-foreground)]">Inclui carteiras inativas</p>
+            </div>
             <Button asChild size="sm" variant="outline">
               <Link href="/financeiro/carteiras/pesquisa">Ver todas</Link>
             </Button>

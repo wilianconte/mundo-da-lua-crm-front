@@ -27,9 +27,10 @@ import {
 } from "../api/transaction-upsert";
 import {
   transactionRegistrationSchema,
-  type TransactionRegistrationSchema,
-  transactionTypeValues
+  type TransactionRegistrationSchema
 } from "../schema/transaction-registration-schema";
+
+const transactionTypeValues: readonly TransactionType[] = ["INCOME", "EXPENSE"];
 
 const typeLabels: Record<TransactionType, string> = {
   INCOME: "Entrada",

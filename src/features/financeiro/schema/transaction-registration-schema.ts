@@ -1,10 +1,12 @@
 import { z } from "zod";
+import type { TransactionType } from "../api/get-transactions";
 
-export const transactionTypeValues = ["INCOME", "EXPENSE"] as const;
-export type TransactionType = (typeof transactionTypeValues)[number];
+const transactionTypeSchema: z.ZodType<TransactionType> = z.enum(["INCOME", "EXPENSE"], {
+  required_error: "Selecione o tipo de transacao"
+});
 
 export const transactionRegistrationSchema = z.object({
-  type: z.enum(transactionTypeValues, { required_error: "Selecione o tipo de transacao" }),
+  type: transactionTypeSchema,
   walletId: z.string().uuid("Selecione uma carteira valida"),
   amount: z.coerce.number().positive("Valor deve ser maior que zero"),
   description: z.string().trim().min(1, "Descricao e obrigatoria"),
