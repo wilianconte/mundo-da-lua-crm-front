@@ -14,7 +14,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-[var(--color-brand-menu)] text-white hover:bg-[var(--color-brand-menu-muted)] hover:text-white hover:shadow-[var(--shadow-soft)]",
+    "bg-[var(--color-brand-menu)] !text-white [&_svg]:!text-white hover:bg-[var(--color-brand-menu-muted)] hover:!text-white hover:shadow-[var(--shadow-soft)]",
   secondary:
     "bg-[var(--color-secondary-soft)] text-[var(--color-secondary-strong)] hover:bg-[var(--color-secondary)] hover:text-white hover:shadow-[var(--shadow-soft)]",
   ghost:

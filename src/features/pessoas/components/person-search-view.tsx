@@ -462,7 +462,7 @@ export function PersonSearchView({
         <span className="sr-only">{sectionLabel}</span>
         <FeatureViewHeader
           actions={
-            <Button asChild className="min-w-40" leadingIcon={<Plus className="size-4" />}>
+            <Button asChild className="min-w-40 text-white hover:text-white" leadingIcon={<Plus className="size-4" />}>
               <Link href={`${basePath}/cadastro`}>Adicionar</Link>
             </Button>
           }
